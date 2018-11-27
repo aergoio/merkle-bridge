@@ -31,6 +31,5 @@ $ make transfer_to_origin
 
 # TODO
 - merkle bridge contracts
-- contract deployer, writes addresses to a file accessible by wallet
 - operator : regular checkpointing of state roots on each side of the bridge
 - wallet : initiate transfer, create merkle proof, receive minted asset at destination
