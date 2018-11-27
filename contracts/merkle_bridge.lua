@@ -65,4 +65,4 @@ function hash(data)
     return "hash_string"
 end
 
-abi.register(set_root, validate_signatures, validate_sig, new_validators)
+abi.register(set_root, new_validators)
