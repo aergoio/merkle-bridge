@@ -38,34 +38,40 @@ def run():
                                         args=[sender_address])
         print("{}".format(herapy.utils.convert_tx_to_json(tx1)))
         print("{}".format(herapy.utils.convert_tx_to_json(tx2)))
-        if int(result1['error_status']) != herapy.CommitStatus.TX_OK:
-            print("    > ERROR[{0}]: {1}".format(result1['error_status'],
-                                                 result1['detail']))
-            aergo1.disconnect()
-            aergo2.disconnect()
+        if result1.status != herapy.CommitStatus.TX_OK:
+            print("    > ERROR[{0}]: {1}".format(result1.status, result1.detail))
+            aergo.disconnect()
             return
-        if int(result2['error_status']) != herapy.CommitStatus.TX_OK:
-            print("    > ERROR[{0}]: {1}".format(result2['error_status'],
-                                                 result2['detail']))
-            aergo2.disconnect()
-            aergo1.disconnect()
+        else:
+            print("    > result[{0}] : {1}".format(result1.tx_id, result1.status.name))
+            print(herapy.utils.convert_bytes_to_int_str(bytes(tx1.tx_hash)))
+        if result2.status != herapy.CommitStatus.TX_OK:
+            print("    > ERROR[{0}]: {1}".format(result2.status, result2.detail))
+            aergo.disconnect()
             return
+        else:
+            print("    > result[{0}] : {1}".format(result2.tx_id, result2.status.name))
+            print(herapy.utils.convert_bytes_to_int_str(bytes(tx2.tx_hash)))
 
         time.sleep(3)
 
         print("------ Check deployment of SC -----------")
-        sc_address1, status1, ret1 = aergo1.get_tx_result(tx1.tx_hash)
-        sc_address2, status2, ret2 = aergo2.get_tx_result(tx2.tx_hash)
-        if status1 != herapy.SmartcontractStatus.CREATED.value:
-            print("  > ERROR[{0}]:{1}: {2}".format(sc_address1, status1, ret1))
-            aergo1.disconnect()
-            aergo2.disconnect()
+        result1 = aergo1.get_tx_result(tx1.tx_hash)
+        if result1.status != herapy.SmartcontractStatus.CREATED:
+            print("  > ERROR[{0}]:{1}: {2}".format(
+                result1.contract_address, result1.status, result1.detail))
+            aergo.disconnect()
             return
-        if status2 != herapy.SmartcontractStatus.CREATED.value:
-            print("  > ERROR[{0}]:{1}: {2}".format(sc_address2, status2, ret2))
-            aergo2.disconnect()
-            aergo1.disconnect()
+        result2 = aergo2.get_tx_result(tx2.tx_hash)
+        if result2.status != herapy.SmartcontractStatus.CREATED:
+            print("  > ERROR[{0}]:{1}: {2}".format(
+                result2.contract_address, result2.status, result2.detail))
+            aergo.disconnect()
             return
+
+        sc_address1 = result1.contract_address
+        sc_address2 = result2.contract_address
+
         print("  > SC Address ORIGIN: {}".format(sc_address1))
         print("  > SC Address DESTINATION: {}".format(sc_address2))
 
