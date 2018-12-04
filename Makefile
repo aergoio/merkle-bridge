@@ -7,4 +7,4 @@ deploy:
 	python3 bridge_operator/deployer.py
 
 bridge:
-	python3 bridge_operator/operator.py 100 100
+	python3 bridge_operator/operator.py 20 200

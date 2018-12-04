@@ -6,12 +6,12 @@
 state.var {
     Root = state.value(),
     Height = state.value(),
+    Validators = state.array(1)
 }
 
 function constructor(addresses)
-    state.var {
-        Validators = state.array(#addresses)
-    }
+    Root:set("constructor")
+    Height:set(0)
     for i, v in ipairs(addresses) do
         Validators[i] = v
     end
