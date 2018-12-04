@@ -6,14 +6,16 @@
 state.var {
     Root = state.value(),
     Height = state.value(),
-    Validators = state.array(1)
+    Validators = state.map(),
+    Val_Nb = state.value(),
 }
 
 function constructor(addresses)
     Root:set("constructor")
     Height:set(0)
-    for i, v in ipairs(addresses) do
-        Validators[i] = v
+    Val_Nb:set(#addresses)
+    for i, addr in ipairs(addresses) do
+        Validators[i] = addr
     end
 end
 
@@ -29,7 +31,8 @@ end
 
 function validate_signatures(message, signers, signatures)
     -- 2/3 of Validators must sign for the message to be valid
-    if #Validators*2 > #signers*3 then
+    nb = Val_Nb:get()
+    if nb*2 > #signers*3 then
         error("2/3 validators must sign")
     end
     for i,sig in ipairs(signers) do
@@ -52,9 +55,15 @@ function new_validators(addresses, signers, signatures)
     if not validate_signatures(message, signers, signatures) then
         error("Failed signature validation")
     end
-    state.var {
-        Validators = state.array(#addresses)
-    }
+    old_size = Val_Nb:get()
+    if #addresses < old_size then
+        diff = old_size - #addresses
+        for i = 1, diff+1, 1 do
+            -- delete validator slot
+            Validators[old_size + i] = ""
+        end
+    end
+    Val_Nb:set(#addresses)
     for i, addr in ipairs(addresses) do
         Validators[i] = addr
     end
