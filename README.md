@@ -8,11 +8,17 @@ $ pip install git+ssh://git@github.com/aergoio/herapy.git
 
 ## Operate the merkle bridge
 ### Start aergo nodes
-Run a node for each blockchain the bridge is connecting to and set the port in the configuration file.
+Setup a node for each blockchain to bridge.
+You can build nodes locally and set ports according to the config file. Or simply start nodes with docker :
+```sh
+$ make docker
+```
+### Compiling contracts (optional)
+The contracts are already compiled, but to recompile with a local aergoluac :
+```sh
+$ make compile
+```
 ### Deploy merkle bridge contracts
-Transfer funds to the account used to send transactions.
-
-The Lua contract is already compiled and will be deployed with :
 ```sh
 $ make deploy
 ```
@@ -30,6 +36,9 @@ $ make transfer_to_origin
 
 
 # TODO
-- merkle bridge contracts
-- operator : regular checkpointing of state roots on each side of the bridge
+- docker nodes
+- config file
+- aergo token contract
+- bridge minted contract : requires contract creation withing contract, not yet supported by luavm
+- merkle bridge contracts : merkle proof and signature verification not yet supported by luavm
 - wallet : initiate transfer, create merkle proof, receive minted asset at destination
