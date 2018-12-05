@@ -1,15 +1,19 @@
 import grpc
 import time
-import sys
+import json
 
 import aergo.herapy as herapy
 import base58
 
 
-def run(t_anchor, t_final):
-    f = open("./bridge_operator/bridge_addresses.txt", "r")
-    addr1 = f.readline()[:52]
-    addr2 = f.readline()[:52]
+def run():
+    with open("./config.json", "r") as f:
+        config_data = json.load(f)
+    with open("./bridge_operator/bridge_addresses.txt", "r") as f:
+        addr1 = f.readline()[:52]
+        addr2 = f.readline()[:52]
+    t_anchor = config_data['t_anchor']
+    t_final = config_data['t_final']
     print(" * anchoring periode : ", t_anchor, "s\n",
           "* chain finality periode : ", t_final, "s\n")
     f.close()
@@ -18,15 +22,16 @@ def run(t_anchor, t_final):
         aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect('localhost:7845')
-        aergo2.connect('localhost:8845')
+        aergo1.connect(config_data['aergo1']['ip'])
+        aergo2.connect(config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key = "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        sender_priv_key1 = config_data['aergo1']['priv_key']
+        sender_priv_key2 = config_data['aergo2']['priv_key']
         sender_account = aergo1.new_account(password="test",
-                                            private_key=sender_priv_key)
+                                            private_key=sender_priv_key1)
         aergo2.new_account(password="test",
-                           private_key=sender_priv_key)
+                           private_key=sender_priv_key2)
         aergo1.get_account()
         aergo2.get_account()
         print("  > Sender Address: {}".format(sender_account.address))
@@ -124,7 +129,4 @@ def run(t_anchor, t_final):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 3:
-        run(int(sys.argv[1]), int(sys.argv[2]))
-    else:
-        print("Usage : provide anchoring frequency and finalization time")
+    run()

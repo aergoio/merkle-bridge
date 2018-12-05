@@ -1,13 +1,15 @@
 import grpc
 import time
+import json
 
 import aergo.herapy as herapy
 
 
 def run():
-    f = open("./contracts/bytecode.txt", "r")
-    payload_str = f.read()[:-1]
-    f.close()
+    with open("./config.json", "r") as f:
+        config_data = json.load(f)
+    with open("./contracts/bytecode.txt", "r") as f:
+        payload_str = f.read()[:-1]
     payload = herapy.utils.decode_address(payload_str)
     print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")
     try:
@@ -15,16 +17,17 @@ def run():
         aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect('localhost:7845')
-        aergo2.connect('localhost:8845')
+        aergo1.connect(config_data['aergo1']['ip'])
+        aergo2.connect(config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_private_key = "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        sender_priv_key1 = config_data['aergo1']['priv_key']
+        sender_priv_key2 = config_data['aergo2']['priv_key']
         sender_account = aergo1.new_account(password="test",
-                                            private_key=sender_private_key)
+                                            private_key=sender_priv_key1)
         sender_address = sender_account.address.__str__()
         aergo2.new_account(password="test",
-                           private_key=sender_private_key)
+                           private_key=sender_priv_key2)
         aergo1.get_account()
         aergo2.get_account()
         print("  > Sender Address: {}".format(sender_account.address))
@@ -39,20 +42,24 @@ def run():
         # print("{}".format(herapy.utils.convert_tx_to_json(tx1)))
         # print("{}".format(herapy.utils.convert_tx_to_json(tx2)))
         if result1.status != herapy.CommitStatus.TX_OK:
-            print("    > ERROR[{0}]: {1}".format(result1.status, result1.detail))
+            print("    > ERROR[{0}]: {1}".format(result1.status,
+                                                 result1.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
         else:
-            print("    > result[{0}] : {1}".format(result1.tx_id, result1.status.name))
+            print("    > result[{0}] : {1}".format(result1.tx_id,
+                                                   result1.status.name))
             print(herapy.utils.convert_bytes_to_int_str(bytes(tx1.tx_hash)))
         if result2.status != herapy.CommitStatus.TX_OK:
-            print("    > ERROR[{0}]: {1}".format(result2.status, result2.detail))
+            print("    > ERROR[{0}]: {1}".format(result2.status,
+                                                 result2.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
         else:
-            print("    > result[{0}] : {1}".format(result2.tx_id, result2.status.name))
+            print("    > result[{0}] : {1}".format(result2.tx_id,
+                                                   result2.status.name))
             print(herapy.utils.convert_bytes_to_int_str(bytes(tx2.tx_hash)))
 
         time.sleep(3)
@@ -79,14 +86,12 @@ def run():
         print("  > SC Address ORIGIN: {}".format(sc_address1))
         print("  > SC Address DESTINATION: {}".format(sc_address2))
 
-
         print("------ Store addresses in bridge_addresses.txt -----------")
-        f = open("./bridge_operator/bridge_addresses.txt", "w")
-        f.write(sc_address1)
-        f.write("_ADDR_1\n")
-        f.write(sc_address2)
-        f.write("_ADDR_2")
-        f.close()
+        with open("./bridge_operator/bridge_addresses.txt", "w") as f:
+            f.write(sc_address1)
+            f.write("_ADDR_1\n")
+            f.write(sc_address2)
+            f.write("_ADDR_2")
 
         print("------ Disconnect AERGO -----------")
         aergo1.disconnect()

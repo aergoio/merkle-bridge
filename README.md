@@ -37,7 +37,6 @@ $ make transfer_to_origin
 
 # TODO
 - docker nodes
-- config file
 - aergo token contract
 - bridge minted contract : requires contract creation withing contract, not yet supported by luavm
 - merkle bridge contracts : merkle proof and signature verification not yet supported by luavm
