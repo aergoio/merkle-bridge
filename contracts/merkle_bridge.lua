@@ -4,15 +4,28 @@
 -- Enables Users to verify state information of the connected chain 
 -- using merkle proofs for the finalised state root.
 state.var {
+    -- Trie root of the opposit side bridge contract. Mints and Unlocks require a merkle proof
+    -- of state inclusion in this last Root.
     Root = state.value(),
+    -- Height of the last block anchored
     Height = state.value(),
+    -- Validators contains the addresses and 2/3 of them must sign a root update
     Validators = state.map(),
+    -- Number of validators registered in the Validators map
     Nb_Validators= state.value(),
+    -- Registers locked balances per account reference: user provides merkle proof of locked balance
     Locks = state.map(),
+    -- Registers unlocked balances per account reference: prevents unlocking more than was burnt
     Unlocks = state.map(),
+    -- Registers burnt balances per account reference : user provides merkle proof of burnt balance
     Burns = state.map(),
+    -- Registers minted balances per account reference : prevents minting more than what was locked
     Mints = state.map(),
+    -- BridgeTokens keeps track of tokens that were received through the bridge
     BridgeTokens = state.map(),
+    -- MintedTokens is the same as BridgeTokens but keys and values are swapped
+    -- MintedTokens is used for preventing a minted token from being locked instead of burnt.
+    MintedTokens = state.map()
 }
 
 function constructor(addresses)
@@ -80,11 +93,11 @@ end
 
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
 function lock(receiver, amount, token_address)
+    assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin")
     assert(amount > 0, "amount must be positive")
     if contract.getAmount() ~= 0 then
-        if #token_address ~= 0 or amount ~= contract.getAmount() then
-            error("wrong parameters for aergo bits lock up")
-        end
+        assert(#token_address == 0, "for safety and clarity don't provide a token address when locking aergo bits")
+        assert(contract.getAmount() == amount, "for safety and clarity, amount must match the amount sent in the tx")
         token_address = "aergo"
    else
         sender = system.getSender()
@@ -106,8 +119,8 @@ end
 
 -- mint a foreign token. token_origin is the token address where it is transfered from.
 function mint(receiver_address, balance, token_origin, merkle_proof)
-    account_ref = hash(receiver_address, token_origin)
     assert(balance > 0, "minteable balance must be positive")
+    account_ref = hash(receiver_address, token_origin)
     if not verify_mp(merkle_proof, "Locks", account_ref, balance, Root) then
         error("failed to verify deposit balance merkle proof")
     end
@@ -121,6 +134,8 @@ function mint(receiver_address, balance, token_origin, merkle_proof)
     if BridgeTokens[token_origin] == nil then
         -- TODO Deploy new bridged token
         -- mint_address = new Token()
+        BridgeTokens[token_origin] = mint_address
+        MintedTokens[mint_address] = token_origin
     else
         mint_address = BridgeTokens[token_origin]
     end
@@ -128,16 +143,17 @@ function mint(receiver_address, balance, token_origin, merkle_proof)
     if not contract.call(mint_address, "mint", receiver_address, to_transfer) then
         error("failed to mint token")
     end
+    return mint_address
 end
 
 -- origin_address is the address of the token on the parent chain.
-function burn(receiver, amount, origin_address)
+function burn(receiver, amount, mint_address)
     assert(amount > 0, "amount must be positive")
     assert(contract.GetAmount() == 0, "burn function not payable, only tokens can be burned")
-    assert(BridgeTokens[origin_address] ~= nil, "cannot burn token : must have been minted by bridge")
+    origin_address = MintedTokens[mint_address]
+    assert(origin_address ~= nil, "cannot burn token : must have been minted by bridge")
     sender = system.getSender()
-    burn_address = BridgeTokens[origin_address]
-    if not contract.call(burn_address, "burn", sender, amount) then
+    if not contract.call(mint_address, "burn", sender, amount) then
         error("failed to burn token")
     end
     -- lock with the origin address information
@@ -149,11 +165,12 @@ function burn(receiver, amount, origin_address)
         -- TODO throw if old + amount > overflow : user should transfer through a different address
         Burns[account_ref] = old + amount;
     end
+    return origin_address
 end
 
 function unlock(receiver_address, balance, token_address, merkle_proof)
-    account_ref = hash(receiver_address, token_address)
     assert(balance > 0, "unlockeable balance must be positive")
+    account_ref = hash(receiver_address, token_address)
     if not verify_mp(merkle_proof, "Burns", account_ref, balance, Root) then
         error("failed to verify burnt balance merkle proof")
     end
