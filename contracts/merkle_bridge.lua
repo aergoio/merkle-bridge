@@ -1,3 +1,21 @@
+local safemath = {}
+
+function safemath.add(a, b) 
+    if a == nil then a = 0 end
+    if b == nil then b = 0 end
+    local c = a + b
+    assert(c >= a)
+    return c
+end
+
+function safemath.sub(a, b) 
+    if a == nil then a = 0 end
+    if b == nil then b = 0 end
+    assert(b <= a, "first value must be bigger than second")
+    local c = a - b
+    return c
+end
+
 -- Merkle bridge contract
 
 -- Stores latest finalised state root of connected blockchain at regular intervals.
@@ -110,11 +128,13 @@ function lock(receiver, amount, token_address)
     account_ref = hash(receiver, token_address) 
     old = Locks[account_ref]
     if old == nil then
-        Locks[account_ref] = amount;
+        locked_balance = amount
     else
-        -- TODO throw if old + amount > overflow : user should transfer through a different address
-        Locks[account_ref] = old + amount;
+        locked_balance = safemath.add(old, amount)
     end
+    Locks[account_ref] = new_balance
+    -- TODO add event
+    return locked_balance
 end
 
 -- mint a foreign token. token_origin is the token address where it is transfered from.
@@ -128,7 +148,7 @@ function mint(receiver_address, balance, token_origin, merkle_proof)
     if minted_so_far == nil then
         to_transfer = balance
     else
-        to_transfer  = balance - minted_so_far
+        to_transfer  = safemath.sub(balance, minted_so_far)
     end
     assert(to_transfer > 0, "make a deposit before minting")
     if BridgeTokens[token_origin] == nil then
@@ -143,6 +163,7 @@ function mint(receiver_address, balance, token_origin, merkle_proof)
     if not contract.call(mint_address, "mint", receiver_address, to_transfer) then
         error("failed to mint token")
     end
+    -- TODO add event
     return mint_address
 end
 
@@ -156,16 +177,17 @@ function burn(receiver, amount, mint_address)
     if not contract.call(mint_address, "burn", sender, amount) then
         error("failed to burn token")
     end
-    -- lock with the origin address information
+    -- burn with the origin address information
     account_ref = hash(receiver, origin_address) 
     old = Burns[account_ref]
     if old == nil then
-        Burns[account_ref] = amount;
+        burnt_balance = amount
     else
-        -- TODO throw if old + amount > overflow : user should transfer through a different address
-        Burns[account_ref] = old + amount;
+        burnt_balance = safemath.add(old,amount)
     end
-    return origin_address
+    Burns[account_ref] = burnt_balance
+    -- TODO add event
+    return origin_address, burnt_balance
 end
 
 function unlock(receiver_address, balance, token_address, merkle_proof)
@@ -178,7 +200,7 @@ function unlock(receiver_address, balance, token_address, merkle_proof)
     if unlocked_so_far == nil then
         to_transfer = balance
     else
-        to_transfer = balance - unlocked_so_far
+        to_transfer = safemath.sub(balance,unlocked_so_far)
     end
     assert(to_transfer > 0, "burn minted tokens before unlocking")
     Unlocks[account_ref] = balance
@@ -190,6 +212,7 @@ function unlock(receiver_address, balance, token_address, merkle_proof)
             error("failed to unlock token")
         end
     end
+    -- TODO add event
 end
 
 
