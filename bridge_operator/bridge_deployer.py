@@ -8,7 +8,7 @@ import aergo.herapy as herapy
 def run():
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    with open("./contracts/bytecode.txt", "r") as f:
+    with open("./contracts/bridge_bytecode.txt", "r") as f:
         payload_str = f.read()[:-1]
     payload = herapy.utils.decode_address(payload_str)
     print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")

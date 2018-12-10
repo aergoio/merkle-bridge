@@ -16,15 +16,20 @@ $ make docker
 ### Compiling contracts (optional)
 The contracts are already compiled, but to recompile with a local aergoluac :
 ```sh
-$ make compile
+$ make compile_bridge
+$ make compile_token
 ```
 ### Deploy merkle bridge contracts
 ```sh
-$ make deploy
+$ make deploy_bridge
 ```
 ### Start the bridge operator
 ```sh
 $ make bridge
+```
+### Deploy a new token contract
+```sh
+$ make deploy_token
 ```
 ### Transfer tokens from origin to destination and back
 ```sh
@@ -36,7 +41,6 @@ $ make transfer_to_origin
 
 
 # TODO
-- aergo token contract
 - bridge minted contract : requires contract creation withing contract, not yet supported by luavm
 - merkle bridge contracts : merkle proof and signature verification not yet supported by luavm
 - wallet : initiate transfer, create merkle proof, receive minted asset at destination
