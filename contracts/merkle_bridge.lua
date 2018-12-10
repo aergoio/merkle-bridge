@@ -56,8 +56,9 @@ function constructor(addresses)
 end
 
 function get_test()
+    a = "hello" .. "hello" .. "hello"
     if BridgeTokens["a"] == nil then
-        return 1
+        return a
     end
     return BridgeTokens["a"]
 end
@@ -125,7 +126,7 @@ function lock(receiver, amount, token_address)
             error("failed to receive token to lock")
         end
     end
-    account_ref = hash(receiver, token_address) 
+    account_ref = receiver .. token_address
     old = Locks[account_ref]
     if old == nil then
         locked_balance = amount
@@ -140,7 +141,7 @@ end
 -- mint a foreign token. token_origin is the token address where it is transfered from.
 function mint(receiver_address, balance, token_origin, merkle_proof)
     assert(balance > 0, "minteable balance must be positive")
-    account_ref = hash(receiver_address, token_origin)
+    account_ref = receiver_address .. token_origin
     if not verify_mp(merkle_proof, "Locks", account_ref, balance, Root) then
         error("failed to verify deposit balance merkle proof")
     end
@@ -178,7 +179,7 @@ function burn(receiver, amount, mint_address)
         error("failed to burn token")
     end
     -- burn with the origin address information
-    account_ref = hash(receiver, origin_address) 
+    account_ref = receiver .. origin_address
     old = Burns[account_ref]
     if old == nil then
         burnt_balance = amount
@@ -192,7 +193,7 @@ end
 
 function unlock(receiver_address, balance, token_address, merkle_proof)
     assert(balance > 0, "unlockeable balance must be positive")
-    account_ref = hash(receiver_address, token_address)
+    account_ref = receiver_address .. token_address
     if not verify_mp(merkle_proof, "Burns", account_ref, balance, Root) then
         error("failed to verify burnt balance merkle proof")
     end
