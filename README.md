@@ -42,5 +42,5 @@ $ make transfer_to_origin
 
 # TODO
 - bridge minted contract : requires contract creation withing contract, not yet supported by luavm
-- merkle bridge contracts : merkle proof and signature verification not yet supported by luavm
+- merkle bridge contracts with mp verification and ecverify
 - wallet : initiate transfer, create merkle proof, receive minted asset at destination

@@ -57,10 +57,17 @@ state.var {
     BridgeTokens = state.map(),
     -- MintedTokens is the same as BridgeTokens but keys and values are swapped
     -- MintedTokens is used for preventing a minted token from being locked instead of burnt.
-    MintedTokens = state.map()
+    MintedTokens = state.map(),
+    -- T_anchor is the anchoring periode of the bridge
+    T_anchor = state.value(),
+    -- T_final is the time after which the bridge operator consideres a block finalised
+    T_final = state.value(),
 }
 
-function constructor(addresses)
+function constructor(addresses, t_anchor, t_final)
+    -- TODO make a setter for T_anchor and T_final with 2/3 sig validation
+    T_anchor:set(t_anchor)
+    T_final:set(t_final)
     Root:set("constructor")
     Height:set(0)
     Nb_Validators:set(#addresses)

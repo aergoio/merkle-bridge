@@ -33,12 +33,18 @@ def run():
         print("  > Sender Address: {}".format(sender_account.address))
 
         print("------ Deploy SC -----------")
+        t_anchor = config_data['t_anchor']
+        t_final = config_data['t_final']
         tx1, result1 = aergo1.deploy_sc(amount=0,
                                         payload=payload,
-                                        args=[[sender_address]])
+                                        args=[[sender_address],
+                                               t_anchor,
+                                               t_final])
         tx2, result2 = aergo2.deploy_sc(amount=0,
                                         payload=payload,
-                                        args=[[sender_address]])
+                                        args=[[sender_address],
+                                               t_anchor,
+                                               t_final])
         # print("{}".format(herapy.utils.convert_tx_to_json(tx1)))
         # print("{}".format(herapy.utils.convert_tx_to_json(tx2)))
         if result1.status != herapy.CommitStatus.TX_OK:

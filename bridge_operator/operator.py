@@ -5,6 +5,12 @@ import json
 import aergo.herapy as herapy
 import base58
 
+# The bridge operator periodically (every t_anchor) broadcasts the finalized trie
+# state root (after t_final) of the bridge contract on both sides of the
+# bridge.
+# It first checks the last merged height and waits until now + t_anchor + t_final is reached,
+# then merges the current finalised block (now - t_final). Start again after
+# waiting t_anchor.
 
 def run():
     with open("./config.json", "r") as f:
