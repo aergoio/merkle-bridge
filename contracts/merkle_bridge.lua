@@ -162,7 +162,7 @@ function mint(receiver, balance, token_origin, merkle_proof)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(balance > 0, "minteable balance must be positive")
     account_ref = receiver .. token_origin
-    if not verify_mp(merkle_proof, "Locks", account_ref, balance, Root) then
+    if not _verify_mp(merkle_proof, "Locks", account_ref, balance, Root) then
         error("failed to verify deposit balance merkle proof")
     end
     minted_so_far = Mints[account_ref]
@@ -216,7 +216,7 @@ function unlock(receiver, balance, token_address, merkle_proof)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(balance > 0, "unlockeable balance must be positive")
     account_ref = receiver .. token_address
-    if not verify_mp(merkle_proof, "Burns", account_ref, balance, Root) then
+    if not _verify_mp(merkle_proof, "Burns", account_ref, balance, Root) then
         error("failed to verify burnt balance merkle proof")
     end
     unlocked_so_far = Unlocks[account_ref]
@@ -239,8 +239,18 @@ function unlock(receiver, balance, token_address, merkle_proof)
 end
 
 
-function verify_mp(mp, map_name, key, value, root)
+function _verify_mp(mp, map_name, key, value, root)
+    var_id = "_sv_" .. map_name .. key
+    trie_key = hash(var_id)
+    trie_value = hash(value)
+    leaf_hash = hash(key, value, strchar(256-mp[3]))
+    -- return root == _verify_proof(mp[1], trie_key, leafhash, mp[2], mp[3], 0, 0)
     return true
+end
+
+function _verify_proof(bitmap, key, leaf_hash, mp, length, key_index, mp_index)
+    -- TODO
+    -- requires support if bit_is_set and hash function by lua contract
 end
 
 abi.register(set_root, new_validators, lock, unlock, mint, burn, get_test)
