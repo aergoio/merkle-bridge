@@ -111,7 +111,8 @@ function hash(...)
 end
 
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
-function lock(receiver, amount, token_address)
+-- nonce and signature are used when making a token lockup
+function lock(receiver, amount, token_address, nonce, signature)
     assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin")
     assert(amount > 0, "amount must be positive")
     if contract.getAmount() ~= 0 then
@@ -122,7 +123,7 @@ function lock(receiver, amount, token_address)
         sender = system.getSender()
         this_contract = system.getContractID()
         -- FIXME how can this be hacked with a reentrant call if the token_address is malicious ?
-        if not contract.call(token_address, "transfer_from", sender, this_contract, amount) then
+        if not contract.call(token_address, "signed_transfer", sender, this_contract, amount, nonce, signature) then
             error("failed to receive token to lock")
         end
     end

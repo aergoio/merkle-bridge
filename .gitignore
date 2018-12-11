@@ -1,3 +1,13 @@
+
+# ctags
+cTags
+tags
+*.swp
+
+# Files
+bridge_operator/bridge_addresses.txt
+bridge_operator/token_address.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -90,9 +100,6 @@ ENV/
 env.bak/
 venv.bak/
 
-# cTags
-tags
-*.swp
 
 # Spyder project settings
 .spyderproject
