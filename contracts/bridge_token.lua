@@ -50,7 +50,7 @@ state.var {
     -- Contract ID is a unique id that cannot be shared by another contract, even one on a sidechain
     -- This is neeeded for replay protection of signed transfer, because users might have the same private key
     -- on different sidechains
-    ContractID = state.value()
+    ContractID = state.value(),
     Owner = state.value(),
 }
 

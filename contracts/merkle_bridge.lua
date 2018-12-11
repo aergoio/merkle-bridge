@@ -1,5 +1,19 @@
-local safemath = {}
+local address = {}
+function address.isValidAddress(address)
+  -- check existence of invalid alphabets
+  if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
+    return false
+  end
+  -- check lenght is in range
+  if 52 ~= string.len(address) then
+    return false
+  end
+  -- TODO add checksum verification
+  return true
+end
 
+
+local safemath = {}
 function safemath.add(a, b) 
     if a == nil then a = 0 end
     if b == nil then b = 0 end
@@ -7,7 +21,6 @@ function safemath.add(a, b)
     assert(c >= a)
     return c
 end
-
 function safemath.sub(a, b) 
     if a == nil then a = 0 end
     if b == nil then b = 0 end
@@ -28,6 +41,7 @@ state.var {
     -- Height of the last block anchored
     Height = state.value(),
     -- Validators contains the addresses and 2/3 of them must sign a root update
+    -- The index of validators starts at 1.
     Validators = state.map(),
     -- Number of validators registered in the Validators map
     Nb_Validators= state.value(),
@@ -51,6 +65,7 @@ function constructor(addresses)
     Height:set(0)
     Nb_Validators:set(#addresses)
     for i, addr in ipairs(addresses) do
+        assert(address.isValidAddress(addr), "invalid address format: " .. addr)
         Validators[i] = addr
     end
 end
@@ -75,8 +90,9 @@ function validate_signatures(message, signers, signatures)
     -- 2/3 of Validators must sign for the message to be valid
     nb = Nb_Validators:get()
     assert(nb*2 <= #signers*3, "2/3 validators must sign")
-    for i,sig in ipairs(signers) do
-        assert(validate_sig(message, Validators[i], signatures[i]), "Invalid signature")
+    for i,signer in ipairs(signers) do
+        assert(Validators[signer], "Signer index not registered")
+        assert(validate_sig(message, Validators[signer], signatures[i]), "Invalid signature")
     end
     return true
 end
@@ -101,6 +117,7 @@ function new_validators(addresses, signers, signatures)
     end
     Nb_Validators:set(#addresses)
     for i, addr in ipairs(addresses) do
+        assert(address.isValidAddress(addr), "invalid address format: " .. addr)
         Validators[i] = addr
     end
 end
@@ -113,6 +130,7 @@ end
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
 -- nonce and signature are used when making a token lockup
 function lock(receiver, amount, token_address, nonce, signature)
+    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin")
     assert(amount > 0, "amount must be positive")
     if contract.getAmount() ~= 0 then
@@ -140,9 +158,10 @@ function lock(receiver, amount, token_address, nonce, signature)
 end
 
 -- mint a foreign token. token_origin is the token address where it is transfered from.
-function mint(receiver_address, balance, token_origin, merkle_proof)
+function mint(receiver, balance, token_origin, merkle_proof)
+    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(balance > 0, "minteable balance must be positive")
-    account_ref = receiver_address .. token_origin
+    account_ref = receiver .. token_origin
     if not verify_mp(merkle_proof, "Locks", account_ref, balance, Root) then
         error("failed to verify deposit balance merkle proof")
     end
@@ -162,7 +181,7 @@ function mint(receiver_address, balance, token_origin, merkle_proof)
         mint_address = BridgeTokens[token_origin]
     end
     Mints[account_ref] = balance
-    if not contract.call(mint_address, "mint", receiver_address, to_transfer) then
+    if not contract.call(mint_address, "mint", receiver, to_transfer) then
         error("failed to mint token")
     end
     -- TODO add event
@@ -171,6 +190,7 @@ end
 
 -- origin_address is the address of the token on the parent chain.
 function burn(receiver, amount, mint_address)
+    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(amount > 0, "amount must be positive")
     assert(contract.GetAmount() == 0, "burn function not payable, only tokens can be burned")
     origin_address = MintedTokens[mint_address]
@@ -192,9 +212,10 @@ function burn(receiver, amount, mint_address)
     return origin_address, burnt_balance
 end
 
-function unlock(receiver_address, balance, token_address, merkle_proof)
+function unlock(receiver, balance, token_address, merkle_proof)
+    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(balance > 0, "unlockeable balance must be positive")
-    account_ref = receiver_address .. token_address
+    account_ref = receiver .. token_address
     if not verify_mp(merkle_proof, "Burns", account_ref, balance, Root) then
         error("failed to verify burnt balance merkle proof")
     end
@@ -208,9 +229,9 @@ function unlock(receiver_address, balance, token_address, merkle_proof)
     Unlocks[account_ref] = balance
     if token_address == "aergo" then
         -- TODO does send return bool ?
-        contract.send(receiver_address, to_transfer)
+        contract.send(receiver, to_transfer)
     else
-        if not contract.call(token_address, "transfer", receiver_address, to_transfer) then
+        if not contract.call(token_address, "transfer", receiver, to_transfer) then
             error("failed to unlock token")
         end
     end

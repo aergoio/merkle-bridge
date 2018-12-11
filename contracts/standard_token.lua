@@ -1,28 +1,18 @@
 local address = {}
-
 function address.isValidAddress(address)
   -- check existence of invalid alphabets
   if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
     return false
   end
-
   -- check lenght is in range
   if 52 ~= string.len(address) then
     return false
   end
-
   -- TODO add checksum verification
-
   return true
 end
 
-
---- a simple safe math library
--- @see https://github.com/bokkypoobah/Tokens/blob/master/contracts/SafeMth.sol
--- @module safemath
-
 local safemath = {}
-
 function safemath.add(a, b) 
     if a == nil then a = 0 end
     if b == nil then b = 0 end
@@ -30,7 +20,6 @@ function safemath.add(a, b)
     assert(c >= a)
     return c
 end
-
 function safemath.sub(a, b) 
     if a == nil then a = 0 end
     if b == nil then b = 0 end
@@ -63,10 +52,10 @@ end
 
 ---------------------------------------
 -- Transfer sender's token to target 'to'
--- @type call
+-- @type        call
 -- @param to    a target address
 -- @param value an amount of token to send
--- @return success
+-- @return      success
 ---------------------------------------
 function transfer(to, value)
     return _transfer(system.getSender(), to, value)
@@ -84,8 +73,8 @@ function _transfer(from, to, value)
 end
 
 ---------------------------------------
--- Transfer tokens according to signed data
--- @type call
+-- Transfer tokens according to signed data from the owner
+-- @type  call
 -- @param from      sender's address
 -- @param to        receiver's address
 -- @param value     an amount of token to send in aer
