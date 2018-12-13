@@ -84,17 +84,13 @@ end
 ---------------------------------------
 function signed_transfer(from, to, value, nonce, signature)
     -- TODO performance impact of data length in ecrecover
-    data = to .. value .. nonce .. ContractID
+    data = crypto.sha256(to .. value .. nonce .. ContractID)
     assert(address.isValidAddress(from), "invalid address format: " .. from)
     assert(Nonces[from] + 1 == nonce, "nonce is invalid or already spent")
-    assert(validate_sig(data, from, signature), "signature of signed transfer is invalid")
+    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     return _transfer(from, to, value)
 end
 
-function validate_sig(message, expected_signer, signature)
-    -- TODO ecrecover
-    return true
-end
 
 -- register functions to abi
 abi.register(transfer, signed_transfer)

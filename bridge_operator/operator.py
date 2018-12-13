@@ -1,16 +1,18 @@
 import grpc
 import time
 import json
+import hashlib
 
 import aergo.herapy as herapy
 import base58
 
-# The bridge operator periodically (every t_anchor) broadcasts the finalized trie
-# state root (after t_final) of the bridge contract on both sides of the
+# The bridge operator periodically (every t_anchor) broadcasts the finalized
+# trie state root (after t_final) of the bridge contract on both sides of the
 # bridge.
-# It first checks the last merged height and waits until now + t_anchor + t_final is reached,
-# then merges the current finalised block (now - t_final). Start again after
-# waiting t_anchor.
+# It first checks the last merged height and waits until
+# now + t_anchor + t_final is reached, then merges the current finalised
+# block (now - t_final). Start again after waiting t_anchor.
+
 
 def run():
     with open("./config.json", "r") as f:
@@ -75,7 +77,7 @@ def run():
                     longest_wait = wait1
                 if wait2 < longest_wait:
                     longest_wait = wait2
-                print("waiting time :", -longest_wait)
+                print("waiting new anchor time :", -longest_wait, "s")
                 time.sleep(-longest_wait)
 
             # Calculate finalised block to broadcast
@@ -91,18 +93,30 @@ def run():
             root2 = contract2.state_proof.state.storageRoot
             root1 = base58.b58encode(root1).decode('utf-8')
             root2 = base58.b58encode(root2).decode('utf-8')
-            print("anchored new roots :", root1, root2)
+            if len(root1) == 0 or len(root2) == 0:
+                print("waiting deployment finalization...")
+                time.sleep(t_final/4)
+                continue
+            print("anchoring new roots :", root1, root2)
+
+            # Sign root and height update
+            msg1 = bytes(root1 + str(merge_height1), 'utf-8')
+            msg2 = bytes(root2 + str(merge_height2), 'utf-8')
+            h1 = hashlib.sha256(msg1).digest()
+            h2 = hashlib.sha256(msg2).digest()
+            sig1 = aergo1.account.private_key.sign_msg(h1).hex()
+            sig2 = aergo2.account.private_key.sign_msg(h2).hex()
 
             # Broadcast finalised merge block
             tx1, result1 = aergo1.call_sc(addr1, "set_root",
                                           args=[root1, merge_height1,
-                                                [1], ["sig1"]])
+                                                [1], [sig1]])
             tx2, result2 = aergo2.call_sc(addr2, "set_root",
                                           args=[root2, merge_height2,
-                                                [1], ["sig2"]])
+                                                [1], [sig2]])
 
-            time.sleep(3)
-            print("  > TX: {}".format(tx1.tx_hash))
+            confirmation_time = 3
+            time.sleep(confirmation_time)
             result1 = aergo1.get_tx_result(tx1.tx_hash)
             if result1.status != herapy.SmartcontractStatus.SUCCESS:
                 print("  > ERROR[{0}]:{1}: {2}".format(
@@ -110,7 +124,6 @@ def run():
                 aergo1.disconnect()
                 aergo2.disconnect()
                 return
-            print("  > TX: {}".format(tx2.tx_hash))
             result2 = aergo2.get_tx_result(tx2.tx_hash)
             if result2.status != herapy.SmartcontractStatus.SUCCESS:
                 print("  > ERROR[{0}]:{1}: {2}".format(
@@ -120,7 +133,7 @@ def run():
                 return
 
             # Waite t_anchor
-            print("waiting for anchor time...")
+            print("waiting new anchor time :", t_anchor-confirmation_time, "s")
             time.sleep(t_anchor-3)
 
     except grpc.RpcError as e:

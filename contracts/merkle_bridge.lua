@@ -77,17 +77,9 @@ function constructor(addresses, t_anchor, t_final)
     end
 end
 
-function get_test()
-    a = "hello" .. "hello" .. "hello"
-    if BridgeTokens["a"] == nil then
-        return a
-    end
-    return BridgeTokens["a"]
-end
-
 -- signers is the index of signers in Validators
 function set_root(root, height, signers, signatures)
-    message = root..tostring(height)
+    message = crypto.sha256(root..tostring(height))
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     Root:set(root)
     Height:set(height)
@@ -99,13 +91,8 @@ function validate_signatures(message, signers, signatures)
     assert(nb*2 <= #signers*3, "2/3 validators must sign")
     for i,signer in ipairs(signers) do
         assert(Validators[signer], "Signer index not registered")
-        assert(validate_sig(message, Validators[signer], signatures[i]), "Invalid signature")
+        assert(crypto.ecverify(message, signatures[i], Validators[signer]), "Invalid signature")
     end
-    return true
-end
-
-function validate_sig(message, expected_signer, signature)
-    -- TODO ecrecover
     return true
 end
 
@@ -129,16 +116,19 @@ function new_validators(addresses, signers, signatures)
     end
 end
 
-function hash(...)
-    -- TODO use vm hash function instead
-    return "hash_string"
+function hash(array)
+    h = ""
+    for i, data in ipairs(array) do
+        h = h..data
+    end
+    return h
 end
 
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
 -- nonce and signature are used when making a token lockup
 function lock(receiver, amount, token_address, nonce, signature)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
-    assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin")
+    assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
     assert(amount > 0, "amount must be positive")
     if contract.getAmount() ~= 0 then
         assert(#token_address == 0, "for safety and clarity don't provide a token address when locking aergo bits")
@@ -260,4 +250,4 @@ function _verify_proof(bitmap, key, leaf_hash, mp, length, key_index, mp_index)
     -- requires support if bit_is_set and hash function by lua contract
 end
 
-abi.register(set_root, new_validators, lock, unlock, mint, burn, get_test)
+abi.register(set_root, new_validators, lock, unlock, mint, burn)
