@@ -79,16 +79,28 @@ end
 -- @param to        receiver's address
 -- @param value     an amount of token to send in aer
 -- @param nonce     nonce of the sender to prevent replay
+-- @param fee       fee given to the tx broadcaster
+-- @param deadline  block number before which the tx can be executed
 -- @param signature signature proving sender's consent
 -- @return          success
 ---------------------------------------
-function signed_transfer(from, to, value, nonce, signature)
+function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     -- TODO performance impact of data length in ecrecover
-    data = crypto.sha256(to .. value .. nonce .. ContractID)
+    assert(address.isValidAddress(to), "[transfer] invalid address format: " .. to)
     assert(address.isValidAddress(from), "invalid address format: " .. from)
+    assert(to ~= from, "[transfer] same sender and receiver")
+    assert(fee >= 0, "fee must be positive")
+    assert(value >= 0, "value must be positive")
+    assert(Balances[from] and (value + fee) <= Balances[from], "not enough balance")
+    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
+    data = crypto.sha256(to..tostring(value)..tostring(nonce)..tostring(fee)..tostring(deadline)..ContractID)
     assert(Nonces[from] + 1 == nonce, "nonce is invalid or already spent")
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
-    return _transfer(from, to, value)
+    Balances[from] = safemath.sub(Balances[from], value + fee)
+    Balances[to] = safemath.add(Balances[to], value)
+    Balances[system.getSender()] = safemath.add(Balances[system.getSender()], fee)
+    Nonces[from] = safemath.add(Nonces[from], 1)
+    return true
 end
 
 
