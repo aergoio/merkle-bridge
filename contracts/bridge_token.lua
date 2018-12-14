@@ -61,6 +61,7 @@ function constructor()
     TotalSupply:set(0)
     Owner:set(system.getSender())
     -- TODO define contractID from some randomness like block hash or timestamp so that it is unique even if the same contract is deployed on different chains
+    -- contractID can be the hash of self.address (prevent replay between contracts on the same chain) and system.getBlockHash (prevent replay between sidechains).
 end
 
 ---------------------------------------
@@ -70,20 +71,19 @@ end
 -- @param value an amount of token to send
 -- @return      success
 ---------------------------------------
-function transfer(to, value)
-    return _transfer(system.getSender(), to, value)
-end
-
-function _transfer(from, to, value) 
+function transfer(to, value) 
+    from = system.getSender()
     assert(address.isValidAddress(to), "[transfer] invalid address format: " .. to)
     assert(to ~= from, "[transfer] same sender and receiver")
     assert(Balances[from] and value <= Balances[from], "[transfer] not enough balance")
+    assert(value >= 0, "value must be positive")
     Balances[from] = safemath.sub(Balances[from], value)
     Nonces[from] = safemath.add(Nonces[from], 1)
     Balances[to] = safemath.add(Balances[to], value)
     -- TODO event notification
     return true
 end
+
 
 ---------------------------------------
 -- Transfer tokens according to signed data from the owner

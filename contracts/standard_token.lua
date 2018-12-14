@@ -48,6 +48,8 @@ function constructor(total_supply)
     Decimals:set(18)
     TotalSupply:set(total_supply)
     Balances[system.getSender()] = total_supply
+    -- TODO define contractID from some randomness like block hash or timestamp so that it is unique even if the same contract is deployed on different chains
+    -- contractID can be the hash of self.address (prevent replay between contracts on the same chain) and system.getBlockHash (prevent replay between sidechains).
 end
 
 ---------------------------------------
@@ -57,14 +59,12 @@ end
 -- @param value an amount of token to send
 -- @return      success
 ---------------------------------------
-function transfer(to, value)
-    return _transfer(system.getSender(), to, value)
-end
-
-function _transfer(from, to, value) 
+function transfer(to, value) 
+    from = system.getSender()
     assert(address.isValidAddress(to), "[transfer] invalid address format: " .. to)
     assert(to ~= from, "[transfer] same sender and receiver")
     assert(Balances[from] and value <= Balances[from], "[transfer] not enough balance")
+    assert(value >= 0, "value must be positive")
     Balances[from] = safemath.sub(Balances[from], value)
     Nonces[from] = safemath.add(Nonces[from], 1)
     Balances[to] = safemath.add(Balances[to], value)
@@ -85,7 +85,6 @@ end
 -- @return          success
 ---------------------------------------
 function signed_transfer(from, to, value, nonce, fee, deadline, signature)
-    -- TODO performance impact of data length in ecrecover
     assert(address.isValidAddress(to), "[transfer] invalid address format: " .. to)
     assert(address.isValidAddress(from), "invalid address format: " .. from)
     assert(to ~= from, "[transfer] same sender and receiver")
@@ -100,6 +99,7 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     Balances[to] = safemath.add(Balances[to], value)
     Balances[system.getSender()] = safemath.add(Balances[system.getSender()], fee)
     Nonces[from] = safemath.add(Nonces[from], 1)
+    -- TODO event notification
     return true
 end
 
