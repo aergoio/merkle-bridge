@@ -107,12 +107,13 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     assert(Balances[from] and (value + fee) <= Balances[from], "not enough balance")
     assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
     data = crypto.sha256(to..tostring(value)..tostring(nonce)..tostring(fee)..tostring(deadline)..ContractID)
-    assert(Nonces[from] + 1 == nonce, "nonce is invalid or already spent")
+    assert(safemath.add(Nonces[from], 1) == nonce, "nonce is invalid or already spent")
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     Balances[from] = safemath.sub(Balances[from], value + fee)
     Balances[to] = safemath.add(Balances[to], value)
     Balances[system.getSender()] = safemath.add(Balances[system.getSender()], fee)
     Nonces[from] = safemath.add(Nonces[from], 1)
+    -- TODO event notification
     return true
 end
 

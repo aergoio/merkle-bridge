@@ -138,7 +138,7 @@ function lock(receiver, amount, token_address, nonce, signature)
         sender = system.getSender()
         this_contract = system.getContractID()
         -- FIXME how can this be hacked with a reentrant call if the token_address is malicious ?
-        if not contract.call(token_address, "signed_transfer", sender, this_contract, amount, nonce, signature) then
+        if not contract.call(token_address, "signed_transfer", sender, this_contract, amount, nonce, 0, 0, signature) then
             error("failed to receive token to lock")
         end
     end
