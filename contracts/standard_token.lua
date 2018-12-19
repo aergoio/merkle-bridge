@@ -39,7 +39,7 @@ state.var {
     -- Contract ID is a unique id that cannot be shared by another contract, even one on a sidechain
     -- This is neeeded for replay protection of signed transfer, because users might have the same private key
     -- on different sidechains
-    ContractID = state.value()
+    ContractID = state.value(),
 }
 
 function constructor(total_supply) 
@@ -48,6 +48,7 @@ function constructor(total_supply)
     Decimals:set(18)
     TotalSupply:set(total_supply)
     Balances[system.getSender()] = total_supply
+    ContractID:set("id")
     -- TODO define contractID from some randomness like block hash or timestamp so that it is unique even if the same contract is deployed on different chains
     -- contractID can be the hash of self.address (prevent replay between contracts on the same chain) and system.getBlockHash (prevent replay between sidechains).
 end
@@ -85,16 +86,23 @@ end
 -- @return          success
 ---------------------------------------
 function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+    -- check addresses
     assert(address.isValidAddress(to), "[transfer] invalid address format: " .. to)
     assert(address.isValidAddress(from), "invalid address format: " .. from)
     assert(to ~= from, "[transfer] same sender and receiver")
+    -- check amounts, fee
     assert(fee >= 0, "fee must be positive")
     assert(value >= 0, "value must be positive")
     assert(Balances[from] and (value + fee) <= Balances[from], "not enough balance")
+    -- check deadline
     assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
-    data = crypto.sha256(to..tostring(value)..tostring(nonce)..tostring(fee)..tostring(deadline)..ContractID)
-    assert(safemath.add(Nonces[from], 1) == nonce, "nonce is invalid or already spent")
+    -- check nonce
+    if Nonces[from] == nil then Nonces[from] = 0 end
+    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
+    -- construct signed transfer and verifiy signature
+    data = crypto.sha256(to..tostring(value)..tostring(nonce)..tostring(fee)..tostring(deadline)..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
+    -- execute transfer
     Balances[from] = safemath.sub(Balances[from], value + fee)
     Balances[to] = safemath.add(Balances[to], value)
     Balances[system.getSender()] = safemath.add(Balances[system.getSender()], fee)
