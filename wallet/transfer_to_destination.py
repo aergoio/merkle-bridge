@@ -69,8 +69,9 @@ def run():
         value = 5
         fee = 0
         deadline = 0
-        contractID = "id"
-        # TODO should have failed because contractID is different
+        # Get the contract's id
+        contractID_p = aergo1.query_sc_state(token, "ContractID")
+        contractID = str(contractID_p.var_proof.var_proof.value[1:-1], 'utf-8')
         msg = bytes(addr1 + str(value) + str(nonce) + str(fee) +
                     str(deadline) + contractID, 'utf-8')
         h = hashlib.sha256(msg).digest()

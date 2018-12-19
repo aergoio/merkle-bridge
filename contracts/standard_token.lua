@@ -48,9 +48,9 @@ function constructor(total_supply)
     Decimals:set(18)
     TotalSupply:set(total_supply)
     Balances[system.getSender()] = total_supply
-    ContractID:set("id")
-    -- TODO define contractID from some randomness like block hash or timestamp so that it is unique even if the same contract is deployed on different chains
-    -- contractID can be the hash of self.address (prevent replay between contracts on the same chain) and system.getBlockHash (prevent replay between sidechains).
+    id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
+    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
+    ContractID:set(id)
 end
 
 ---------------------------------------
