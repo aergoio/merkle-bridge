@@ -62,6 +62,7 @@ state.var {
     T_anchor = state.value(),
     -- T_final is the time after which the bridge operator consideres a block finalised
     T_final = state.value(),
+    -- TODO add a nonce so that validator and root updates cannot be replayed
 }
 
 function constructor(addresses, t_anchor, t_final)
@@ -130,9 +131,9 @@ function lock(receiver, amount, token_address, nonce, signature)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
     assert(amount > 0, "amount must be positive")
-    if contract.getAmount() ~= 0 then
+    if system.getAmount() ~= "0" then
         assert(#token_address == 0, "for safety and clarity don't provide a token address when locking aergo bits")
-        assert(contract.getAmount() == amount, "for safety and clarity, amount must match the amount sent in the tx")
+        assert(contract.getAmount() == tostring(amount), "for safety and clarity, amount must match the amount sent in the tx")
         token_address = "aergo"
    else
         sender = system.getSender()
@@ -149,7 +150,7 @@ function lock(receiver, amount, token_address, nonce, signature)
     else
         locked_balance = safemath.add(old, amount)
     end
-    Locks[account_ref] = new_balance
+    Locks[account_ref] = locked_balance
     -- TODO add event
     return locked_balance
 end
