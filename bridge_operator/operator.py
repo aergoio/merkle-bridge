@@ -46,7 +46,6 @@ def run():
         print("------ START BRIDGE OPERATOR -----------")
 
         while True:
-            print("----------------- ANCHOR NEW ROOTS -----------------")
             # Get current merge block height
             height_proof_1 = aergo1.query_sc_state(addr1, "Height")
             height_proof_2 = aergo2.query_sc_state(addr2, "Height")
@@ -56,9 +55,14 @@ def run():
             merged_height2 = int(height_proof_2.var_proof.var_proof.value)
             merged_root1 = root_proof_1.var_proof.var_proof.value
             merged_root2 = root_proof_2.var_proof.var_proof.value
-            print("last merged heights :", merged_height1, merged_height2)
-            print("last merged contract trie roots:", merged_root1,
+            nonce_proof_1 = aergo1.query_sc_state(addr1, "Nonce")
+            nonce_proof_2 = aergo2.query_sc_state(addr2, "Nonce")
+            nonce_1 = int(nonce_proof_1.var_proof.var_proof.value)
+            nonce_2 = int(nonce_proof_2.var_proof.var_proof.value)
+            print(" __\n| last merged heights :", merged_height1, merged_height2)
+            print("| last merged contract trie roots:", merged_root1,
                   merged_root2)
+            print("| current update nonces:", nonce_1, nonce_2)
 
             # Wait for the next anchor time
             while True:
@@ -77,7 +81,7 @@ def run():
                     longest_wait = wait1
                 if wait2 < longest_wait:
                     longest_wait = wait2
-                print("waiting new anchor time :", -longest_wait, "s")
+                print("waiting new anchor time :", -longest_wait, "s ...")
                 time.sleep(-longest_wait)
 
             # Calculate finalised block to broadcast
@@ -97,11 +101,10 @@ def run():
                 print("waiting deployment finalization...")
                 time.sleep(t_final/4)
                 continue
-            print("anchoring new roots :", root1, root2)
 
             # Sign root and height update
-            msg1 = bytes(root1 + str(merge_height1), 'utf-8')
-            msg2 = bytes(root2 + str(merge_height2), 'utf-8')
+            msg1 = bytes(root1 + str(merge_height1) + str(nonce_1), 'utf-8')
+            msg2 = bytes(root2 + str(merge_height2) + str(nonce_2), 'utf-8')
             h1 = hashlib.sha256(msg1).digest()
             h2 = hashlib.sha256(msg2).digest()
             sig1 = aergo1.account.private_key.sign_msg(h1).hex()
@@ -131,9 +134,10 @@ def run():
                 aergo1.disconnect()
                 aergo2.disconnect()
                 return
+            print("anchored new roots :", root1, root2)
 
             # Waite t_anchor
-            print("waiting new anchor time :", t_anchor-confirmation_time, "s")
+            print("waiting new anchor time :", t_anchor-confirmation_time, "s ...")
             time.sleep(t_anchor-3)
 
     except grpc.RpcError as e:

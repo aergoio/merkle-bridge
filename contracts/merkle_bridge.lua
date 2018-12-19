@@ -62,7 +62,8 @@ state.var {
     T_anchor = state.value(),
     -- T_final is the time after which the bridge operator consideres a block finalised
     T_final = state.value(),
-    -- TODO add a nonce so that validator and root updates cannot be replayed
+    -- Nonce is a replay protection for validator and root updates.
+    Nonce = state.value(),
 }
 
 function constructor(addresses, t_anchor, t_final)
@@ -71,6 +72,7 @@ function constructor(addresses, t_anchor, t_final)
     T_final:set(t_final)
     Root:set("constructor")
     Height:set(0)
+    Nonce:set(0)
     Nb_Validators:set(#addresses)
     for i, addr in ipairs(addresses) do
         assert(address.isValidAddress(addr), "invalid address format: " .. addr)
@@ -80,10 +82,12 @@ end
 
 -- signers is the index of signers in Validators
 function set_root(root, height, signers, signatures)
-    message = crypto.sha256(root..tostring(height))
+    old_nonce = Nonce:get()
+    message = crypto.sha256(root..tostring(height)..tostring(old_nonce))
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     Root:set(root)
     Height:set(height)
+    Nonce:set(old_nonce + 1)
 end
 
 function validate_signatures(message, signers, signatures)
@@ -100,7 +104,8 @@ end
 -- new_validators replaces the list of validators
 -- signers is the index of signers in Validators
 function new_validators(addresses, signers, signatures)
-    message = hash(addresses)
+    old_nonce = Nonce:get()
+    message = crypto.sha256(join(addresses)..old_nonce)
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     old_size = Nb_Validators:get()
     if #addresses < old_size then
@@ -115,14 +120,15 @@ function new_validators(addresses, signers, signatures)
         assert(address.isValidAddress(addr), "invalid address format: " .. addr)
         Validators[i] = addr
     end
+    Nonce:set(old_nonce + 1)
 end
 
-function hash(array)
-    h = ""
+function join(array)
+    str = ""
     for i, data in ipairs(array) do
-        h = h..data
+        str = str..data
     end
-    return h
+    return str
 end
 
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
