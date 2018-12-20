@@ -94,13 +94,27 @@ def run():
         lock_after = int(lock_p.var_proof.var_proof.value)
         print("New locked balance : ", lock_after)
 
-        print("------ Wait finalisation to create lock proof -----------")
+        print("------ Wait finalisation and create lock proof -----------")
         # check current merged height at destination
+        height_proof_2 = aergo2.query_sc_state(addr2, "Height")
+        merged_height2 = int(height_proof_2.var_proof.var_proof.value)
+        print("last merged height at destination :", merged_height2)
         # wait t_final
+        print("waiting finalisation :", t_final-confirmation_time, "s...")
+        time.sleep(t_final)
         # check last merged height
-        # while last merged height < lock tx height
-        ##### sleep(t_anchor / 4)
-        # get inclusion proof of last merged block
+        height_proof_2 = aergo2.query_sc_state(addr2, "Height")
+        last_merged_height2 = int(height_proof_2.var_proof.var_proof.value)
+        # waite for anchor containing our transfer
+        while last_merged_height2 < lock_height:
+            print("waiting new anchor...")
+            time.sleep(t_anchor/4)
+            height_proof_2 = aergo2.query_sc_state(addr2, "Height")
+            last_merged_height2 = int(height_proof_2.var_proof.var_proof.value)
+        # get inclusion proof of lock in last merged block
+        merge_block1 = aergo1.get_block(block_height=last_merged_height2)
+        lock_proof = aergo1.query_sc_state(addr1, "Locks", account_ref, root=merge_block1.blocks_root_hash)
+        print(lock_proof)
         # check locked amount is recored in balance
         # TODO this requires contract deployment from with contract suport by
         # lua

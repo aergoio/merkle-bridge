@@ -47,12 +47,12 @@ def run():
 
         while True:
             # Get current merge block height
-            height_proof_1 = aergo1.query_sc_state(addr1, "Height")
-            height_proof_2 = aergo2.query_sc_state(addr2, "Height")
-            root_proof_1 = aergo1.query_sc_state(addr1, "Root")
-            root_proof_2 = aergo2.query_sc_state(addr2, "Root")
+            height_proof_2 = aergo1.query_sc_state(addr1, "Height")
+            height_proof_1 = aergo2.query_sc_state(addr2, "Height")
             merged_height1 = int(height_proof_1.var_proof.var_proof.value)
             merged_height2 = int(height_proof_2.var_proof.var_proof.value)
+            root_proof_2 = aergo1.query_sc_state(addr1, "Root")
+            root_proof_1 = aergo2.query_sc_state(addr2, "Root")
             merged_root1 = root_proof_1.var_proof.var_proof.value
             merged_root2 = root_proof_2.var_proof.var_proof.value
             nonce_proof_1 = aergo1.query_sc_state(addr1, "Nonce")
@@ -103,18 +103,18 @@ def run():
                 continue
 
             # Sign root and height update
-            msg1 = bytes(root1 + str(merge_height1) + str(nonce_1), 'utf-8')
-            msg2 = bytes(root2 + str(merge_height2) + str(nonce_2), 'utf-8')
+            msg1 = bytes(root1 + str(merge_height1) + str(nonce_2), 'utf-8')
+            msg2 = bytes(root2 + str(merge_height2) + str(nonce_1), 'utf-8')
             h1 = hashlib.sha256(msg1).digest()
             h2 = hashlib.sha256(msg2).digest()
-            sig1 = aergo1.account.private_key.sign_msg(h1).hex()
-            sig2 = aergo2.account.private_key.sign_msg(h2).hex()
+            sig1 = aergo2.account.private_key.sign_msg(h1).hex()
+            sig2 = aergo1.account.private_key.sign_msg(h2).hex()
 
             # Broadcast finalised merge block
-            tx1, result1 = aergo1.call_sc(addr1, "set_root",
+            tx2, result2 = aergo2.call_sc(addr2, "set_root",
                                           args=[root1, merge_height1,
                                                 [1], [sig1]])
-            tx2, result2 = aergo2.call_sc(addr2, "set_root",
+            tx1, result1 = aergo1.call_sc(addr1, "set_root",
                                           args=[root2, merge_height2,
                                                 [1], [sig2]])
 
