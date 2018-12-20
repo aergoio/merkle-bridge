@@ -23,8 +23,8 @@ def run():
         aergo2.connect(config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data['aergo1']['priv_key']
-        sender_priv_key2 = config_data['aergo2']['priv_key']
+        sender_priv_key1 = config_data['priv_key']["wallet"]
+        sender_priv_key2 = config_data['priv_key']["wallet"]
         sender_account = aergo1.new_account(password="test",
                                             private_key=sender_priv_key1)
         aergo2.new_account(password="test",
@@ -80,7 +80,9 @@ def run():
         # lock and check block height of lock tx
         tx, result = aergo1.call_sc(addr1, "lock",
                                     args=[to, value, token, nonce, sig])
-        time.sleep(3)
+        confirmation_time = 3
+        time.sleep(confirmation_time)
+        _, lock_height = aergo1.get_blockchain_status()
         result = aergo1.get_tx_result(tx.tx_hash)
         if result.status != herapy.SmartcontractStatus.SUCCESS:
             print("  > ERROR[{0}]:{1}: {2}".format(

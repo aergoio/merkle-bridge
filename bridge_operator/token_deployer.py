@@ -19,7 +19,7 @@ def run():
         aergo1.connect(config_data['aergo1']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data['aergo1']['priv_key']
+        sender_priv_key1 = config_data['priv_key']["wallet"]
         sender_account = aergo1.new_account(password="test",
                                             private_key=sender_priv_key1)
         sender_address = sender_account.address.__str__()

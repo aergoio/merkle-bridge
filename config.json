@@ -1,11 +1,13 @@
 {
     "aergo1":{
-        "ip":"localhost:7845",
-        "priv_key":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        "ip":"localhost:7845"
     },
     "aergo2":{
-        "ip":"localhost:8845",
-        "priv_key":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        "ip":"localhost:8845"
+    },
+    "priv_key":{
+        "operator":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW",
+        "wallet":"6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
     },
     "t_anchor":20,
     "t_final":20
