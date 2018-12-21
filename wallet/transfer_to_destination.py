@@ -39,21 +39,22 @@ def run():
         t_final = int(t_final_p.var_proof.var_proof.value)
 
         print(" * anchoring periode : ", t_anchor, "s\n",
-            "* chain finality periode : ", t_final, "s\n")
+              "* chain finality periode : ", t_final, "s\n")
 
         print("------ Lock tokens -----------")
         # get current balance and nonce
         balance_p = aergo1.query_sc_state(token, "Balances",
                                           sender_account.address.__str__())
         nonce_p = aergo1.query_sc_state(token, "Nonces",
-                                          sender_account.address.__str__())
+                                        sender_account.address.__str__())
         balance = int(balance_p.var_proof.var_proof.value)
         try:
             nonce = int(nonce_p.var_proof.var_proof.value)
         except ValueError:
             nonce = 0
         print("Token address : ", token)
-        print("Token balance in origin contract : ", balance, "    nonce : ", nonce)
+        print("Token balance in origin contract : ", balance,
+              "    nonce : ", nonce)
 
         # record current lock balance
         account_ref = sender_account.address.__str__() + token
@@ -90,11 +91,9 @@ def run():
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        lock_p = aergo1.query_sc_state(addr1, "Locks", account_ref)
-        lock_after = int(lock_p.var_proof.var_proof.value)
-        print("New locked balance : ", lock_after)
+        print("New locked balance : ", result.detail)
 
-        print("------ Wait finalisation and create lock proof -----------")
+        print("------ Wait finalisation and get lock proof -----------")
         # check current merged height at destination
         height_proof_2 = aergo2.query_sc_state(addr2, "Height")
         merged_height2 = int(height_proof_2.var_proof.var_proof.value)
@@ -111,15 +110,34 @@ def run():
             time.sleep(t_anchor/4)
             height_proof_2 = aergo2.query_sc_state(addr2, "Height")
             last_merged_height2 = int(height_proof_2.var_proof.var_proof.value)
+            # TODO do this with events when available
         # get inclusion proof of lock in last merged block
         merge_block1 = aergo1.get_block(block_height=last_merged_height2)
-        lock_proof = aergo1.query_sc_state(addr1, "Locks", account_ref, root=merge_block1.blocks_root_hash)
+        lock_proof = aergo1.query_sc_state(addr1, "Locks", account_ref,
+                                           root=merge_block1.blocks_root_hash,
+                                           compressed=False)
+        if not lock_proof.verify_inclusion(merge_block1.blocks_root_hash):
+            print("Enable to verify lock proof")
+            aergo1.disconnect()
+            aergo2.disconnect()
         print(lock_proof)
-        # check locked amount is recored in balance
-        # TODO this requires contract deployment from with contract suport by
+        print("------ Mint tokens on destination blockchain -----------")
+        receiver = sender_account.address.__str__()
+        balance = int(lock_proof.var_proof.var_proof.value)
+        auditPath = lock_proof.var_proof.var_proof.auditPath
+        ap = [node.hex() for node in auditPath]
+        token_origin = token
+        print(ap)
+        # call mint on aergo2 with the lock proof from aergo1
+        tx, result = aergo2.call_sc(addr2, "mint",
+                                    args=[receiver, balance,
+                                          token_origin, ap])
+        time.sleep(confirmation_time)
+        result = aergo2.get_tx_result(tx.tx_hash)
+        print(result)
+        # TODO this requires contract deployment from within contract support by
         # lua
-        # call mint with the proof
-        # check nuwly minted balance
+        # check newly minted balance
 
     except grpc.RpcError as e:
         print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),

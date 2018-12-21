@@ -85,7 +85,7 @@ function set_root(root, height, signers, signatures)
     old_nonce = Nonce:get()
     message = crypto.sha256(root..tostring(height)..tostring(old_nonce))
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
-    Root:set(root)
+    Root:set("0x"..root)
     Height:set(height)
     Nonce:set(old_nonce + 1)
 end
@@ -166,7 +166,7 @@ function mint(receiver, balance, token_origin, merkle_proof)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(balance > 0, "minteable balance must be positive")
     account_ref = receiver .. token_origin
-    if not _verify_mp(merkle_proof, "Locks", account_ref, balance, Root) then
+    if not _verify_mp(merkle_proof, "Locks", account_ref, balance, Root:get()) then
         error("failed to verify deposit balance merkle proof")
     end
     minted_so_far = Mints[account_ref]
@@ -179,8 +179,9 @@ function mint(receiver, balance, token_origin, merkle_proof)
     if BridgeTokens[token_origin] == nil then
         -- TODO Deploy new bridged token
         -- mint_address = new Token()
-        BridgeTokens[token_origin] = mint_address
-        MintedTokens[mint_address] = token_origin
+        -- BridgeTokens[token_origin] = mint_address
+        -- MintedTokens[mint_address] = token_origin
+        return 1
     else
         mint_address = BridgeTokens[token_origin]
     end
@@ -220,7 +221,7 @@ function unlock(receiver, balance, token_address, merkle_proof)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(balance > 0, "unlockeable balance must be positive")
     account_ref = receiver .. token_address
-    if not _verify_mp(merkle_proof, "Burns", account_ref, balance, Root) then
+    if not _verify_mp(merkle_proof, "Burns", account_ref, balance, Root:get()) then
         error("failed to verify burnt balance merkle proof")
     end
     unlocked_so_far = Unlocks[account_ref]
@@ -243,18 +244,37 @@ function unlock(receiver, balance, token_address, merkle_proof)
 end
 
 
-function _verify_mp(mp, map_name, key, value, root)
-    var_id = "_sv_" .. map_name .. key
-    trie_key = hash(var_id)
-    trie_value = hash(value)
-    leaf_hash = hash(key, value, strchar(256-mp[3]))
-    -- return root == _verify_proof(mp[1], trie_key, leafhash, mp[2], mp[3], 0, 0)
-    return true
+-- We dont need to use compressed merkle proofs in lua because byte(0) is easilly 
+-- passed in the merkle proof array.
+-- (In solidity, only bytes32[] is supported, so byte(0) cannot be passed and it is
+-- more efficient to use a compressed proof)
+function _verify_mp(ap, map_name, key, value, root)
+    var_id = "_sv_" .. map_name .. key .. "_s"
+    trie_key = crypto.sha256(var_id)
+    trie_value = crypto.sha256(tostring(value))
+    leaf_hash = crypto.sha256(trie_key..string.sub(trie_value, 3, #trie_value)..string.format('%02x', 256-#ap))
+    return root == _verify_proof(ap, 0, string.sub(trie_key, 3, #trie_key), leaf_hash)
 end
 
-function _verify_proof(bitmap, key, leaf_hash, mp, length, key_index, mp_index)
-    -- TODO
-    -- requires support if bit_is_set and hash function by lua contract
+function _verify_proof(ap, key_index, key, leaf_hash)
+    if key_index == #ap then
+        return leaf_hash
+    end
+    if _bit_is_set(key, key_index) then
+        right = _verify_proof(ap, key_index+1, key, leaf_hash)
+        return crypto.sha256("0x"..ap[#ap-key_index]..string.sub(right, 3, #right))
+    end
+    left = _verify_proof(ap, key_index+1, key, leaf_hash)
+    return crypto.sha256(left..ap[#ap-key_index])
+end
+
+function _bit_is_set(bits, i)
+    require "bit"
+    -- get the hex byte containing ith bit
+    byte_index = math.floor(i/8) + 1
+    byte_hex = string.sub(bits, byte_index, byte_index + 1)
+    byte = tonumber(byte_hex, 16)
+    return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
 end
 
 abi.register(set_root, new_validators, lock, unlock, mint, burn)
