@@ -4,7 +4,6 @@ import json
 import hashlib
 
 import aergo.herapy as herapy
-import base58
 
 # The bridge operator periodically (every t_anchor) broadcasts the finalized
 # trie state root (after t_final) of the bridge contract on both sides of the
@@ -93,10 +92,8 @@ def run():
                                            root=block1.blocks_root_hash)
             contract2 = aergo2.get_account(address=addr2, proof=True,
                                            root=block2.blocks_root_hash)
-            root1 = contract1.state_proof.state.storageRoot
-            root2 = contract2.state_proof.state.storageRoot
-            root1 = base58.b58encode(root1).decode('utf-8')
-            root2 = base58.b58encode(root2).decode('utf-8')
+            root1 = contract1.state_proof.state.storageRoot.hex()
+            root2 = contract2.state_proof.state.storageRoot.hex()
             if len(root1) == 0 or len(root2) == 0:
                 print("waiting deployment finalization...")
                 time.sleep(t_final/4)
@@ -107,8 +104,8 @@ def run():
             msg2 = bytes(root2 + str(merge_height2) + str(nonce_1), 'utf-8')
             h1 = hashlib.sha256(msg1).digest()
             h2 = hashlib.sha256(msg2).digest()
-            sig1 = aergo2.account.private_key.sign_msg(h1).hex()
-            sig2 = aergo1.account.private_key.sign_msg(h2).hex()
+            sig1 = "0x" + aergo2.account.private_key.sign_msg(h1).hex()
+            sig2 = "0x" + aergo1.account.private_key.sign_msg(h2).hex()
 
             # Broadcast finalised merge block
             tx2, result2 = aergo2.call_sc(addr2, "set_root",
