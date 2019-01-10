@@ -23,11 +23,9 @@ def run():
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data['priv_key']["operator"]
         sender_priv_key2 = config_data['priv_key']["operator"]
-        sender_account = aergo1.new_account(password="test",
-                                            private_key=sender_priv_key1)
+        sender_account = aergo1.new_account(private_key=sender_priv_key1)
         sender_address = sender_account.address.__str__()
-        aergo2.new_account(password="test",
-                           private_key=sender_priv_key2)
+        aergo2.new_account(private_key=sender_priv_key2)
         aergo1.get_account()
         aergo2.get_account()
         print("  > Sender Address: {}".format(sender_account.address))
@@ -38,13 +36,13 @@ def run():
         tx1, result1 = aergo1.deploy_sc(amount=0,
                                         payload=payload,
                                         args=[[sender_address],
-                                               t_anchor,
-                                               t_final])
+                                              t_anchor,
+                                              t_final])
         tx2, result2 = aergo2.deploy_sc(amount=0,
                                         payload=payload,
                                         args=[[sender_address],
-                                               t_anchor,
-                                               t_final])
+                                              t_anchor,
+                                              t_final])
         # print("{}".format(herapy.utils.convert_tx_to_json(tx1)))
         # print("{}".format(herapy.utils.convert_tx_to_json(tx2)))
         if result1.status != herapy.CommitStatus.TX_OK:

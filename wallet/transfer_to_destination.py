@@ -25,10 +25,8 @@ def run():
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data['priv_key']["wallet"]
         sender_priv_key2 = config_data['priv_key']["wallet"]
-        sender_account = aergo1.new_account(password="test",
-                                            private_key=sender_priv_key1)
-        aergo2.new_account(password="test",
-                           private_key=sender_priv_key2)
+        sender_account = aergo1.new_account(private_key=sender_priv_key1)
+        aergo2.new_account(private_key=sender_priv_key2)
         aergo1.get_account()
         aergo2.get_account()
         print("  > Sender Address: ", sender_account.address.__str__())
@@ -117,9 +115,10 @@ def run():
                                            root=merge_block1.blocks_root_hash,
                                            compressed=False)
         if not lock_proof.verify_inclusion(merge_block1.blocks_root_hash):
-            print("Enable to verify lock proof")
+            print("Unable to verify lock proof")
             aergo1.disconnect()
             aergo2.disconnect()
+            return
         print(lock_proof)
         print("------ Mint tokens on destination blockchain -----------")
         receiver = sender_account.address.__str__()

@@ -35,10 +35,8 @@ def run():
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data['priv_key']["operator"]
         sender_priv_key2 = config_data['priv_key']["operator"]
-        sender_account = aergo1.new_account(password="test",
-                                            private_key=sender_priv_key1)
-        aergo2.new_account(password="test",
-                           private_key=sender_priv_key2)
+        sender_account = aergo1.new_account(private_key=sender_priv_key1)
+        aergo2.new_account(private_key=sender_priv_key2)
         aergo1.get_account()
         aergo2.get_account()
         print("  > Sender Address: {}".format(sender_account.address))

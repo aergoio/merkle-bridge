@@ -249,7 +249,7 @@ end
 -- (In solidity, only bytes32[] is supported, so byte(0) cannot be passed and it is
 -- more efficient to use a compressed proof)
 function _verify_mp(ap, map_name, key, value, root)
-    var_id = "_sv_" .. map_name .. key .. "_s"
+    var_id = "_sv_" .. map_name .. "-" .. key
     trie_key = crypto.sha256(var_id)
     trie_value = crypto.sha256(tostring(value))
     leaf_hash = crypto.sha256(trie_key..string.sub(trie_value, 3, #trie_value)..string.format('%02x', 256-#ap))
