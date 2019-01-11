@@ -44,18 +44,18 @@ def run():
 
         while True:
             # Get current merge block height
-            height_proof_2 = aergo1.query_sc_state(addr1, "Height")
-            height_proof_1 = aergo2.query_sc_state(addr2, "Height")
-            merged_height1 = int(height_proof_1.var_proof.var_proof.value)
-            merged_height2 = int(height_proof_2.var_proof.var_proof.value)
-            root_proof_2 = aergo1.query_sc_state(addr1, "Root")
-            root_proof_1 = aergo2.query_sc_state(addr2, "Root")
-            merged_root1 = root_proof_1.var_proof.var_proof.value
-            merged_root2 = root_proof_2.var_proof.var_proof.value
-            nonce_proof_1 = aergo1.query_sc_state(addr1, "Nonce")
-            nonce_proof_2 = aergo2.query_sc_state(addr2, "Nonce")
-            nonce_1 = int(nonce_proof_1.var_proof.var_proof.value)
-            nonce_2 = int(nonce_proof_2.var_proof.var_proof.value)
+            height_proof_2 = aergo1.query_sc_state(addr1, ["_sv_Height"])
+            height_proof_1 = aergo2.query_sc_state(addr2, ["_sv_Height"])
+            merged_height1 = int(height_proof_1.var_proof.var_proof[0].value)
+            merged_height2 = int(height_proof_2.var_proof.var_proof[0].value)
+            root_proof_2 = aergo1.query_sc_state(addr1, ["_sv_Root"])
+            root_proof_1 = aergo2.query_sc_state(addr2, ["_sv_Root"])
+            merged_root1 = root_proof_1.var_proof.var_proof[0].value
+            merged_root2 = root_proof_2.var_proof.var_proof[0].value
+            nonce_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Nonce"])
+            nonce_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Nonce"])
+            nonce_1 = int(nonce_proof_1.var_proof.var_proof[0].value)
+            nonce_2 = int(nonce_proof_2.var_proof.var_proof[0].value)
             print(" __\n| last merged heights :", merged_height1, merged_height2)
             print("| last merged contract trie roots:", merged_root1,
                   merged_root2)
