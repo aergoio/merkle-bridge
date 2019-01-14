@@ -31,24 +31,28 @@ def run():
         aergo2.get_account()
         print("  > Sender Address: ", sender_account.address.__str__())
 
-        t_anchor_p = aergo1.query_sc_state(addr1, ["_sv_T_anchor"])
-        t_final_p = aergo1.query_sc_state(addr1, ["_sv_T_final"])
-        t_anchor = int(t_anchor_p.var_proof.var_proof[0].value)
-        t_final = int(t_final_p.var_proof.var_proof[0].value)
-
+        # Get bridge information
+        bridge_info = aergo1.query_sc_state(addr1,
+                                            ["_sv_T_anchor",
+                                             "_sv_T_final",
+                                            ])
+        t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
         print(" * anchoring periode : ", t_anchor, "s\n",
               "* chain finality periode : ", t_final, "s\n")
 
         print("------ Lock tokens -----------")
         # get current balance and nonce
-        print(type(sender_account.address))
-        balance_p = aergo1.query_sc_state(token, ["_sv_Balances-" +
-                                                  sender_account.address.__str__()])
-        nonce_p = aergo1.query_sc_state(token, ["_sv_Nonces-" +
-                                        sender_account.address.__str__()])
-        balance = int(balance_p.var_proof.var_proof[0].value)
+        initial_state = aergo1.query_sc_state(token,
+                                          ["_sv_Balances-" +
+                                           sender_account.address.__str__(),
+                                           "_sv_Nonces-" +
+                                           sender_account.address.__str__(),
+                                           "_sv_ContractID"
+                                          ])
+        balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
+        balance = int(balance_p)
         try:
-            nonce = int(nonce_p.var_proof.var_proof[0].value)
+            nonce = int(nonce_p)
         except ValueError:
             nonce = 0
         print("Token address : ", token)
@@ -59,7 +63,7 @@ def run():
         account_ref = sender_account.address.__str__() + token
         lock_p = aergo1.query_sc_state(addr1, ["_sv_Locks-" + account_ref])
         try:
-            lock_before = int(lock_p.var_proof.var_proof[0].value)
+            lock_before = int(lock_p.var_proofs[0].value)
         except ValueError:
             lock_before = 0
         print("Current locked balance : ", lock_before)
@@ -70,8 +74,7 @@ def run():
         fee = 0
         deadline = 0
         # Get the contract's id
-        contractID_p = aergo1.query_sc_state(token, ["_sv_ContractID"])
-        contractID = str(contractID_p.var_proof.var_proof[0].value[1:-1], 'utf-8')
+        contractID = str(contractID_p[1:-1], 'utf-8')
         msg = bytes(addr1 + str(value) + str(nonce) + str(fee) +
                     str(deadline) + contractID, 'utf-8')
         h = hashlib.sha256(msg).digest()
@@ -95,20 +98,20 @@ def run():
         print("------ Wait finalisation and get lock proof -----------")
         # check current merged height at destination
         height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
-        merged_height2 = int(height_proof_2.var_proof.var_proof[0].value)
+        merged_height2 = int(height_proof_2.var_proofs[0].value)
         print("last merged height at destination :", merged_height2)
         # wait t_final
         print("waiting finalisation :", t_final-confirmation_time, "s...")
         time.sleep(t_final)
         # check last merged height
         height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
-        last_merged_height2 = int(height_proof_2.var_proof.var_proof[0].value)
+        last_merged_height2 = int(height_proof_2.var_proofs[0].value)
         # waite for anchor containing our transfer
         while last_merged_height2 < lock_height:
             print("waiting new anchor...")
             time.sleep(t_anchor/4)
             height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
-            last_merged_height2 = int(height_proof_2.var_proof.var_proof[0].value)
+            last_merged_height2 = int(height_proof_2.var_proofs[0].value)
             # TODO do this with events when available
         # get inclusion proof of lock in last merged block
         merge_block1 = aergo1.get_block(block_height=last_merged_height2)
@@ -123,8 +126,8 @@ def run():
         print(lock_proof)
         print("------ Mint tokens on destination blockchain -----------")
         receiver = sender_account.address.__str__()
-        balance = int(lock_proof.var_proof.var_proof[0].value)
-        auditPath = lock_proof.var_proof.var_proof[0].auditPath
+        balance = int(lock_proof.var_proofs[0].value)
+        auditPath = lock_proof.var_proofs[0].auditPath
         ap = [node.hex() for node in auditPath]
         token_origin = token
         print(ap)

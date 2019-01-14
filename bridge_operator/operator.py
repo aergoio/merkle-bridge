@@ -44,22 +44,27 @@ def run():
 
         while True:
             # Get current merge block height
-            height_proof_2 = aergo1.query_sc_state(addr1, ["_sv_Height"])
-            height_proof_1 = aergo2.query_sc_state(addr2, ["_sv_Height"])
-            merged_height1 = int(height_proof_1.var_proof.var_proof[0].value)
-            merged_height2 = int(height_proof_2.var_proof.var_proof[0].value)
-            root_proof_2 = aergo1.query_sc_state(addr1, ["_sv_Root"])
-            root_proof_1 = aergo2.query_sc_state(addr2, ["_sv_Root"])
-            merged_root1 = root_proof_1.var_proof.var_proof[0].value
-            merged_root2 = root_proof_2.var_proof.var_proof[0].value
-            nonce_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Nonce"])
-            nonce_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Nonce"])
-            nonce_1 = int(nonce_proof_1.var_proof.var_proof[0].value)
-            nonce_2 = int(nonce_proof_2.var_proof.var_proof[0].value)
+            merge_info1 = aergo1.query_sc_state(addr1,
+                                                ["_sv_Height",
+                                                 "_sv_Root",
+                                                 "_sv_Nonce"
+                                                ])
+            merge_info2 = aergo2.query_sc_state(addr2,
+                                                ["_sv_Height",
+                                                 "_sv_Root",
+                                                 "_sv_Nonce"
+                                                ])
+            merged_height2, merged_root2, nonce1 = [proof.value for proof in merge_info1.var_proofs]
+            merged_height2 = int(merged_height2)
+            nonce1 = int(nonce1)
+
+            merged_height1, merged_root1, nonce2 = [proof.value for proof in merge_info2.var_proofs]
+            merged_height1 = int(merged_height1)
+            nonce2 = int(nonce2)
             print(" __\n| last merged heights :", merged_height1, merged_height2)
             print("| last merged contract trie roots:", merged_root1,
                   merged_root2)
-            print("| current update nonces:", nonce_1, nonce_2)
+            print("| current update nonces:", nonce1, nonce2)
 
             # Wait for the next anchor time
             while True:
@@ -98,8 +103,8 @@ def run():
                 continue
 
             # Sign root and height update
-            msg1 = bytes(root1 + str(merge_height1) + str(nonce_2), 'utf-8')
-            msg2 = bytes(root2 + str(merge_height2) + str(nonce_1), 'utf-8')
+            msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
+            msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
             h1 = hashlib.sha256(msg1).digest()
             h2 = hashlib.sha256(msg2).digest()
             sig1 = "0x" + aergo2.account.private_key.sign_msg(h1).hex()
