@@ -50,9 +50,9 @@ def run():
                                            "_sv_ContractID"
                                           ])
         balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
-        balance = int(balance_p)
+        balance = int(json.loads(balance_p)["_bignum"])
         try:
-            nonce = int(nonce_p)
+            nonce= int(json.loads(nonce_p)["_bignum"])
         except ValueError:
             nonce = 0
         print("Token address : ", token)
@@ -82,7 +82,7 @@ def run():
 
         # lock and check block height of lock tx
         tx, result = aergo1.call_sc(addr1, "lock",
-                                    args=[to, value, token, nonce, sig])
+                                    args=[to, str(value), token, nonce, sig])
         confirmation_time = 3
         time.sleep(confirmation_time)
         _, lock_height = aergo1.get_blockchain_status()
@@ -126,7 +126,7 @@ def run():
         print(lock_proof)
         print("------ Mint tokens on destination blockchain -----------")
         receiver = sender_account.address.__str__()
-        balance = int(lock_proof.var_proofs[0].value)
+        balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
         auditPath = lock_proof.var_proofs[0].auditPath
         ap = [node.hex() for node in auditPath]
         token_origin = token
