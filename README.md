@@ -33,14 +33,12 @@ $ make deploy_token
 ```
 ### Transfer tokens from origin to destination and back
 ```sh
-$ make transfer_to_destination
+$ make transfer_to_sidechain
 ```
 ```sh
-$ make transfer_to_origin
+$ make transfer_from_sidechain
 ```
 
 
 # TODO
-- bridge minted contract : requires contract creation withing contract, not yet supported by luavm
-- merkle bridge contracts with mp verification and ecverify
-- wallet : initiate transfer, create merkle proof, receive minted asset at destination
+- wallet : send token back to origin

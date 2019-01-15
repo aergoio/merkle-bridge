@@ -1,4 +1,4 @@
-.PHONY: docker compile_bridge compile_token deploy_bridge deploy_token bridge transfer_to_destination transfer_to_origin
+.PHONY: docker compile_bridge compile_token deploy_bridge deploy_token bridge transfer_to_sidechain transfer_from_sidechain
 
 docker:
 	docker run -d -p 7845:7845 aergo/node aergosvr --testmode --config /aergo/config.toml
@@ -19,8 +19,8 @@ deploy_token:
 bridge:
 	python3 bridge_operator/operator.py
 
-transfer_to_destination:
-	python3 wallet/transfer_to_destination.py
+transfer_to_sidechain:
+	python3 wallet/transfer_to_sidechain.py
 
-transfer_to_origin:
-	python3 wallet/transfer_to_origin.py
+transfer_from_sidechain:
+	python3 wallet/transfer_from_sidechain.py

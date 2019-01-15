@@ -8,7 +8,7 @@ function address.isValidAddress(address)
   if 52 ~= string.len(address) then
     return false
   end
-  -- TODO add checksum verification
+  -- TODO add checksum verification?
   return true
 end
 
@@ -48,14 +48,15 @@ end
 function transfer(to, value) 
     local from = system.getSender()
     local bvalue = bignum.number(value)
-    assert(bvalue > bignum.number(0), "invalid value")
+    local b0 = bignum.number(0)
+    assert(bvalue > b0, "invalid value")
     assert(address.isValidAddress(to), "invalid address format: " .. to)
     assert(to ~= from, "same sender and receiver")
-    assert(Balances[from] and bvalue <= Balances[from], "[transfer] not enough balance")
+    assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
     Balances[from] = Balances[from] - bvalue
-    if Nonces[from] == nil then Nonces[from] = bignum.number(0) end
+    if Nonces[from] == nil then Nonces[from] = b0 end
     Nonces[from] = Nonces[from] + bignum.number(1)
-    if Balances[to] == nil then Balances[to] = bignum.number(0) end
+    if Balances[to] == nil then Balances[to] = b0 end
     Balances[to] = Balances[to] + bvalue
     -- TODO event notification
     return true
@@ -74,32 +75,33 @@ end
 -- @return          success
 ---------------------------------------
 function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+    local bfee = bignum.number(fee)
+    local bvalue = bignum.number(value)
+    local bnonce = bignum.number(nonce)
+    local b0 = bignum.number(0)
     -- check addresses
     assert(address.isValidAddress(to), "invalid address format: " .. to)
     assert(address.isValidAddress(from), "invalid address format: " .. from)
     assert(to ~= from, "same sender and receiver")
     -- check amounts, fee
-    local bfee = bignum.number(fee)
-    local bvalue = bignum.number(value)
-    local bnonce = bignum.number(nonce)
-    assert(bfee >= bignum.number(0), "fee must be positive")
-    assert(bvalue >= bignum.number(0), "value must be positive")
+    assert(bfee >= b0, "fee must be positive")
+    assert(bvalue >= b0, "value must be positive")
     assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
     -- check deadline
     assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
     -- check nonce
-    if Nonces[from] == nil then Nonces[from] = bignum.number(0) end
+    if Nonces[from] == nil then Nonces[from] = b0 end
     assert(Nonces[from] == bnonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
     data = crypto.sha256(to..bignum.tostring(bvalue)..bignum.tostring(bnonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute transfer
     Balances[from] = Balances[from] - bvalue - bfee
-    if Balances[to] == nil then Balances[to] = bignum.number(0) end
+    if Balances[to] == nil then Balances[to] = b0 end
     Balances[to] = Balances[to] + bvalue
-    if Balances[system.getSender()] == nil then Balances[system.getSender()] = bignum.number(0) end
+    if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
     Balances[system.getSender()] = Balances[system.getSender()] + bfee
-    if Nonces[from] == nil then Nonces[from] = bignum.number(0) end
+    if Nonces[from] == nil then Nonces[from] = b0 end
     Nonces[from] = Nonces[from] + bignum.number(1)
     -- TODO event notification
     return true

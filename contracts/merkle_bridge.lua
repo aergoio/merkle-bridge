@@ -120,6 +120,7 @@ end
 -- nonce and signature are used when making a token lockup
 function lock(receiver, amount, token_address, nonce, signature)
     local bamount = bignum.number(amount)
+    -- TODO b0 = bignum.number(0)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
     assert(bamount > bignum.number(0), "amount must be positive")
@@ -166,11 +167,11 @@ function mint(receiver, balance, token_origin, merkle_proof)
     end
     assert(to_transfer > bignum.number(0), "make a deposit before minting")
     if BridgeTokens[token_origin] == nil then
-        -- TODO Deploy new bridged token
-        -- mint_address = new Token()
-        -- BridgeTokens[token_origin] = mint_address
-        -- MintedTokens[mint_address] = token_origin
-        return 1
+        -- Deploy new minteable token controlled by bridge
+        mint_address, success = _deploy_minteable_token()
+        if not success then error("failed to create token contract") end
+        BridgeTokens[token_origin] = mint_address
+        MintedTokens[mint_address] = token_origin
     else
         mint_address = BridgeTokens[token_origin]
     end
@@ -268,4 +269,175 @@ function _bit_is_set(bits, i)
     return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
 end
 
-abi.register(set_root, new_validators, lock, unlock, mint, burn)
+function _deploy_minteable_token()
+    src = [[
+        local address = {}
+        function address.isValidAddress(address)
+        -- check existence of invalid alphabets
+        if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
+            return false
+        end
+        -- check lenght is in range
+        if 52 ~= string.len(address) then
+            return false
+        end
+        -- TODO add checksum verification?
+        return true
+        end
+
+
+        -- The a bridge token is a mintable and burnable token controlled by
+        -- the bridge contract. It represents all tokens locked on the other side of the 
+        -- bridge with a 1:1 ratio.
+        -- This contract is depoyed by the merkle bridge when a new type of token 
+        -- is transfered
+        state.var {
+            Symbol = state.value(),
+            Name = state.value(),
+            Decimals = state.value(),
+            TotalSupply = state.value(),
+            Balances = state.map(),
+            Nonces = state.map(),
+            -- Contract ID is a unique id that cannot be shared by another contract, even one on a sidechain
+            -- This is neeeded for replay protection of signed transfer, because users might have the same private key
+            -- on different sidechains
+            ContractID = state.value(),
+            Owner = state.value(),
+        }
+
+        function constructor() 
+            Symbol:set("TOKEN")
+            Name:set("Standard Token on Aergo")
+            Decimals:set(18)
+            TotalSupply:set(bignum.number(0))
+            Owner:set(system.getSender())
+            id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
+            -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
+            ContractID:set(id)
+            return true
+        end
+
+        ---------------------------------------
+        -- Transfer sender's token to target 'to'
+        -- @type        call
+        -- @param to    a target address
+        -- @param value string amount of tokens to send
+        -- @return      success
+        ---------------------------------------
+        function transfer(to, value) 
+            local from = system.getSender()
+            local bvalue = bignum.number(value)
+            local b0 = bignum.number(0)
+            assert(bvalue > b0, "invalid value")
+            assert(address.isValidAddress(to), "invalid address format: " .. to)
+            assert(to ~= from, "same sender and receiver")
+            assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
+            Balances[from] = Balances[from] - bvalue
+            if Nonces[from] == nil then Nonces[from] = b0 end
+            Nonces[from] = Nonces[from] + bignum.number(1)
+            if Balances[to] == nil then Balances[to] = b0 end
+            Balances[to] = Balances[to] + bvalue
+            -- TODO event notification
+            return true
+        end
+
+        ---------------------------------------
+        -- Transfer tokens according to signed data from the owner
+        -- @type  call
+        -- @param from      sender's address
+        -- @param to        receiver's address
+        -- @param value     string amount of token to send in aer
+        -- @param nonce     string nonce of the sender to prevent replay
+        -- @param fee       string fee given to the tx broadcaster
+        -- @param deadline  block number before which the tx can be executed
+        -- @param signature signature proving sender's consent
+        -- @return          success
+        ---------------------------------------
+        function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+            local bfee = bignum.number(fee)
+            local bvalue = bignum.number(value)
+            local bnonce = bignum.number(nonce)
+            local b0 = bignum.number(0)
+            -- check addresses
+            assert(address.isValidAddress(to), "invalid address format: " .. to)
+            assert(address.isValidAddress(from), "invalid address format: " .. from)
+            assert(to ~= from, "same sender and receiver")
+            -- check amounts, fee
+            assert(bfee >= b0, "fee must be positive")
+            assert(bvalue >= b0, "value must be positive")
+            assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
+            -- check deadline
+            assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
+            -- check nonce
+            if Nonces[from] == nil then Nonces[from] = b0 end
+            assert(Nonces[from] == bnonce, "nonce is invalid or already spent")
+            -- construct signed transfer and verifiy signature
+            data = crypto.sha256(to..bignum.tostring(bvalue)..bignum.tostring(bnonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+            assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
+            -- execute transfer
+            Balances[from] = Balances[from] - bvalue - bfee
+            if Balances[to] == nil then Balances[to] = b0 end
+            Balances[to] = Balances[to] + bvalue
+            if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
+            Balances[system.getSender()] = Balances[system.getSender()] + bfee
+            if Nonces[from] == nil then Nonces[from] = b0 end
+            Nonces[from] = Nonces[from] + bignum.number(1)
+            -- TODO event notification
+            return true
+        end
+
+
+        ---------------------------------------
+        -- Mint and Burn are specific to the token contract controlled by
+        -- the merkle bridge contract and representing transfered assets.
+        ---------------------------------------
+
+        ---------------------------------------
+        -- Mint tokens to 'to'
+        -- @type        call
+        -- @param to    a target address
+        -- @param value string amount of token to mint
+        -- @return      success
+        ---------------------------------------
+        function mint(to, value)
+            local bvalue = bignum.number(value)
+            local b0 = bignum.number(0)
+            assert(address.isValidAddress(to), "invalid address format: " .. to)
+            assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
+            new_total = TotalSupply:get() + bvalue
+            TotalSupply:set(new_total)
+            if Balances[to] == nil then Balances[to] = b0 end
+            Balances[to] = Balances[to] + bvalue;
+            -- TODO event notification
+            return true
+        end
+
+        ---------------------------------------
+        -- Burn burns the tokens of 'from'
+        -- @type        call
+        -- @param from  a target address
+        -- @param value an amount of token to send
+        -- @return      success
+        ---------------------------------------
+        function burn(from, value)
+            local bvalue = bignum.number(value)
+            local b0 = bignum.number(0)
+            assert(address.isValidAddress(from), "invalid address format: " ..from)
+            assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
+            assert(Balances[from] and bvalue <= Balances[from], "Not enough funds to burn")
+            new_total = TotalSupply:get() - bvalue
+            TotalSupply:set(new_total)
+            Balances[from] = Balances[from] - bvalue
+            -- TODO event notification
+            return true
+        end
+
+
+        -- register functions to abi
+        abi.register(transfer, signed_transfer, mint, burn)
+        ]]
+    addr, success = contract.deploy(src)
+    return addr, success
+end
+
+abi.register(set_root, new_validators, lock, unlock, mint, burn, test, get)

@@ -63,7 +63,7 @@ def run():
         account_ref = sender_account.address.__str__() + token
         lock_p = aergo1.query_sc_state(addr1, ["_sv_Locks-" + account_ref])
         try:
-            lock_before = int(lock_p.var_proofs[0].value)
+            lock_before = int(lock_p.var_proofs[0].value[1:-1])
         except ValueError:
             lock_before = 0
         print("Current locked balance : ", lock_before)
@@ -123,24 +123,34 @@ def run():
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        print(lock_proof)
+        # print(lock_proof)
         print("------ Mint tokens on destination blockchain -----------")
         receiver = sender_account.address.__str__()
         balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
         auditPath = lock_proof.var_proofs[0].auditPath
         ap = [node.hex() for node in auditPath]
         token_origin = token
-        print(ap)
+        # print(ap)
         # call mint on aergo2 with the lock proof from aergo1
         tx, result = aergo2.call_sc(addr2, "mint",
                                     args=[receiver, balance,
                                           token_origin, ap])
         time.sleep(confirmation_time)
         result = aergo2.get_tx_result(tx.tx_hash)
-        print(result)
-        # TODO this requires contract deployment from within contract support by
-        # lua
+        mint_address = result.detail[1:-1]
+        print("Token's address on sidechain : ", mint_address)
+        minted_balance = aergo2.query_sc_state(mint_address,
+                                          ["_sv_Balances-" +
+                                           sender_account.address.__str__(),
+                                          ])
         # check newly minted balance
+        balance = json.loads(minted_balance.var_proofs[0].value)
+        print("New token balance on sidechain : ", balance)
+
+        # record mint address in file
+        with open("./wallet/token_mint_address.txt", "w") as f:
+            f.write(mint_address)
+            f.write("_MINT_TOKEN_1\n")
 
     except grpc.RpcError as e:
         print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),
