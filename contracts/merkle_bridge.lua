@@ -263,7 +263,7 @@ end
 function _bit_is_set(bits, i)
     require "bit"
     -- get the hex byte containing ith bit
-    byte_index = math.floor(i/8) + 1
+    byte_index = math.floor(i/8)*2 + 1
     byte_hex = string.sub(bits, byte_index, byte_index + 1)
     byte = tonumber(byte_hex, 16)
     return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
