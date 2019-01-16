@@ -52,7 +52,8 @@ def run():
         balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
         balance = int(json.loads(balance_p)["_bignum"])
         try:
-            nonce= int(json.loads(nonce_p)["_bignum"])
+            print(nonce_p)
+            nonce= int(nonce_p)
         except ValueError:
             nonce = 0
         print("Token address : ", token)

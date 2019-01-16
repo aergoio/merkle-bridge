@@ -71,7 +71,6 @@ function set_root(root, height, signers, signatures)
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     Root:set("0x"..root)
     Height:set(height)
-    -- TODO safe math for nonce add
     Nonce:set(old_nonce + 1)
 end
 
@@ -120,26 +119,30 @@ end
 -- nonce and signature are used when making a token lockup
 function lock(receiver, amount, token_address, nonce, signature)
     local bamount = bignum.number(amount)
-    -- TODO b0 = bignum.number(0)
+    local b0 = bignum.number(0)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
-    assert(bamount > bignum.number(0), "amount must be positive")
+    assert(bamount > b0, "amount must be positive")
+
+    -- Lock assets/aer in the bridge
     if system.getAmount() ~= "0" then
         assert(#token_address == 0, "for safety and clarity don't provide a token address when locking aergo bits")
         assert(system.getAmount() == bignum.tostring(bamount), "for safety and clarity, amount must match the amount sent in the tx")
         token_address = "aergo"
    else
-        sender = system.getSender()
+        local sender = system.getSender()
         -- TODO pass sender as parameter to enable delegated token transfer in bridge
         this_contract = system.getContractID()
         -- FIXME how can this be hacked with a reentrant call if the token_address is malicious ?
         if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, "0", 0, signature) then
             error("failed to receive token to lock")
         end
-        system.print("hello")
     end
-    account_ref = receiver .. token_address
-    old = Locks[account_ref]
+
+    -- Add locked amount to total
+    local account_ref = receiver .. token_address
+    local old = Locks[account_ref]
+    local locked_balance
     if old == nil then
         locked_balance = bamount
     else
@@ -153,14 +156,19 @@ end
 -- mint a foreign token. token_origin is the token address where it is transfered from.
 function mint(receiver, balance, token_origin, merkle_proof)
     local bbalance = bignum.number(balance)
+    local b0 = bignum.number(0)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
-    assert(bbalance > bignum.number(0), "minteable balance must be positive")
-    account_ref = receiver .. token_origin
-    local value = "\""..bignum.tostring(bbalance).."\""
-    system.print("locked value string :", value )
-    if not _verify_mp(merkle_proof, "Locks", account_ref, value, Root:get()) then
+    assert(bbalance > b0, "minteable balance must be positive")
+
+    -- Verify merkle proof of locked balance
+    local account_ref = receiver .. token_origin
+    local balance_str = "\""..bignum.tostring(bbalance).."\""
+    if not _verify_mp(merkle_proof, "Locks", account_ref, balance_str, Root:get()) then
         error("failed to verify deposit balance merkle proof")
     end
+
+    -- Calculate amount to mint
+    local to_transfer
     minted_so_far = Mints[account_ref]
     if minted_so_far == nil then
         to_transfer = bbalance
@@ -168,6 +176,9 @@ function mint(receiver, balance, token_origin, merkle_proof)
         to_transfer  = bbalance - bignum.number(minted_so_far)
     end
     assert(to_transfer > bignum.number(0), "make a deposit before minting")
+
+    -- Deploy or get the minted token
+    local mint_address
     if BridgeTokens[token_origin] == nil then
         -- Deploy new minteable token controlled by bridge
         mint_address, success = _deploy_minteable_token()
@@ -177,7 +188,11 @@ function mint(receiver, balance, token_origin, merkle_proof)
     else
         mint_address = BridgeTokens[token_origin]
     end
+
+    -- Record total amount minted
     Mints[account_ref] = bignum.tostring(bbalance)
+
+    -- Mint tokens
     if not contract.call(mint_address, "mint", receiver, bignum.tostring(to_transfer)) then
         error("failed to mint token")
     end
@@ -185,21 +200,25 @@ function mint(receiver, balance, token_origin, merkle_proof)
     return mint_address
 end
 
--- origin_address is the address of the token on the parent chain.
+-- burn a sidechain token
 function burn(receiver, amount, mint_address)
     local bamount = bignum.number(amount)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(bamount > bignum.number(0), "amount must be positive")
     assert(system.getAmount() == "0", "burn function not payable, only tokens can be burned")
-    origin_address = MintedTokens[mint_address]
+
+    -- Burn token
+    local sender = system.getSender()
+    local origin_address = MintedTokens[mint_address]
     assert(origin_address ~= nil, "cannot burn token : must have been minted by bridge")
-    sender = system.getSender()
     if not contract.call(mint_address, "burn", sender, bignum.tostring(bamount)) then
         error("failed to burn token")
     end
-    -- burn with the origin address information
-    account_ref = receiver .. origin_address
-    old = Burns[account_ref]
+
+    -- Add burnt amount to total
+    local account_ref = receiver .. origin_address
+    local old = Burns[account_ref]
+    local burnt_balance
     if old == nil then
         burnt_balance = bamount
     else
@@ -210,23 +229,33 @@ function burn(receiver, amount, mint_address)
     return origin_address, burnt_balance
 end
 
+-- unlock tokens returning from sidechain
 function unlock(receiver, balance, token_address, merkle_proof)
     local bbalance = bignum.number(balance)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(bbalance > bignum.number(0), "unlockeable balance must be positive")
-    account_ref = receiver .. token_address
-    local value = "\""..bignum.tostring(bbalance).."\""
-    if not _verify_mp(merkle_proof, "Burns", account_ref, value, Root:get()) then
+
+    -- Verify merkle proof of burnt balance
+    local account_ref = receiver .. token_address
+    local balance_str = "\""..bignum.tostring(bbalance).."\""
+    if not _verify_mp(merkle_proof, "Burns", account_ref, balance_str, Root:get()) then
         error("failed to verify burnt balance merkle proof")
     end
-    unlocked_so_far = Unlocks[account_ref]
+
+    -- Calculate amount to unlock
+    local unlocked_so_far = Unlocks[account_ref]
+    local to_transfer
     if unlocked_so_far == nil then
         to_transfer = bbalance
     else
         to_transfer = bbalance - bignum.number(unlocked_so_far)
     end
     assert(to_transfer > bignum.number(0), "burn minted tokens before unlocking")
+
+    -- Record total amount unlocked so far
     Unlocks[account_ref] = bignum.tostring(bbalance)
+
+    -- Unlock tokens/aer
     if token_address == "aergo" then
         -- TODO does send return bool ?
         contract.send(receiver, to_transfer)
@@ -246,16 +275,9 @@ end
 -- more efficient to use a compressed proof)
 function _verify_mp(ap, map_name, key, value, root)
     var_id = "_sv_" .. map_name .. "-" .. key
-    system.print("var_id : ", var_id)
     trie_key = crypto.sha256(var_id)
-    system.print("var_id hash ie trie_key : ", trie_key)
     trie_value = crypto.sha256(value)
-    system.print("value hash : ", trie_value)
     leaf_hash = crypto.sha256(trie_key..string.sub(trie_value, 3, #trie_value)..string.format('%02x', 256-#ap))
-    system.print("leaf_hash : ",leaf_hash)
-    system.print("root: ",root)
-    system.print("expected:", _verify_proof(ap, 0, string.sub(trie_key, 3, #trie_key), leaf_hash))
-    system.print("ap: ", ap)
     return root == _verify_proof(ap, 0, string.sub(trie_key, 3, #trie_key), leaf_hash)
 end
 
@@ -263,7 +285,6 @@ function _verify_proof(ap, key_index, key, leaf_hash)
     if key_index == #ap then
         return leaf_hash
     end
-    system.print(_bit_is_set(key, key_index))
     if _bit_is_set(key, key_index) then
         right = _verify_proof(ap, key_index+1, key, leaf_hash)
         return crypto.sha256("0x"..ap[#ap-key_index]..string.sub(right, 3, #right))
@@ -278,26 +299,29 @@ function _bit_is_set(bits, i)
     byte_index = math.floor(i/8)*2 + 1
     byte_hex = string.sub(bits, byte_index, byte_index + 1)
     byte = tonumber(byte_hex, 16)
-    system.print("index: ", byte_index, i)
-    system.print("hex byte :", byte_hex)
-    system.print("byte :", byte)
     return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
 end
 
 function _deploy_minteable_token()
     src = [[
-        local address = {}
-        function address.isValidAddress(address)
-        -- check existence of invalid alphabets
-        if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
-            return false
+        local type_check = {}
+        function type_check.isValidAddress(address)
+            -- check existence of invalid alphabets
+            if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
+                return false
+            end
+            -- check lenght is in range
+            if 52 ~= string.len(address) then
+                return false
+            end
+            -- TODO add checksum verification?
+            return true
         end
-        -- check lenght is in range
-        if 52 ~= string.len(address) then
-            return false
-        end
-        -- TODO add checksum verification?
-        return true
+        function type_check.isValidNumber(value)
+            if nil ~= string.match(value, '[^0123456789]') then
+                return false
+            end
+            return true
         end
 
 
@@ -326,9 +350,8 @@ function _deploy_minteable_token()
             Decimals:set(18)
             TotalSupply:set(bignum.number(0))
             Owner:set(system.getSender())
-            id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
             -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-            ContractID:set(id)
+            ContractID:set(crypto.sha256(system.getContractID()..system.getPrevBlockHash()))
             return true
         end
 
@@ -340,16 +363,17 @@ function _deploy_minteable_token()
         -- @return      success
         ---------------------------------------
         function transfer(to, value) 
+            assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+            assert(type_check.isValidAddress(to), "invalid address format: " .. to)
             local from = system.getSender()
             local bvalue = bignum.number(value)
             local b0 = bignum.number(0)
             assert(bvalue > b0, "invalid value")
-            assert(address.isValidAddress(to), "invalid address format: " .. to)
             assert(to ~= from, "same sender and receiver")
             assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
             Balances[from] = Balances[from] - bvalue
-            if Nonces[from] == nil then Nonces[from] = b0 end
-            Nonces[from] = Nonces[from] + bignum.number(1)
+            if Nonces[from] == nil then Nonces[from] = 0 end
+            Nonces[from] = Nonces[from] + 1
             if Balances[to] == nil then Balances[to] = b0 end
             Balances[to] = Balances[to] + bvalue
             -- TODO event notification
@@ -362,20 +386,21 @@ function _deploy_minteable_token()
         -- @param from      sender's address
         -- @param to        receiver's address
         -- @param value     string amount of token to send in aer
-        -- @param nonce     string nonce of the sender to prevent replay
+        -- @param nonce     nonce of the sender to prevent replay
         -- @param fee       string fee given to the tx broadcaster
         -- @param deadline  block number before which the tx can be executed
         -- @param signature signature proving sender's consent
         -- @return          success
         ---------------------------------------
         function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+            assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+            assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
             local bfee = bignum.number(fee)
             local bvalue = bignum.number(value)
-            local bnonce = bignum.number(nonce)
             local b0 = bignum.number(0)
             -- check addresses
-            assert(address.isValidAddress(to), "invalid address format: " .. to)
-            assert(address.isValidAddress(from), "invalid address format: " .. from)
+            assert(type_check.isValidAddress(to), "invalid address format: " .. to)
+            assert(type_check.isValidAddress(from), "invalid address format: " .. from)
             assert(to ~= from, "same sender and receiver")
             -- check amounts, fee
             assert(bfee >= b0, "fee must be positive")
@@ -384,10 +409,10 @@ function _deploy_minteable_token()
             -- check deadline
             assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
             -- check nonce
-            if Nonces[from] == nil then Nonces[from] = b0 end
-            assert(Nonces[from] == bnonce, "nonce is invalid or already spent")
+            if Nonces[from] == nil then Nonces[from] = 0 end
+            assert(Nonces[from] == nonce, "nonce is invalid or already spent")
             -- construct signed transfer and verifiy signature
-            data = crypto.sha256(to..bignum.tostring(bvalue)..bignum.tostring(bnonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+            data = crypto.sha256(to..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
             assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
             -- execute transfer
             Balances[from] = Balances[from] - bvalue - bfee
@@ -395,8 +420,7 @@ function _deploy_minteable_token()
             Balances[to] = Balances[to] + bvalue
             if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
             Balances[system.getSender()] = Balances[system.getSender()] + bfee
-            if Nonces[from] == nil then Nonces[from] = b0 end
-            Nonces[from] = Nonces[from] + bignum.number(1)
+            Nonces[from] = Nonces[from] + 1
             -- TODO event notification
             return true
         end
@@ -415,11 +439,12 @@ function _deploy_minteable_token()
         -- @return      success
         ---------------------------------------
         function mint(to, value)
+            assert(type_check.isValidNumber(value), "invalid value format (must be string)")
             local bvalue = bignum.number(value)
             local b0 = bignum.number(0)
-            assert(address.isValidAddress(to), "invalid address format: " .. to)
+            assert(type_check.isValidAddress(to), "invalid address format: " .. to)
             assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
-            new_total = TotalSupply:get() + bvalue
+            local new_total = TotalSupply:get() + bvalue
             TotalSupply:set(new_total)
             if Balances[to] == nil then Balances[to] = b0 end
             Balances[to] = Balances[to] + bvalue;
@@ -435,9 +460,10 @@ function _deploy_minteable_token()
         -- @return      success
         ---------------------------------------
         function burn(from, value)
+            assert(type_check.isValidNumber(value), "invalid value format (must be string)")
             local bvalue = bignum.number(value)
             local b0 = bignum.number(0)
-            assert(address.isValidAddress(from), "invalid address format: " ..from)
+            assert(type_check.isValidAddress(from), "invalid address format: " ..from)
             assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
             assert(Balances[from] and bvalue <= Balances[from], "Not enough funds to burn")
             new_total = TotalSupply:get() - bvalue

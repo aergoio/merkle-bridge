@@ -1,15 +1,21 @@
-local address = {}
-function address.isValidAddress(address)
-  -- check existence of invalid alphabets
-  if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
-    return false
-  end
-  -- check lenght is in range
-  if 52 ~= string.len(address) then
-    return false
-  end
-  -- TODO add checksum verification?
-  return true
+local type_check = {}
+function type_check.isValidAddress(address)
+    -- check existence of invalid alphabets
+    if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
+        return false
+    end
+    -- check lenght is in range
+    if 52 ~= string.len(address) then
+        return false
+    end
+    -- TODO add checksum verification?
+    return true
+end
+function type_check.isValidNumber(value)
+    if nil ~= string.match(value, '[^0123456789]') then
+        return false
+    end
+    return true
 end
 
 
@@ -33,9 +39,8 @@ function constructor(total_supply)
     total_supply = bignum.number(total_supply)
     TotalSupply:set(total_supply)
     Balances[system.getSender()] = total_supply
-    id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
     -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-    ContractID:set(id)
+    ContractID:set(crypto.sha256(system.getContractID()..system.getPrevBlockHash()))
 end
 
 ---------------------------------------
@@ -46,16 +51,17 @@ end
 -- @return      success
 ---------------------------------------
 function transfer(to, value) 
+    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
     local from = system.getSender()
     local bvalue = bignum.number(value)
     local b0 = bignum.number(0)
     assert(bvalue > b0, "invalid value")
-    assert(address.isValidAddress(to), "invalid address format: " .. to)
     assert(to ~= from, "same sender and receiver")
     assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
     Balances[from] = Balances[from] - bvalue
-    if Nonces[from] == nil then Nonces[from] = b0 end
-    Nonces[from] = Nonces[from] + bignum.number(1)
+    if Nonces[from] == nil then Nonces[from] = 0 end
+    Nonces[from] = Nonces[from] + 1
     if Balances[to] == nil then Balances[to] = b0 end
     Balances[to] = Balances[to] + bvalue
     -- TODO event notification
@@ -75,13 +81,14 @@ end
 -- @return          success
 ---------------------------------------
 function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
     local bfee = bignum.number(fee)
     local bvalue = bignum.number(value)
-    local bnonce = bignum.number(nonce)
     local b0 = bignum.number(0)
     -- check addresses
-    assert(address.isValidAddress(to), "invalid address format: " .. to)
-    assert(address.isValidAddress(from), "invalid address format: " .. from)
+    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
+    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
     assert(to ~= from, "same sender and receiver")
     -- check amounts, fee
     assert(bfee >= b0, "fee must be positive")
@@ -90,10 +97,10 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     -- check deadline
     assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
     -- check nonce
-    if Nonces[from] == nil then Nonces[from] = b0 end
-    assert(Nonces[from] == bnonce, "nonce is invalid or already spent")
+    if Nonces[from] == nil then Nonces[from] = 0 end
+    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
-    data = crypto.sha256(to..bignum.tostring(bvalue)..bignum.tostring(bnonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    data = crypto.sha256(to..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute transfer
     Balances[from] = Balances[from] - bvalue - bfee
@@ -101,8 +108,7 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     Balances[to] = Balances[to] + bvalue
     if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
     Balances[system.getSender()] = Balances[system.getSender()] + bfee
-    if Nonces[from] == nil then Nonces[from] = b0 end
-    Nonces[from] = Nonces[from] + bignum.number(1)
+    Nonces[from] = Nonces[from] + 1
     -- TODO event notification
     return true
 end
