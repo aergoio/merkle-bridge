@@ -126,10 +126,11 @@ function lock(receiver, amount, token_address, nonce, signature)
     assert(bamount > bignum.number(0), "amount must be positive")
     if system.getAmount() ~= "0" then
         assert(#token_address == 0, "for safety and clarity don't provide a token address when locking aergo bits")
-        assert(contract.getAmount() == bignum.tostring(bamount), "for safety and clarity, amount must match the amount sent in the tx")
+        assert(system.getAmount() == bignum.tostring(bamount), "for safety and clarity, amount must match the amount sent in the tx")
         token_address = "aergo"
    else
         sender = system.getSender()
+        -- TODO pass sender as parameter to enable delegated token transfer in bridge
         this_contract = system.getContractID()
         -- FIXME how can this be hacked with a reentrant call if the token_address is malicious ?
         if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, "0", 0, signature) then
@@ -156,6 +157,7 @@ function mint(receiver, balance, token_origin, merkle_proof)
     assert(bbalance > bignum.number(0), "minteable balance must be positive")
     account_ref = receiver .. token_origin
     local value = "\""..bignum.tostring(bbalance).."\""
+    system.print("locked value string :", value )
     if not _verify_mp(merkle_proof, "Locks", account_ref, value, Root:get()) then
         error("failed to verify deposit balance merkle proof")
     end
@@ -188,7 +190,7 @@ function burn(receiver, amount, mint_address)
     local bamount = bignum.number(amount)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(bamount > bignum.number(0), "amount must be positive")
-    assert(contract.getAmount() == "0", "burn function not payable, only tokens can be burned")
+    assert(system.getAmount() == "0", "burn function not payable, only tokens can be burned")
     origin_address = MintedTokens[mint_address]
     assert(origin_address ~= nil, "cannot burn token : must have been minted by bridge")
     sender = system.getSender()
@@ -213,14 +215,15 @@ function unlock(receiver, balance, token_address, merkle_proof)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(bbalance > bignum.number(0), "unlockeable balance must be positive")
     account_ref = receiver .. token_address
-    if not _verify_mp(merkle_proof, "Burns", account_ref, bignum.tostring(bbalance), Root:get()) then
+    local value = "\""..bignum.tostring(bbalance).."\""
+    if not _verify_mp(merkle_proof, "Burns", account_ref, value, Root:get()) then
         error("failed to verify burnt balance merkle proof")
     end
     unlocked_so_far = Unlocks[account_ref]
     if unlocked_so_far == nil then
         to_transfer = bbalance
     else
-        to_transfer = bbalance + bignum.number(unlocked_so_far)
+        to_transfer = bbalance - bignum.number(unlocked_so_far)
     end
     assert(to_transfer > bignum.number(0), "burn minted tokens before unlocking")
     Unlocks[account_ref] = bignum.tostring(bbalance)
@@ -233,6 +236,7 @@ function unlock(receiver, balance, token_address, merkle_proof)
         end
     end
     -- TODO add event
+    return token_address
 end
 
 
@@ -242,9 +246,16 @@ end
 -- more efficient to use a compressed proof)
 function _verify_mp(ap, map_name, key, value, root)
     var_id = "_sv_" .. map_name .. "-" .. key
+    system.print("var_id : ", var_id)
     trie_key = crypto.sha256(var_id)
+    system.print("var_id hash ie trie_key : ", trie_key)
     trie_value = crypto.sha256(value)
+    system.print("value hash : ", trie_value)
     leaf_hash = crypto.sha256(trie_key..string.sub(trie_value, 3, #trie_value)..string.format('%02x', 256-#ap))
+    system.print("leaf_hash : ",leaf_hash)
+    system.print("root: ",root)
+    system.print("expected:", _verify_proof(ap, 0, string.sub(trie_key, 3, #trie_key), leaf_hash))
+    system.print("ap: ", ap)
     return root == _verify_proof(ap, 0, string.sub(trie_key, 3, #trie_key), leaf_hash)
 end
 
@@ -252,6 +263,7 @@ function _verify_proof(ap, key_index, key, leaf_hash)
     if key_index == #ap then
         return leaf_hash
     end
+    system.print(_bit_is_set(key, key_index))
     if _bit_is_set(key, key_index) then
         right = _verify_proof(ap, key_index+1, key, leaf_hash)
         return crypto.sha256("0x"..ap[#ap-key_index]..string.sub(right, 3, #right))
@@ -266,6 +278,9 @@ function _bit_is_set(bits, i)
     byte_index = math.floor(i/8)*2 + 1
     byte_hex = string.sub(bits, byte_index, byte_index + 1)
     byte = tonumber(byte_hex, 16)
+    system.print("index: ", byte_index, i)
+    system.print("hex byte :", byte_hex)
+    system.print("byte :", byte)
     return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
 end
 
@@ -440,4 +455,4 @@ function _deploy_minteable_token()
     return addr, success
 end
 
-abi.register(set_root, new_validators, lock, unlock, mint, burn, test, get)
+abi.register(set_root, new_validators, lock, unlock, mint, burn)

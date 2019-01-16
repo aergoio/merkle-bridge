@@ -55,7 +55,7 @@ def run():
         print("  > Token Address (ORIGIN): {}".format(sc_address1))
 
         print("------ Store addresse in token_address.txt -----------")
-        with open("./bridge_operator/token_address.txt", "w") as f:
+        with open("./wallet/token_address.txt", "w") as f:
             f.write(sc_address1)
             f.write("_TOKEN_1\n")
 

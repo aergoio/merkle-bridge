@@ -14,7 +14,7 @@ deploy_bridge:
 	python3 bridge_operator/bridge_deployer.py
 
 deploy_token:
-	python3 bridge_operator/token_deployer.py
+	python3 wallet/token_deployer.py
 
 bridge:
 	python3 bridge_operator/operator.py
