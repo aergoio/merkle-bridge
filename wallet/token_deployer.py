@@ -21,7 +21,6 @@ def run():
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data['priv_key']["wallet"]
         sender_account = aergo1.new_account(private_key=sender_priv_key1)
-        sender_address = sender_account.address.__str__()
         aergo1.get_account()
         print("  > Sender Address: {}".format(sender_account.address))
 
@@ -29,16 +28,13 @@ def run():
         tx1, result1 = aergo1.deploy_sc(amount=0,
                                         payload=payload,
                                         args=[1000000])
-        # print("{}".format(herapy.utils.convert_tx_to_json(tx1)))
         if result1.status != herapy.CommitStatus.TX_OK:
             print("    > ERROR[{0}]: {1}".format(result1.status,
                                                  result1.detail))
             aergo1.disconnect()
             return
-        else:
-            print("    > result[{0}] : {1}".format(result1.tx_id,
-                                                   result1.status.name))
-            print(herapy.utils.convert_bytes_to_int_str(bytes(tx1.tx_hash)))
+        print("    > result[{0}] : {1}".format(result1.tx_id,
+                                               result1.status.name))
 
         time.sleep(3)
 

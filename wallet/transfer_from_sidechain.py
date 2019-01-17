@@ -1,6 +1,7 @@
 import grpc
 import json
 import time
+import sys
 
 import aergo.herapy as herapy
 
@@ -41,42 +42,35 @@ def run():
         print(" * anchoring periode : ", t_anchor, "s\n",
               "* chain finality periode : ", t_final, "s\n")
 
-        print("------ Burn tokens -----------")
         # get current balance and nonce
         initial_state = aergo2.query_sc_state(token_mint,
                                           ["_sv_Balances-" +
                                            sender_account.address.__str__(),
-                                           "_sv_Nonces-" +
-                                           sender_account.address.__str__(),
-                                           "_sv_ContractID"
                                           ])
-        balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
-        balance = int(json.loads(balance_p)["_bignum"])
-        try:
-            nonce= int(json.loads(nonce_p)["_bignum"])
-        except ValueError:
-            nonce = 0
         print("Token address in sidechain : ", token_mint)
-        print("Token balance in sidechain contract : ", balance,
-              "    nonce : ", nonce)
+        balance = json.loads(initial_state.var_proofs[0].value)
+        print("Token balance on sidechain: ", balance)
+        origin_balance = aergo1.query_sc_state(token_origin,
+                                          ["_sv_Balances-" +
+                                           sender_account.address.__str__(),
+                                          ])
+        # remaining balance on sidechain
+        balance = json.loads(origin_balance.var_proofs[0].value)
+        print("Balance on origin: ", balance)
 
-        # record current lock balance
-        account_ref = sender_account.address.__str__() + token_origin
-        burn_p = aergo2.query_sc_state(addr2, ["_sv_Burns-" + account_ref])
-        try:
-            burn_before = int(burn_p.var_proofs[0].value[1:-1])
-        except ValueError:
-            burn_before = 0
-        print("Current burnt balance : ", burn_before)
 
+        print("\n------ Burn tokens -----------")
         # lock and check block height of lock tx
         to = sender_account.address.__str__()
         value = 5
+        print("Transfering", value, "tokens...")
         tx, result = aergo2.call_sc(addr2, "burn",
                                     args=[to, str(value), token_mint])
-        confirmation_time = 3
-        time.sleep(confirmation_time)
+        commit_time = 3
+        time.sleep(commit_time)
+        # Record burn height
         _, burn_height = aergo2.get_blockchain_status()
+        # Check burn success
         result = aergo2.get_tx_result(tx.tx_hash)
         if result.status != herapy.SmartcontractStatus.SUCCESS:
             print("  > ERROR[{0}]:{1}: {2}".format(
@@ -84,7 +78,7 @@ def run():
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        print("New burnt balance : ", result.detail)
+        print("Burn success : ", result.detail)
 
         print("------ Wait finalisation and get burn proof -----------")
         # check current merged height at destination
@@ -92,51 +86,65 @@ def run():
         merged_height1 = int(height_proof_1.var_proofs[0].value)
         print("last merged height at destination :", merged_height1)
         # wait t_final
-        print("waiting finalisation :", t_final-confirmation_time, "s...")
+        print("waiting finalisation :", t_final-commit_time, "s...")
         time.sleep(t_final)
         # check last merged height
         height_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Height"])
         last_merged_height1 = int(height_proof_1.var_proofs[0].value)
         # waite for anchor containing our transfer
+        sys.stdout.write("waiting new anchor ")
         while last_merged_height1 < burn_height:
-            print("waiting new anchor...")
+            sys.stdout.flush()
+            sys.stdout.write(". ")
             time.sleep(t_anchor/4)
             height_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Height"])
             last_merged_height1 = int(height_proof_1.var_proofs[0].value)
             # TODO do this with events when available
         # get inclusion proof of lock in last merged block
         merge_block2 = aergo2.get_block(block_height=last_merged_height1)
+        account_ref = sender_account.address.__str__() + token_origin
         burn_proof = aergo2.query_sc_state(addr2, ["_sv_Burns-" + account_ref],
                                            root=merge_block2.blocks_root_hash,
                                            compressed=False)
         if not burn_proof.verify_proof(merge_block2.blocks_root_hash):
-            print("Unable to verify lock proof")
+            print("Unable to verify burn proof")
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        print(burn_proof)
-        print("------ Unlock tokens on destination blockchain -----------")
+
+        print("\n------ Unlock tokens on destination blockchain -----------")
         receiver = sender_account.address.__str__()
         balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
         auditPath = burn_proof.var_proofs[0].auditPath
         ap = [node.hex() for node in auditPath]
-        print(ap)
         # call mint on aergo2 with the lock proof from aergo1
         tx, result = aergo1.call_sc(addr1, "unlock",
                                     args=[receiver, balance,
                                           token_origin, ap])
-        time.sleep(confirmation_time)
+        time.sleep(commit_time)
         result = aergo1.get_tx_result(tx.tx_hash)
-        origin_address = result.detail[1:-1]
-        print("Token's address on origin: ", origin_address)
-        burnt_balance = aergo2.query_sc_state(token_mint,
+        if result.status != herapy.SmartcontractStatus.SUCCESS:
+            print("  > ERROR[{0}]:{1}: {2}".format(
+                result.contract_address, result.status, result.detail))
+            aergo1.disconnect()
+            aergo2.disconnect()
+            return
+
+        print("Unlock success on origin : ", result.detail)
+        sidechain_balance = aergo2.query_sc_state(token_mint,
                                           ["_sv_Balances-" +
                                            sender_account.address.__str__(),
                                           ])
-        print(burnt_balance)
         # remaining balance on sidechain
-        balance = json.loads(burnt_balance.var_proofs[0].value)
-        print("New token balance on sidechain: ", balance)
+        balance = json.loads(sidechain_balance.var_proofs[0].value)
+        print("Balance on sidechain: ", balance)
+        origin_balance = aergo1.query_sc_state(token_origin,
+                                          ["_sv_Balances-" +
+                                           sender_account.address.__str__(),
+                                          ])
+        # remaining balance on sidechain
+        balance = json.loads(origin_balance.var_proofs[0].value)
+        print("Balance on origin: ", balance)
 
     except grpc.RpcError as e:
         print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),

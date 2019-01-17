@@ -150,7 +150,7 @@ function lock(receiver, amount, token_address, nonce, signature)
     end
     Locks[account_ref] = bignum.tostring(locked_balance)
     -- TODO add event
-    return locked_balance
+    return token_address, bamount
 end
 
 -- mint a foreign token. token_origin is the token address where it is transfered from.
@@ -197,7 +197,7 @@ function mint(receiver, balance, token_origin, merkle_proof)
         error("failed to mint token")
     end
     -- TODO add event
-    return mint_address
+    return mint_address, to_transfer
 end
 
 -- burn a sidechain token
@@ -226,7 +226,7 @@ function burn(receiver, amount, mint_address)
     end
     Burns[account_ref] = bignum.tostring(burnt_balance)
     -- TODO add event
-    return origin_address, burnt_balance
+    return origin_address, bamount
 end
 
 -- unlock tokens returning from sidechain
@@ -265,7 +265,7 @@ function unlock(receiver, balance, token_address, merkle_proof)
         end
     end
     -- TODO add event
-    return token_address
+    return token_address, to_transfer
 end
 
 
@@ -274,10 +274,10 @@ end
 -- (In solidity, only bytes32[] is supported, so byte(0) cannot be passed and it is
 -- more efficient to use a compressed proof)
 function _verify_mp(ap, map_name, key, value, root)
-    var_id = "_sv_" .. map_name .. "-" .. key
-    trie_key = crypto.sha256(var_id)
-    trie_value = crypto.sha256(value)
-    leaf_hash = crypto.sha256(trie_key..string.sub(trie_value, 3, #trie_value)..string.format('%02x', 256-#ap))
+    local var_id = "_sv_" .. map_name .. "-" .. key
+    local trie_key = crypto.sha256(var_id)
+    local trie_value = crypto.sha256(value)
+    local leaf_hash = crypto.sha256(trie_key..string.sub(trie_value, 3, #trie_value)..string.format('%02x', 256-#ap))
     return root == _verify_proof(ap, 0, string.sub(trie_key, 3, #trie_key), leaf_hash)
 end
 
@@ -286,19 +286,19 @@ function _verify_proof(ap, key_index, key, leaf_hash)
         return leaf_hash
     end
     if _bit_is_set(key, key_index) then
-        right = _verify_proof(ap, key_index+1, key, leaf_hash)
+        local right = _verify_proof(ap, key_index+1, key, leaf_hash)
         return crypto.sha256("0x"..ap[#ap-key_index]..string.sub(right, 3, #right))
     end
-    left = _verify_proof(ap, key_index+1, key, leaf_hash)
+    local left = _verify_proof(ap, key_index+1, key, leaf_hash)
     return crypto.sha256(left..ap[#ap-key_index])
 end
 
 function _bit_is_set(bits, i)
     require "bit"
     -- get the hex byte containing ith bit
-    byte_index = math.floor(i/8)*2 + 1
-    byte_hex = string.sub(bits, byte_index, byte_index + 1)
-    byte = tonumber(byte_hex, 16)
+    local byte_index = math.floor(i/8)*2 + 1
+    local byte_hex = string.sub(bits, byte_index, byte_index + 1)
+    local byte = tonumber(byte_hex, 16)
     return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
 end
 

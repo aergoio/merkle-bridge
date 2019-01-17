@@ -43,28 +43,22 @@ def run():
                                         args=[[sender_address],
                                               t_anchor,
                                               t_final])
-        # print("{}".format(herapy.utils.convert_tx_to_json(tx1)))
-        # print("{}".format(herapy.utils.convert_tx_to_json(tx2)))
         if result1.status != herapy.CommitStatus.TX_OK:
             print("    > ERROR[{0}]: {1}".format(result1.status,
                                                  result1.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        else:
-            print("    > result[{0}] : {1}".format(result1.tx_id,
-                                                   result1.status.name))
-            print(herapy.utils.convert_bytes_to_int_str(bytes(tx1.tx_hash)))
+        print("    > result[{0}] : {1}".format(result1.tx_id,
+                                               result1.status.name))
         if result2.status != herapy.CommitStatus.TX_OK:
             print("    > ERROR[{0}]: {1}".format(result2.status,
                                                  result2.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        else:
-            print("    > result[{0}] : {1}".format(result2.tx_id,
-                                                   result2.status.name))
-            print(herapy.utils.convert_bytes_to_int_str(bytes(tx2.tx_hash)))
+        print("    > result[{0}] : {1}".format(result2.tx_id,
+                                               result2.status.name))
 
         time.sleep(3)
 

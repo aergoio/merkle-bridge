@@ -118,8 +118,8 @@ def run():
                                           args=[root2, merge_height2,
                                                 [1], [sig2]])
 
-            confirmation_time = 3
-            time.sleep(confirmation_time)
+            commit_time = 3
+            time.sleep(commit_time)
             result1 = aergo1.get_tx_result(tx1.tx_hash)
             if result1.status != herapy.SmartcontractStatus.SUCCESS:
                 print("  > ERROR[{0}]:{1}: {2}".format(
@@ -137,8 +137,8 @@ def run():
             print("anchored new roots :", root1, root2)
 
             # Waite t_anchor
-            print("waiting new anchor time :", t_anchor-confirmation_time, "s ...")
-            time.sleep(t_anchor-3)
+            print("waiting new anchor time :", t_anchor-commit_time, "s ...")
+            time.sleep(t_anchor-commit_time)
 
     except grpc.RpcError as e:
         print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),

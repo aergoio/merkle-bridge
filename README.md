@@ -41,4 +41,4 @@ $ make transfer_from_sidechain
 
 
 # TODO
-- wallet : send token back to origin
+- operators : use multiple offchain state root signers

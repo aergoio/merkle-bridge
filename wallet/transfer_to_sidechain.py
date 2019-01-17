@@ -2,9 +2,9 @@ import grpc
 import json
 import hashlib
 import time
+import sys
 
 import aergo.herapy as herapy
-
 
 def run():
     with open("./config.json", "r") as f:
@@ -40,7 +40,6 @@ def run():
         print(" * anchoring periode : ", t_anchor, "s\n",
               "* chain finality periode : ", t_final, "s\n")
 
-        print("------ Lock tokens -----------")
         # get current balance and nonce
         initial_state = aergo1.query_sc_state(token,
                                           ["_sv_Balances-" +
@@ -52,29 +51,19 @@ def run():
         balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
         balance = int(json.loads(balance_p)["_bignum"])
         try:
-            print(nonce_p)
             nonce= int(nonce_p)
         except ValueError:
             nonce = 0
         print("Token address : ", token)
-        print("Token balance in origin contract : ", balance,
-              "    nonce : ", nonce)
+        print("Balance on origin: ", balance)
 
-        # record current lock balance
-        account_ref = sender_account.address.__str__() + token
-        lock_p = aergo1.query_sc_state(addr1, ["_sv_Locks-" + account_ref])
-        try:
-            lock_before = int(lock_p.var_proofs[0].value[1:-1])
-        except ValueError:
-            lock_before = 0
-        print("Current locked balance : ", lock_before)
 
+        print("\n------ Lock tokens -----------")
         # make a signed transfer of 5 tokens
         to = sender_account.address.__str__()
         value = 5
         fee = 0
         deadline = 0
-        # Get the contract's id
         contractID = str(contractID_p[1:-1], 'utf-8')
         msg = bytes(addr1 + str(value) + str(nonce) + str(fee) +
                     str(deadline) + contractID, 'utf-8')
@@ -82,11 +71,14 @@ def run():
         sig = aergo1.account.private_key.sign_msg(h).hex()
 
         # lock and check block height of lock tx
+        print("Transfering", value, "tokens...")
         tx, result = aergo1.call_sc(addr1, "lock",
                                     args=[to, str(value), token, nonce, sig])
-        confirmation_time = 3
-        time.sleep(confirmation_time)
+        commit_time = 3
+        time.sleep(commit_time)
+        # Record lock height
         _, lock_height = aergo1.get_blockchain_status()
+        # Check lock success
         result = aergo1.get_tx_result(tx.tx_hash)
         if result.status != herapy.SmartcontractStatus.SUCCESS:
             print("  > ERROR[{0}]:{1}: {2}".format(
@@ -94,7 +86,7 @@ def run():
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        print("New locked balance : ", result.detail)
+        print("Lock success : ", result.detail)
 
         print("------ Wait finalisation and get lock proof -----------")
         # check current merged height at destination
@@ -102,20 +94,23 @@ def run():
         merged_height2 = int(height_proof_2.var_proofs[0].value)
         print("last merged height at destination :", merged_height2)
         # wait t_final
-        print("waiting finalisation :", t_final-confirmation_time, "s...")
+        print("waiting finalisation :", t_final-commit_time, "s...")
         time.sleep(t_final)
         # check last merged height
         height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
         last_merged_height2 = int(height_proof_2.var_proofs[0].value)
         # waite for anchor containing our transfer
+        sys.stdout.write("waiting new anchor ")
         while last_merged_height2 < lock_height:
-            print("waiting new anchor...")
+            sys.stdout.flush()
+            sys.stdout.write(". ")
             time.sleep(t_anchor/4)
             height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
             last_merged_height2 = int(height_proof_2.var_proofs[0].value)
             # TODO do this with events when available
         # get inclusion proof of lock in last merged block
         merge_block1 = aergo1.get_block(block_height=last_merged_height2)
+        account_ref = sender_account.address.__str__() + token
         lock_proof = aergo1.query_sc_state(addr1, ["_sv_Locks-" + account_ref],
                                            root=merge_block1.blocks_root_hash,
                                            compressed=False)
@@ -124,29 +119,45 @@ def run():
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        print(lock_proof)
-        print("------ Mint tokens on destination blockchain -----------")
+
+        print("\n------ Mint tokens on destination blockchain -----------")
         receiver = sender_account.address.__str__()
         balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
         auditPath = lock_proof.var_proofs[0].auditPath
         ap = [node.hex() for node in auditPath]
         token_origin = token
-        print(ap)
         # call mint on aergo2 with the lock proof from aergo1
         tx, result = aergo2.call_sc(addr2, "mint",
                                     args=[receiver, balance,
                                           token_origin, ap])
-        time.sleep(confirmation_time)
+        time.sleep(commit_time)
         result = aergo2.get_tx_result(tx.tx_hash)
-        mint_address = result.detail[1:-1]
-        print("Token's address on sidechain : ", mint_address)
+        if result.status != herapy.SmartcontractStatus.SUCCESS:
+            print("  > ERROR[{0}]:{1}: {2}".format(
+                result.contract_address, result.status, result.detail))
+            aergo1.disconnect()
+            aergo2.disconnect()
+            return
+        print("Mint success on sidechain : ", result.detail)
+
+        mint_address = json.loads(result.detail)[0]
         minted_balance = aergo2.query_sc_state(mint_address,
                                           ["_sv_Balances-" +
                                            sender_account.address.__str__(),
                                           ])
         # check newly minted balance
         balance = json.loads(minted_balance.var_proofs[0].value)
-        print("New token balance on sidechain : ", balance)
+        print("Pegged contract address on sidechain :", mint_address)
+        print("Balance on sidechain : ", balance)
+        origin_balance = aergo1.query_sc_state(token_origin,
+                                          ["_sv_Balances-" +
+                                           sender_account.address.__str__(),
+                                          ])
+        # remaining balance on sidechain
+        balance = json.loads(origin_balance.var_proofs[0].value)
+        print("Balance on origin: ", balance)
+
+
 
         # record mint address in file
         with open("./wallet/token_mint_address.txt", "w") as f:
