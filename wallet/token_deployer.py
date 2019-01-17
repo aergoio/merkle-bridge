@@ -1,8 +1,11 @@
 import grpc
-import time
 import json
+import time
 
 import aergo.herapy as herapy
+
+
+COMMIT_TIME = 3
 
 
 def run():
@@ -36,7 +39,7 @@ def run():
         print("    > result[{0}] : {1}".format(result1.tx_id,
                                                result1.status.name))
 
-        time.sleep(3)
+        time.sleep(COMMIT_TIME)
 
         print("------ Check deployment of SC -----------")
         result1 = aergo1.get_tx_result(tx1.tx_hash)

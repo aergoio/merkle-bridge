@@ -1,7 +1,7 @@
 import grpc
-import time
-import json
 import hashlib
+import json
+import time
 
 import aergo.herapy as herapy
 
@@ -12,6 +12,7 @@ import aergo.herapy as herapy
 # now + t_anchor + t_final is reached, then merges the current finalised
 # block (now - t_final). Start again after waiting t_anchor.
 
+COMMIT_TIME = 3
 
 def run():
     with open("./config.json", "r") as f:
@@ -48,12 +49,12 @@ def run():
                                                 ["_sv_Height",
                                                  "_sv_Root",
                                                  "_sv_Nonce"
-                                                ])
+                                                 ])
             merge_info2 = aergo2.query_sc_state(addr2,
                                                 ["_sv_Height",
                                                  "_sv_Root",
                                                  "_sv_Nonce"
-                                                ])
+                                                 ])
             merged_height2, merged_root2, nonce1 = [proof.value for proof in merge_info1.var_proofs]
             merged_height2 = int(merged_height2)
             nonce1 = int(nonce1)
@@ -118,8 +119,7 @@ def run():
                                           args=[root2, merge_height2,
                                                 [1], [sig2]])
 
-            commit_time = 3
-            time.sleep(commit_time)
+            time.sleep(COMMIT_TIME)
             result1 = aergo1.get_tx_result(tx1.tx_hash)
             if result1.status != herapy.SmartcontractStatus.SUCCESS:
                 print("  > ERROR[{0}]:{1}: {2}".format(
@@ -137,8 +137,8 @@ def run():
             print("anchored new roots :", root1, root2)
 
             # Waite t_anchor
-            print("waiting new anchor time :", t_anchor-commit_time, "s ...")
-            time.sleep(t_anchor-commit_time)
+            print("waiting new anchor time :", t_anchor-COMMIT_TIME, "s ...")
+            time.sleep(t_anchor-COMMIT_TIME)
 
     except grpc.RpcError as e:
         print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),
