@@ -30,7 +30,7 @@ def burn(aergo2, receiver, addr2, token_pegged):
 def build_burn_proof(aergo1, aergo2, receiver, addr1, addr2, burn_height,
                      token_origin, t_anchor, t_final):
     # check current merged height at destination
-    height_proof_1 = aergo1.query_sc_state(addr2, ["_sv_Height"])
+    height_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Height"])
     merged_height1 = int(height_proof_1.var_proofs[0].value)
     print("last merged height at destination :", merged_height1)
     # wait t_final
@@ -79,7 +79,7 @@ def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
     return True
 
 
-def run():
+def run(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
     with open("./bridge_operator/bridge_addresses.txt", "r") as f:
@@ -89,6 +89,8 @@ def run():
         token_pegged = f.readline()[:52]
     with open("./wallet/token_address.txt", "r") as f:
         token_origin = f.readline()[:52]
+    if aer:
+        token_origin = "aergo"
     try:
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
@@ -130,13 +132,16 @@ def run():
             return
         balance = json.loads(initial_state.var_proofs[0].value)
         print("Token balance on sidechain: ", balance)
-        origin_balance = aergo1.query_sc_state(token_origin,
-                                               ["_sv_Balances-" +
-                                                receiver,
-                                                ])
-        # remaining balance on sidechain
-        balance = json.loads(origin_balance.var_proofs[0].value)
-        print("Balance on origin: ", balance)
+        # balance on origin
+        if aer:
+            print("Balance on origin: ", aergo1.account.balance.aer)
+        else:
+            origin_balance = aergo1.query_sc_state(token_origin,
+                                                   ["_sv_Balances-" +
+                                                    receiver,
+                                                    ])
+            balance = json.loads(origin_balance.var_proofs[0].value)
+            print("Balance on origin: ", balance)
 
         print("\n------ Burn tokens -----------")
         burn_height, success = burn(aergo2, receiver, addr2, token_pegged)
@@ -154,7 +159,7 @@ def run():
             aergo2.disconnect()
             return
 
-        print("\n------ Unlock tokens on destination blockchain -----------")
+        print("\n------ Unlock tokens on origin blockchain -----------")
         if not unlock(aergo1, receiver, burn_proof, token_origin, addr1):
             aergo1.disconnect()
             aergo2.disconnect()
@@ -169,13 +174,17 @@ def run():
         print("Balance on sidechain: ", balance)
 
         # new balance on origin
-        origin_balance = aergo1.query_sc_state(token_origin,
-                                               ["_sv_Balances-" +
-                                                receiver,
-                                                ])
-        # remaining balance on sidechain
-        balance = json.loads(origin_balance.var_proofs[0].value)
-        print("Balance on origin: ", balance)
+        if aer:
+            aergo1.get_account()
+            print("Balance on origin: ", aergo1.account.balance.aer)
+        else:
+            origin_balance = aergo1.query_sc_state(token_origin,
+                                                   ["_sv_Balances-" +
+                                                    receiver,
+                                                    ])
+            # remaining balance on sidechain
+            balance = json.loads(origin_balance.var_proofs[0].value)
+            print("Balance on origin: ", balance)
 
     except grpc.RpcError as e:
         print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),
@@ -189,4 +198,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    run(aer=True)

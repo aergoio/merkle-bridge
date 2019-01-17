@@ -9,7 +9,27 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
-def lock(aergo1, sender, receiver, addr1, token_origin):
+def lock_aer(aergo1, sender, receiver, addr1):
+    print("Balance on origin", aergo1.account.balance.aer)
+    value = 5
+    print("Transfering", value, "aer...")
+    tx, result = aergo1.call_sc(addr1, "lock",
+                                args=[receiver, str(value), "aergo"],
+                                amount=5)
+    time.sleep(COMMIT_TIME)
+    # Record lock height
+    _, lock_height = aergo1.get_blockchain_status()
+    # Check lock success
+    result = aergo1.get_tx_result(tx.tx_hash)
+    if result.status != herapy.SmartcontractStatus.SUCCESS:
+        print("  > ERROR[{0}]:{1}: {2}".format(
+            result.contract_address, result.status, result.detail))
+        return None, False
+    print("Lock success : ", result.detail)
+    return lock_height, True
+
+
+def lock_token(aergo1, sender, receiver, addr1, token_origin):
     # get current balance and nonce
     initial_state = aergo1.query_sc_state(token_origin,
                                           ["_sv_Balances-" +
@@ -108,7 +128,7 @@ def mint(aergo2, receiver, lock_proof, token_origin, addr2):
     return token_pegged, True
 
 
-def run():
+def run(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
     with open("./bridge_operator/bridge_addresses.txt", "r") as f:
@@ -116,6 +136,8 @@ def run():
         addr2 = f.readline()[:52]
     with open("./wallet/token_address.txt", "r") as f:
         token_origin = f.readline()[:52]
+    if aer:
+        token_origin = "aergo"
     try:
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
@@ -144,9 +166,12 @@ def run():
         print(" * anchoring periode : ", t_anchor, "s\n",
               "* chain finality periode : ", t_final, "s\n")
 
-        print("\n------ Lock tokens -----------")
-        lock_height, success = lock(aergo1, sender, receiver, addr1,
-                                    token_origin)
+        print("\n------ Lock tokens/aer -----------")
+        if aer:
+            lock_height, success = lock_aer(aergo1, sender, receiver, addr1)
+        else:
+            lock_height, success = lock_token(aergo1, sender, receiver, addr1,
+                                              token_origin)
         if not success:
             aergo1.disconnect()
             aergo2.disconnect()
@@ -178,12 +203,16 @@ def run():
         print("Balance on sidechain : ", balance)
 
         # remaining balance on origin
-        origin_balance = aergo1.query_sc_state(token_origin,
-                                               ["_sv_Balances-" +
-                                                sender,
-                                                ])
-        balance = json.loads(origin_balance.var_proofs[0].value)
-        print("Balance on origin: ", balance)
+        if aer:
+            aergo1.get_account()
+            print("Balance on origin: ", aergo1.account.balance.aer)
+        else:
+            origin_balance = aergo1.query_sc_state(token_origin,
+                                                ["_sv_Balances-" +
+                                                    sender,
+                                                    ])
+            balance = json.loads(origin_balance.var_proofs[0].value)
+            print("Balance on origin: ", balance)
 
         # record mint address in file
         with open("./wallet/token_pegged_address.txt", "w") as f:
@@ -202,4 +231,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    run(aer=True)

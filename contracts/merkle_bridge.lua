@@ -126,9 +126,8 @@ function lock(receiver, amount, token_address, nonce, signature)
 
     -- Lock assets/aer in the bridge
     if system.getAmount() ~= "0" then
-        assert(#token_address == 0, "for safety and clarity don't provide a token address when locking aergo bits")
+        assert(token_address == "aergo", "for safety and clarity don't provide a token address when locking aergo bits")
         assert(system.getAmount() == bignum.tostring(bamount), "for safety and clarity, amount must match the amount sent in the tx")
-        token_address = "aergo"
    else
         local sender = system.getSender()
         -- TODO pass sender as parameter to enable delegated token transfer in bridge
@@ -257,7 +256,6 @@ function unlock(receiver, balance, token_address, merkle_proof)
 
     -- Unlock tokens/aer
     if token_address == "aergo" then
-        -- TODO does send return bool ?
         contract.send(receiver, to_transfer)
     else
         if not contract.call(token_address, "transfer", receiver, bignum.tostring(to_transfer)) then
@@ -482,3 +480,4 @@ function _deploy_minteable_token()
 end
 
 abi.register(set_root, new_validators, lock, unlock, mint, burn)
+abi.payable(lock)
