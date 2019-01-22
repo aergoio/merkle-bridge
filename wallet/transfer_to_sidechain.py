@@ -11,11 +11,11 @@ COMMIT_TIME = 3
 
 def lock_aer(aergo1, sender, receiver, addr1):
     print("Balance on origin", aergo1.account.balance.aer)
-    value = 5
+    value = 8*10**18
     print("Transfering", value, "aer...")
     tx, result = aergo1.call_sc(addr1, "lock",
                                 args=[receiver, str(value), "aergo"],
-                                amount=5)
+                                amount=value)
     time.sleep(COMMIT_TIME)
     # Record lock height
     _, lock_height = aergo1.get_blockchain_status()
@@ -45,10 +45,10 @@ def lock_token(aergo1, sender, receiver, addr1, token_origin):
     except ValueError:
         nonce = 0
     print("Token address : ", token_origin)
-    print("Balance on origin: ", balance)
+    print("Balance on origin: ", balance/10**18)
 
-    # make a signed transfer of 5 tokens
-    value = 5
+    # make a signed transfer of 5000 tokens
+    value = 8*10**18
     fee = 0
     deadline = 0
     contractID = str(contractID_p[1:-1], 'utf-8')
@@ -58,7 +58,7 @@ def lock_token(aergo1, sender, receiver, addr1, token_origin):
     sig = aergo1.account.private_key.sign_msg(h).hex()
 
     # lock and check block height of lock tx
-    print("Transfering", value, "tokens...")
+    print("Transfering", value/10**18, "tokens...")
     tx, result = aergo1.call_sc(addr1, "lock",
                                 args=[receiver, str(value),
                                       token_origin, nonce, sig])
@@ -231,4 +231,4 @@ def run(aer=False):
 
 
 if __name__ == '__main__':
-    run(aer=True)
+    run(aer=False)

@@ -30,7 +30,7 @@ def run():
         print("------ Deploy Token-----------")
         tx1, result1 = aergo1.deploy_sc(amount=0,
                                         payload=payload,
-                                        args=[1000000])
+                                        args=[500*10**6*10**18])
         if result1.status != herapy.CommitStatus.TX_OK:
             print("    > ERROR[{0}]: {1}".format(result1.status,
                                                  result1.detail))

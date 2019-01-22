@@ -10,8 +10,8 @@ COMMIT_TIME = 3
 
 def burn(aergo2, receiver, addr2, token_pegged):
     # lock and check block height of lock tx
-    value = 5
-    print("Transfering", value, "tokens...")
+    value = 8*10**18
+    print("Transfering", value/10**18, "tokens...")
     tx, result = aergo2.call_sc(addr2, "burn",
                                 args=[receiver, str(value), token_pegged])
     time.sleep(COMMIT_TIME)
@@ -198,4 +198,4 @@ def run(aer=False):
 
 
 if __name__ == '__main__':
-    run(aer=True)
+    run(aer=False)
