@@ -4,6 +4,8 @@ import json
 import time
 
 import aergo.herapy as herapy
+import bridge_operator_pb2_grpc
+import bridge_operator_pb2
 
 # The bridge operator periodically (every t_anchor) broadcasts the finalized
 # trie state root (after t_final) of the bridge contract on both sides of the
@@ -13,6 +15,29 @@ import aergo.herapy as herapy
 # block (now - t_final). Start again after waiting t_anchor.
 
 COMMIT_TIME = 3
+
+def get_signatures(root1, merge_height1, nonce2, root2, merge_height2, nonce1, aergo1, aergo2):
+    msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
+    msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
+    h1 = hashlib.sha256(msg1).digest()
+    h2 = hashlib.sha256(msg2).digest()
+    # verify received signatures of h1 and h2
+    sig1 = "0x" + aergo2.account.private_key.sign_msg(h1).hex()
+    sig2 = "0x" + aergo1.account.private_key.sign_msg(h2).hex()
+
+    channel = grpc.insecure_channel('localhost:9841')
+    stub = bridge_operator_pb2_grpc.BridgeOperatorStub(channel)
+    anchor1 =  bridge_operator_pb2.Anchor(origin_root="root",
+                                          origin_height="height",
+                                          nonce="nonce")
+    anchor2 =  bridge_operator_pb2.Anchor(origin_root="root",
+                                          origin_height="height",
+                                          nonce="nonce")
+    proposal = bridge_operator_pb2.Proposals(anchor1=anchor1,
+                                             anchor2=anchor2)
+    result = stub.GetSignature(proposal)
+    print(result)
+    return sig1, sig2
 
 def run():
     with open("./config.json", "r") as f:
@@ -104,14 +129,8 @@ def run():
                 continue
 
             print("anchoring new roots :", '"0x' + root1[:17] + '..."', '"0x' + root2[:17] + '..."')
-            # Sign root and height update
-            msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
-            msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
-            h1 = hashlib.sha256(msg1).digest()
-            h2 = hashlib.sha256(msg2).digest()
             print("Gathering signatures from validators ...")
-            sig1 = "0x" + aergo2.account.private_key.sign_msg(h1).hex()
-            sig2 = "0x" + aergo1.account.private_key.sign_msg(h2).hex()
+            sig1, sig2 = get_signatures(root1, merge_height1, nonce2, root2, merge_height2, nonce1, aergo1, aergo2)
 
             # Broadcast finalised merge block
             tx2, result2 = aergo2.call_sc(addr2, "set_root",
