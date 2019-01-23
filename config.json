@@ -6,9 +6,28 @@
         "ip":"localhost:8845"
     },
     "priv_key":{
-        "operator":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW",
-        "wallet":"6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
+        "wallet":"6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX",
+        "proposer":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW",
+        "validator0":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW",
+        "validator1":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW",
+        "validator2":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
     },
     "t_anchor":10,
-    "t_final":10
+    "t_final":10,
+    "proposer":{
+        "ip":"localhost:9840",
+        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+    },
+    "validator1":{
+        "ip":"localhost:9841",
+        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+    },
+    "validator2":{
+        "ip":"localhost:9842",
+        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+    },
+    "validator3":{
+        "ip":"localhost:9843",
+        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+    }
 }

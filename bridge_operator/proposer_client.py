@@ -109,6 +109,7 @@ def run():
             msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
             h1 = hashlib.sha256(msg1).digest()
             h2 = hashlib.sha256(msg2).digest()
+            print("Gathering signatures from validators ...")
             sig1 = "0x" + aergo2.account.private_key.sign_msg(h1).hex()
             sig2 = "0x" + aergo1.account.private_key.sign_msg(h2).hex()
 
