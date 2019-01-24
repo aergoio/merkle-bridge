@@ -60,9 +60,11 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         return approvals
 
     def is_valid_anchor(self, request):
-        """ An anchor is valid if it's height is finalized and
-        if it's root for that height is correct.
-        aergo1 and aergo2 must be trusted.
+        """ An anchor is valid if :
+            1- it's height is finalized
+            2- it's root for that height is correct.
+            3- the nonce is correct
+            aergo1 and aergo2 must be trusted.
         """
         # get the last block height and check now > origin_height + t_final
         _, best_height1 = self._aergo1.get_blockchain_status()
@@ -73,7 +75,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         is_not_finalized2 = best_height2 < (int(request.anchor2.height)
                                             + self._t_final)
         if is_not_finalized1 or is_not_finalized2:
-            print("anchor not finalized")
+            print("anchor not finalized", request)
             return False
 
         # get the last anchor and check origin_height > last_anchor + t_anchor
@@ -93,7 +95,18 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         is_invalid_root1 = root1 != request.anchor1.root
         is_invalid_root2 = root2 != request.anchor2.root
         if is_invalid_root1 or is_invalid_root2:
-            print("root to sign doesnt match expected root")
+            print("root to sign doesnt match expected root", request)
+            return False
+
+        # check merkle bridge nonces are correct
+        merge_info1 = self._aergo1.query_sc_state(self._addr1, ["_sv_Nonce"])
+        merge_info2 = self._aergo2.query_sc_state(self._addr2, ["_sv_Nonce"])
+        nonce1 = int(merge_info1.var_proofs[0].value)
+        nonce2 = int(merge_info2.var_proofs[0].value)
+        is_invalid_nonce1 = nonce1 != int(request.anchor2.destination_nonce)
+        is_invalid_nonce2 = nonce2 != int(request.anchor1.destination_nonce)
+        if is_invalid_nonce1 or is_invalid_nonce2:
+            print("root update nonce is invalid", request)
             return False
         return True
 
