@@ -80,7 +80,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
 
         # get the last anchor and check origin_height > last_anchor + t_anchor
         # not necessary as the bridge contract should prevent root updates
-        # before last_anchor + t_anchor: TODO
+        # before last_anchor + t_anchor
 
         # get contract state root at origin_height and check equals origin root
         block1 = self._aergo1.get_block(block_height=int(request.anchor1.height))

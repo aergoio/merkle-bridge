@@ -48,6 +48,8 @@ state.var {
     T_final = state.value(),
     -- Nonce is a replay protection for validator and root updates.
     Nonce = state.value(),
+    -- LastAnchor
+    LastAnchor = state.value(),
 }
 
 function constructor(addresses, t_anchor, t_final)
@@ -57,6 +59,7 @@ function constructor(addresses, t_anchor, t_final)
     Root:set("constructor")
     Height:set(0)
     Nonce:set(0)
+    LastAnchor:set(0)
     Nb_Validators:set(#addresses)
     for i, addr in ipairs(addresses) do
         assert(address.isValidAddress(addr), "invalid address format: " .. addr)
@@ -66,6 +69,9 @@ end
 
 -- signers is the index of signers in Validators
 function set_root(root, height, signers, signatures)
+    local block_height = system.getBlockheight()
+    assert(block_height >= (LastAnchor:get() + T_anchor:get()), "Anchoring time not reached")
+    LastAnchor:set(block_height)
     old_nonce = Nonce:get()
     message = crypto.sha256(root..tostring(height)..tostring(old_nonce))
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
