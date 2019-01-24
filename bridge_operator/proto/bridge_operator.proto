@@ -14,11 +14,11 @@ message Proposals {
 
 message Anchor {
     // root to be merged on sidechain
-    string origin_root = 1;
+    string root = 1;
     // height to be merged on sidechain
-    string origin_height = 2;
+    string height = 2;
     // sidechain update nonce
-    string nonce = 3;
+    string destination_nonce = 3;
 }
 
 message Approvals {

@@ -52,14 +52,14 @@ class ProposerClient:
         print("  > Sender Address: {}".format(sender_account.address))
 
     def get_validators_signatures(self, root1, merge_height1, nonce2, root2, merge_height2, nonce1):
-        anchor1 =  bridge_operator_pb2.Anchor(origin_root=root1,
-                                            origin_height=str(merge_height1),
-                                            nonce=str(nonce2))
-        anchor2 =  bridge_operator_pb2.Anchor(origin_root=root2,
-                                            origin_height=str(merge_height2),
-                                            nonce=str(nonce1))
+        anchor1 =  bridge_operator_pb2.Anchor(root=root1,
+                                              height=str(merge_height1),
+                                              destination_nonce=str(nonce2))
+        anchor2 =  bridge_operator_pb2.Anchor(root=root2,
+                                              height=str(merge_height2),
+                                              destination_nonce=str(nonce1))
         proposal = bridge_operator_pb2.Proposals(anchor1=anchor1,
-                                                anchor2=anchor2)
+                                                 anchor2=anchor2)
         # get validator signatures
         approval = self._stub.GetAnchorSignature(proposal)
 

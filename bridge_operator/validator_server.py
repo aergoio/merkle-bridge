@@ -44,12 +44,12 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
 
         print(request)
         # sign anchor and return approval
-        msg1 = bytes(request.anchor1.origin_root
-                     + request.anchor1.origin_height
-                     + request.anchor1.nonce, 'utf-8')
-        msg2 = bytes(request.anchor2.origin_root
-                     + request.anchor2.origin_height
-                     + request.anchor2.nonce, 'utf-8')
+        msg1 = bytes(request.anchor1.root
+                     + request.anchor1.height
+                     + request.anchor1.destination_nonce, 'utf-8')
+        msg2 = bytes(request.anchor2.root
+                     + request.anchor2.height
+                     + request.anchor2.destination_nonce, 'utf-8')
         h1 = hashlib.sha256(msg1).digest()
         h2 = hashlib.sha256(msg2).digest()
         sig1 = "0x" + self._aergo1.account.private_key.sign_msg(h1).hex()
@@ -68,9 +68,9 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         _, best_height1 = self._aergo1.get_blockchain_status()
         _, best_height2 = self._aergo2.get_blockchain_status()
 
-        is_not_finalized1 = best_height1 < (int(request.anchor1.origin_height)
+        is_not_finalized1 = best_height1 < (int(request.anchor1.height)
                                             + self._t_final)
-        is_not_finalized2 = best_height2 < (int(request.anchor2.origin_height)
+        is_not_finalized2 = best_height2 < (int(request.anchor2.height)
                                             + self._t_final)
         if is_not_finalized1 or is_not_finalized2:
             print("anchor not finalized")
@@ -81,8 +81,8 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         # before last_anchor + t_anchor: TODO
 
         # get contract state root at origin_height and check equals origin root
-        block1 = self._aergo1.get_block(block_height=int(request.anchor1.origin_height))
-        block2 = self._aergo2.get_block(block_height=int(request.anchor2.origin_height))
+        block1 = self._aergo1.get_block(block_height=int(request.anchor1.height))
+        block2 = self._aergo2.get_block(block_height=int(request.anchor2.height))
         contract1 = self._aergo1.get_account(address=self._addr1, proof=True,
                                     root=block1.blocks_root_hash)
         contract2 = self._aergo2.get_account(address=self._addr2, proof=True,
@@ -90,8 +90,8 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         root1 = contract1.state_proof.state.storageRoot.hex()
         root2 = contract2.state_proof.state.storageRoot.hex()
 
-        is_invalid_root1 = root1 != request.anchor1.origin_root
-        is_invalid_root2 = root2 != request.anchor2.origin_root
+        is_invalid_root1 = root1 != request.anchor1.root
+        is_invalid_root2 = root2 != request.anchor2.root
         if is_invalid_root1 or is_invalid_root2:
             print("root to sign doesnt match expected root")
             return False
