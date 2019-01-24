@@ -2,13 +2,13 @@ syntax = "proto3";
 
 service BridgeOperator {
     // Get signatures of anchoring messages on aergo1 and aergo2
-    rpc GetSignature(Proposals) returns (Approvals) {}
+    rpc GetAnchorSignature(Proposals) returns (Approvals) {}
 }
 
 message Proposals {
-    // anchor on aergo1
+    // anchor from aergo1
     Anchor anchor1 = 1;
-    // anchor on aergo2
+    // anchor from aergo2
     Anchor anchor2 = 2;
 }
 

@@ -14,8 +14,8 @@ class BridgeOperatorStub(object):
     Args:
       channel: A grpc.Channel.
     """
-    self.GetSignature = channel.unary_unary(
-        '/BridgeOperator/GetSignature',
+    self.GetAnchorSignature = channel.unary_unary(
+        '/BridgeOperator/GetAnchorSignature',
         request_serializer=bridge__operator__pb2.Proposals.SerializeToString,
         response_deserializer=bridge__operator__pb2.Approvals.FromString,
         )
@@ -25,7 +25,7 @@ class BridgeOperatorServicer(object):
   # missing associated documentation comment in .proto file
   pass
 
-  def GetSignature(self, request, context):
+  def GetAnchorSignature(self, request, context):
     """Get signatures of anchoring messages on aergo1 and aergo2
     """
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -35,8 +35,8 @@ class BridgeOperatorServicer(object):
 
 def add_BridgeOperatorServicer_to_server(servicer, server):
   rpc_method_handlers = {
-      'GetSignature': grpc.unary_unary_rpc_method_handler(
-          servicer.GetSignature,
+      'GetAnchorSignature': grpc.unary_unary_rpc_method_handler(
+          servicer.GetAnchorSignature,
           request_deserializer=bridge__operator__pb2.Proposals.FromString,
           response_serializer=bridge__operator__pb2.Approvals.SerializeToString,
       ),

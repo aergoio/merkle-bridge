@@ -52,11 +52,6 @@ class ProposerClient:
         print("  > Sender Address: {}".format(sender_account.address))
 
     def get_validators_signatures(self, root1, merge_height1, nonce2, root2, merge_height2, nonce1):
-        msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
-        msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
-        h1 = hashlib.sha256(msg1).digest()
-        h2 = hashlib.sha256(msg2).digest()
-
         anchor1 =  bridge_operator_pb2.Anchor(origin_root=root1,
                                             origin_height=str(merge_height1),
                                             nonce=str(nonce2))
@@ -65,8 +60,15 @@ class ProposerClient:
                                             nonce=str(nonce1))
         proposal = bridge_operator_pb2.Proposals(anchor1=anchor1,
                                                 anchor2=anchor2)
-        approval = self._stub.GetSignature(proposal)
-        # verify received signatures of h1 and h2
+        # get validator signatures
+        approval = self._stub.GetAnchorSignature(proposal)
+
+        # TODO verify received signatures of h1 and h2
+        msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
+        msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
+        h1 = hashlib.sha256(msg1).digest()
+        h2 = hashlib.sha256(msg2).digest()
+
         print(approval)
         return [approval.sig1], [approval.sig2]
 

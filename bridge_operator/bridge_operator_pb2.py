@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x15\x62ridge_operator.proto\"?\n\tProposals\x12\x18\n\x07\x61nchor1\x18\x01 \x01(\x0b\x32\x07.Anchor\x12\x18\n\x07\x61nchor2\x18\x02 \x01(\x0b\x32\x07.Anchor\"C\n\x06\x41nchor\x12\x13\n\x0borigin_root\x18\x01 \x01(\t\x12\x15\n\rorigin_height\x18\x02 \x01(\t\x12\r\n\x05nonce\x18\x03 \x01(\t\"8\n\tApprovals\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0c\n\x04sig1\x18\x02 \x01(\t\x12\x0c\n\x04sig2\x18\x03 \x01(\t2:\n\x0e\x42ridgeOperator\x12(\n\x0cGetSignature\x12\n.Proposals\x1a\n.Approvals\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n\x15\x62ridge_operator.proto\"?\n\tProposals\x12\x18\n\x07\x61nchor1\x18\x01 \x01(\x0b\x32\x07.Anchor\x12\x18\n\x07\x61nchor2\x18\x02 \x01(\x0b\x32\x07.Anchor\"C\n\x06\x41nchor\x12\x13\n\x0borigin_root\x18\x01 \x01(\t\x12\x15\n\rorigin_height\x18\x02 \x01(\t\x12\r\n\x05nonce\x18\x03 \x01(\t\"8\n\tApprovals\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0c\n\x04sig1\x18\x02 \x01(\t\x12\x0c\n\x04sig2\x18\x03 \x01(\t2@\n\x0e\x42ridgeOperator\x12.\n\x12GetAnchorSignature\x12\n.Proposals\x1a\n.Approvals\"\x00\x62\x06proto3')
 )
 
 
@@ -189,11 +189,11 @@ _BRIDGEOPERATOR = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   serialized_start=217,
-  serialized_end=275,
+  serialized_end=281,
   methods=[
   _descriptor.MethodDescriptor(
-    name='GetSignature',
-    full_name='BridgeOperator.GetSignature',
+    name='GetAnchorSignature',
+    full_name='BridgeOperator.GetAnchorSignature',
     index=0,
     containing_service=None,
     input_type=_PROPOSALS,
