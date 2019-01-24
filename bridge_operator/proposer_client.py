@@ -26,9 +26,16 @@ class ProposerClient:
         with open("./bridge_operator/bridge_addresses.txt", "r") as f:
             self._addr1 = f.readline()[:52]
             self._addr2 = f.readline()[:52]
-        # TODO use and array to store multiple channels
-        self._channel = grpc.insecure_channel('localhost:9841')
-        self._stub = bridge_operator_pb2_grpc.BridgeOperatorStub(self._channel)
+
+        # create all channels with validators
+        self._channels = []
+        self._stubs = []
+        for validator in config_data['validators']:
+            ip = validator['ip']
+            channel = grpc.insecure_channel(ip)
+            stub = bridge_operator_pb2_grpc.BridgeOperatorStub(channel)
+            self._channels.append(channel)
+            self._stubs.append(stub)
 
         self._t_anchor = config_data['t_anchor']
         self._t_final = config_data['t_final']
@@ -61,7 +68,8 @@ class ProposerClient:
         proposal = bridge_operator_pb2.Proposals(anchor1=anchor1,
                                                  anchor2=anchor2)
         # get validator signatures
-        approval = self._stub.GetAnchorSignature(proposal)
+        # TODO get 2/3 validators signatures
+        approval = self._stubs[0].GetAnchorSignature(proposal)
 
         # TODO verify received signatures of h1 and h2
         msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
@@ -181,6 +189,8 @@ class ProposerClient:
         self._aergo1.disconnect()
         self._aergo2.disconnect()
         # TODO disconnect channels
+        for channel in self._channels:
+            channel.close()
 
 
 

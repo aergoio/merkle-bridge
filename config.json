@@ -18,16 +18,18 @@
         "ip":"localhost:9840",
         "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
     },
-    "validator1":{
+    "validators":[
+        {
         "ip":"localhost:9841",
         "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
-    },
-    "validator2":{
+        },
+        {
         "ip":"localhost:9842",
         "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
-    },
-    "validator3":{
+        },
+        {
         "ip":"localhost:9843",
         "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
-    }
+        }
+    ]
 }
