@@ -24,7 +24,6 @@ def run():
     t_final = config_data['t_final']
     print(" * anchoring periode : ", t_anchor, "s\n",
           "* chain finality periode : ", t_final, "s\n")
-    f.close()
     try:
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
