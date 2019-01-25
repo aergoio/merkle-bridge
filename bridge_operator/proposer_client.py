@@ -1,6 +1,7 @@
 import grpc
 import hashlib
 import json
+from multiprocessing.dummy import Pool as ThreadPool
 import time
 
 import aergo.herapy as herapy
@@ -9,6 +10,9 @@ import bridge_operator_pb2
 
 
 COMMIT_TIME = 3
+
+class ValidatorMajorityError(Exception):
+    pass
 
 
 class ProposerClient:
@@ -22,7 +26,7 @@ class ProposerClient:
 
     def __init__(self):
         with open("./config.json", "r") as f:
-            config_data = json.load(f)
+            self._config_data = json.load(f)
         with open("./bridge_operator/bridge_addresses.txt", "r") as f:
             self._addr1 = f.readline()[:52]
             self._addr2 = f.readline()[:52]
@@ -30,15 +34,15 @@ class ProposerClient:
         # create all channels with validators
         self._channels = []
         self._stubs = []
-        for validator in config_data['validators']:
+        for validator in self._config_data['validators']:
             ip = validator['ip']
             channel = grpc.insecure_channel(ip)
             stub = bridge_operator_pb2_grpc.BridgeOperatorStub(channel)
             self._channels.append(channel)
             self._stubs.append(stub)
 
-        self._t_anchor = config_data['t_anchor']
-        self._t_final = config_data['t_final']
+        self._t_anchor = self._config_data['t_anchor']
+        self._t_final = self._config_data['t_final']
         print(" * anchoring periode : ", self._t_anchor, "s\n",
             "* chain finality periode : ", self._t_final, "s\n")
 
@@ -46,12 +50,12 @@ class ProposerClient:
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(config_data['aergo1']['ip'])
-        self._aergo2.connect(config_data['aergo2']['ip'])
+        self._aergo1.connect(self._config_data['aergo1']['ip'])
+        self._aergo2.connect(self._config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data['priv_key']["proposer"]
-        sender_priv_key2 = config_data['priv_key']["proposer"]
+        sender_priv_key1 = self._config_data['priv_key']["proposer"]
+        sender_priv_key2 = self._config_data['priv_key']["proposer"]
         sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
         self._aergo2.new_account(private_key=sender_priv_key2)
         self._aergo1.get_account()
@@ -68,8 +72,10 @@ class ProposerClient:
         proposal = bridge_operator_pb2.Proposals(anchor1=anchor1,
                                                  anchor2=anchor2)
         # get validator signatures
-        # TODO get 2/3 validators signatures
-        approval = self._stubs[0].GetAnchorSignature(proposal)
+        pool = ThreadPool(len(self._stubs))
+        arguments = [(i,proposal) for i in range(len(self._stubs))]
+        approvals= pool.map(self.get_signature_worker, arguments)
+        sigs1, sigs2, validator_indexes = self.extract_signatures(approvals)
 
         # TODO verify received signatures of h1 and h2
         msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
@@ -77,8 +83,31 @@ class ProposerClient:
         h1 = hashlib.sha256(msg1).digest()
         h2 = hashlib.sha256(msg2).digest()
 
-        print(approval)
-        return [approval.sig1], [approval.sig2]
+        return sigs1, sigs2, validator_indexes
+
+    def get_signature_worker(self, stub_and_proposal):
+        (index, proposal) = stub_and_proposal
+        try:
+            approval = self._stubs[index].GetAnchorSignature(proposal)
+            # TODO verify signatures: check approval.address ==
+            # validators[index] and check sig
+        except grpc.RpcError as e:
+            return None
+        return approval
+
+    def extract_signatures(self, approvals):
+        sigs1, sigs2, validator_indexes = [], [], []
+        for i, approval in enumerate(approvals):
+            if approval != None:
+                sigs1.append(approval.sig1)
+                sigs2.append(approval.sig2)
+                validator_indexes.append(i+1)
+        if 3 * len(sigs1) < 2 * len(self._config_data['validators']) :
+            raise ValidatorMajorityError()
+        # slice 2/3 of total validator
+        two_thirds = (len(self._stubs) * 2) // 3 + ((len(self._stubs) * 2) % 3 > 0)
+        return sigs1[:two_thirds], sigs2[:two_thirds], validator_indexes[:two_thirds]
+
 
     def run(self):
         try:
@@ -108,53 +137,60 @@ class ProposerClient:
                     merged_root2[:20] + b'..."')
                 print("| current update nonces:", nonce1, nonce2)
 
-                # Wait for the next anchor time
                 while True:
-                    # Get origin and destination best height
-                    _, best_height1 = self._aergo1.get_blockchain_status()
-                    _, best_height2 = self._aergo2.get_blockchain_status()
+                    try:
+                        # Wait for the next anchor time
+                        while True:
+                            # Get origin and destination best height
+                            _, best_height1 = self._aergo1.get_blockchain_status()
+                            _, best_height2 = self._aergo2.get_blockchain_status()
 
-                    # Waite best height - t_final >= merge block height + t_anchor
-                    wait1 = best_height1 - self._t_final - (merged_height1 + self._t_anchor)
-                    wait2 = best_height2 - self._t_final - (merged_height2 + self._t_anchor)
-                    if wait1 >= 0 and wait2 >= 0:
-                        break
-                    # choose the longest time to wait.
-                    longest_wait = 0
-                    if wait1 < longest_wait:
-                        longest_wait = wait1
-                    if wait2 < longest_wait:
-                        longest_wait = wait2
-                    print("waiting new anchor time :", -longest_wait, "s ...")
-                    time.sleep(-longest_wait)
+                            # Waite best height - t_final >= merge block height + t_anchor
+                            wait1 = best_height1 - self._t_final - (merged_height1 + self._t_anchor)
+                            wait2 = best_height2 - self._t_final - (merged_height2 + self._t_anchor)
+                            if wait1 >= 0 and wait2 >= 0:
+                                break
+                            # choose the longest time to wait.
+                            longest_wait = 0
+                            if wait1 < longest_wait:
+                                longest_wait = wait1
+                            if wait2 < longest_wait:
+                                longest_wait = wait2
+                            print("waiting new anchor time :", -longest_wait, "s ...")
+                            time.sleep(-longest_wait)
 
-                # Calculate finalised block height and root to broadcast
-                merge_height1 = best_height1 - self._t_final
-                merge_height2 = best_height2 - self._t_final
-                block1 = self._aergo1.get_block(block_height=merge_height1)
-                block2 = self._aergo2.get_block(block_height=merge_height2)
-                contract1 = self._aergo1.get_account(address=self._addr1, proof=True,
-                                            root=block1.blocks_root_hash)
-                contract2 = self._aergo2.get_account(address=self._addr2, proof=True,
-                                            root=block2.blocks_root_hash)
-                root1 = contract1.state_proof.state.storageRoot.hex()
-                root2 = contract2.state_proof.state.storageRoot.hex()
-                if len(root1) == 0 or len(root2) == 0:
-                    print("waiting deployment finalization...")
-                    time.sleep(self._t_final/4)
-                    continue
+                        # Calculate finalised block height and root to broadcast
+                        merge_height1 = best_height1 - self._t_final
+                        merge_height2 = best_height2 - self._t_final
+                        block1 = self._aergo1.get_block(block_height=merge_height1)
+                        block2 = self._aergo2.get_block(block_height=merge_height2)
+                        contract1 = self._aergo1.get_account(address=self._addr1, proof=True,
+                                                    root=block1.blocks_root_hash)
+                        contract2 = self._aergo2.get_account(address=self._addr2, proof=True,
+                                                    root=block2.blocks_root_hash)
+                        root1 = contract1.state_proof.state.storageRoot.hex()
+                        root2 = contract2.state_proof.state.storageRoot.hex()
+                        if len(root1) == 0 or len(root2) == 0:
+                            print("waiting deployment finalization...")
+                            time.sleep(self._t_final/4)
+                            continue
 
-                print("anchoring new roots :", '"0x' + root1[:17] + '..."', '"0x' + root2[:17] + '..."')
-                print("Gathering signatures from validators ...")
-                sigs1, sigs2 = self.get_validators_signatures(root1, merge_height1, nonce2, root2, merge_height2, nonce1)
+                        print("anchoring new roots :", '"0x' + root1[:17] + '..."', '"0x' + root2[:17] + '..."')
+                        print("Gathering signatures from validators ...")
+                        sigs1, sigs2, validator_indexes = self.get_validators_signatures(root1, merge_height1, nonce2, root2, merge_height2, nonce1)
+                    except ValidatorMajorityError:
+                        print("Failed to gather 2/3 validators signatures, waiting for next anchor...")
+                        time.sleep(self._t_anchor)
+                        continue
+                    break
 
                 # Broadcast finalised merge block
                 tx2, result2 = self._aergo2.call_sc(self._addr2, "set_root",
                                             args=[root1, merge_height1,
-                                                    [1], sigs1])
+                                                  validator_indexes, sigs1])
                 tx1, result1 = self._aergo1.call_sc(self._addr1, "set_root",
                                             args=[root2, merge_height2,
-                                                    [1], sigs2])
+                                                  validator_indexes, sigs2])
 
                 time.sleep(COMMIT_TIME)
                 result1 = self._aergo1.get_tx_result(tx1.tx_hash)
@@ -188,7 +224,6 @@ class ProposerClient:
         print("------ Disconnect AERGO -----------")
         self._aergo1.disconnect()
         self._aergo2.disconnect()
-        # TODO disconnect channels
         for channel in self._channels:
             channel.close()
 
