@@ -16,20 +16,20 @@
     "t_final":10,
     "proposer":{
         "ip":"localhost:9840",
-        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"
     },
     "validators":[
         {
         "ip":"localhost:9841",
-        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"
         },
         {
         "ip":"localhost:9842",
-        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"
         },
         {
         "ip":"localhost:9843",
-        "addr":"AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs"
+        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"
         }
     ]
 }

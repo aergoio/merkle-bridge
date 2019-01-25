@@ -35,14 +35,19 @@ def run():
         print("------ Deploy SC -----------")
         t_anchor = config_data['t_anchor']
         t_final = config_data['t_final']
+        # get validators from config file
+        validators = []
+        for validator in config_data['validators']:
+            validators.append(validator['addr'])
+        print(validators)
         tx1, result1 = aergo1.deploy_sc(amount=0,
                                         payload=payload,
-                                        args=[[sender_address],
+                                        args=[validators,
                                               t_anchor,
                                               t_final])
         tx2, result2 = aergo2.deploy_sc(amount=0,
                                         payload=payload,
-                                        args=[[sender_address],
+                                        args=[validators,
                                               t_anchor,
                                               t_final])
         if result1.status != herapy.CommitStatus.TX_OK:
