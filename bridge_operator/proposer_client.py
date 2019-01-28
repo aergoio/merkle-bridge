@@ -1,3 +1,4 @@
+from functools import partial
 import grpc
 import hashlib
 import json
@@ -72,8 +73,9 @@ class ProposerClient:
                                                  anchor2=anchor2)
         # get validator signatures
         pool = ThreadPool(len(self._stubs))
-        arguments = [(i,proposal) for i in range(len(self._stubs))]
-        approvals= pool.map(self.get_signature_worker, arguments)
+        validator_indexes = [i for i in range(len(self._stubs))]
+        worker = partial(self.get_signature_worker, proposal)
+        approvals= pool.map(worker, validator_indexes)
         sigs1, sigs2, validator_indexes = self.extract_signatures(approvals)
 
         # TODO verify received signatures of h1 and h2
@@ -84,8 +86,7 @@ class ProposerClient:
 
         return sigs1, sigs2, validator_indexes
 
-    def get_signature_worker(self, stub_and_proposal):
-        (index, proposal) = stub_and_proposal
+    def get_signature_worker(self, proposal, index):
         try:
             approval = self._stubs[index].GetAnchorSignature(proposal)
             # TODO verify signatures: check approval.address ==

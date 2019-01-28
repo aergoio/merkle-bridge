@@ -2,9 +2,11 @@ import bridge_operator_pb2_grpc
 import bridge_operator_pb2
 
 from concurrent import futures
+from functools import partial
 import grpc
 import hashlib
 import json
+from multiprocessing.dummy import Pool as ThreadPool
 import time
 
 import aergo.herapy as herapy
@@ -15,6 +17,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
     """Validates anchors for the bridge proposer"""
 
     def __init__(self, config_data, validator_index=0):
+        self._validator_index = validator_index
         with open("./bridge_operator/bridge_addresses.txt", "r") as f:
             self._addr1 = f.readline()[:52]
             self._addr2 = f.readline()[:52]
@@ -55,6 +58,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         approvals = bridge_operator_pb2.Approvals(address="address",
                                                   sig1=sig1,
                                                   sig2=sig2)
+        print("Validator ", self._validator_index, "signed a new anchor")
         return approvals
 
     def is_valid_anchor(self, request):
@@ -94,28 +98,28 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         is_invalid_root1 = root1 != request.anchor1.root
         is_invalid_root2 = root2 != request.anchor2.root
         if is_invalid_root1 or is_invalid_root2:
-            print("root to sign doesnt match expected root", request)
+            print("root to sign doesnt match expected root\n", request)
             return False
 
         merge_info1 = self._aergo1.query_sc_state(self._addr1, ["_sv_Nonce",
                                                                 "_sv_Height"])
         merge_info2 = self._aergo2.query_sc_state(self._addr2, ["_sv_Nonce",
                                                                 "_sv_Height"])
-        merged_height2, nonce1 = [int(proof.value) for proof in merge_info1.var_proofs]
-        merged_height1, nonce2 = [int(proof.value) for proof in merge_info2.var_proofs]
+        nonce1, merged_height2 = [int(proof.value) for proof in merge_info1.var_proofs]
+        nonce2, merged_height1 = [int(proof.value) for proof in merge_info2.var_proofs]
 
         # 3- check merkle bridge nonces are correct
         is_invalid_nonce1 = nonce1 != int(request.anchor2.destination_nonce)
         is_invalid_nonce2 = nonce2 != int(request.anchor1.destination_nonce)
         if is_invalid_nonce1 or is_invalid_nonce2:
-            print("root update nonce is invalid", request)
+            print("root update nonce is invalid\n", request)
             return False
 
         # 4- check anchored height comes after the previous one
         is_invalid_height2 = merged_height2 >= int(request.anchor2.height)
         is_invalid_height1 = merged_height1 >= int(request.anchor1.height)
         if is_invalid_height1 or is_invalid_height2:
-            print("root update height is invalid: must be higher than previous merge", request)
+            print("root update height is invalid: must be higher than previous merge\n", request)
             return False
         return True
 
@@ -123,20 +127,26 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
 def serve(config_data, validator_index=0):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     bridge_operator_pb2_grpc.add_BridgeOperatorServicer_to_server(
-        ValidatorServer(config_data), server)
+        ValidatorServer(config_data, validator_index), server)
     server.add_insecure_port(config_data['validators'][validator_index]['ip'])
     server.start()
-    print("server started")
+    print("server", validator_index, " started")
     try:
         while True:
             time.sleep(_ONE_DAY_IN_SECONDS)
     except KeyboardInterrupt:
         server.stop(0)
 
+def serve_all(config_data):
+    validator_indexes = [i for i in range(len(config_data['validators']))]
+    worker = partial(serve, config_data)
+    pool = ThreadPool(len(validator_indexes))
+    pool.map(worker, validator_indexes)
+
 
 if __name__ == '__main__':
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    serve(config_data)
-    #serve_all()
+    # serve(config_data)
+    serve_all(config_data)
     # TODO serve_all() run serve in different threads
