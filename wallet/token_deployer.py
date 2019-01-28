@@ -22,7 +22,7 @@ def run():
         aergo1.connect(config_data['aergo1']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data['priv_key']["wallet"]
+        sender_priv_key1 = config_data["wallet"]['priv_key']
         sender_account = aergo1.new_account(private_key=sender_priv_key1)
         aergo1.get_account()
         print("  > Sender Address: {}".format(sender_account.address))
@@ -53,10 +53,10 @@ def run():
 
         print("  > Token Address (ORIGIN): {}".format(sc_address1))
 
-        print("------ Store addresse in token_address.txt -----------")
-        with open("./wallet/token_address.txt", "w") as f:
-            f.write(sc_address1)
-            f.write("_TOKEN_1\n")
+        print("------ Store addresse in config.json -----------")
+        config_data['aergo1']['tokens']['token1']['addr'] = sc_address1
+        with open("./config.json", "w") as f:
+            json.dump(config_data, f, indent=4, sort_keys=True)
 
         print("------ Disconnect AERGO -----------")
         aergo1.disconnect()

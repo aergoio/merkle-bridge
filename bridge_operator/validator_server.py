@@ -18,9 +18,8 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
 
     def __init__(self, config_data, validator_index=0):
         self._validator_index = validator_index
-        with open("./bridge_operator/bridge_addresses.txt", "r") as f:
-            self._addr1 = f.readline()[:52]
-            self._addr2 = f.readline()[:52]
+        self._addr1 = config_data['aergo1']['bridges']['aergo2']
+        self._addr2 = config_data['aergo2']['bridges']['aergo1']
         self._t_anchor = config_data['t_anchor']
         self._t_final = config_data['t_final']
         print(" * anchoring periode : ", self._t_anchor, "s\n",

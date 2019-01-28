@@ -82,13 +82,10 @@ def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
 def run(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    with open("./bridge_operator/bridge_addresses.txt", "r") as f:
-        addr1 = f.readline()[:52]
-        addr2 = f.readline()[:52]
-    with open("./wallet/token_pegged_address.txt", "r") as f:
-        token_pegged = f.readline()[:52]
-    with open("./wallet/token_address.txt", "r") as f:
-        token_origin = f.readline()[:52]
+    addr1 = config_data['aergo1']['bridges']['aergo2']
+    addr2 = config_data['aergo2']['bridges']['aergo1']
+    token_pegged = config_data['aergo1']['tokens']['token1']['pegs']['aergo2']
+    token_origin = config_data['aergo1']['tokens']['token1']['addr']
     if aer:
         token_origin = "aergo"
     try:
