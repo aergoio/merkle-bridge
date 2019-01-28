@@ -62,7 +62,9 @@ class ProposerClient:
         self._aergo2.get_account()
         print("  > Sender Address: {}".format(sender_account.address))
 
-    def get_validators_signatures(self, root1, merge_height1, nonce2, root2, merge_height2, nonce1):
+    def get_validators_signatures(self, anchor_msg1, anchor_msg2):
+        root1, merge_height1, nonce2 = anchor_msg1
+        root2, merge_height2, nonce1 = anchor_msg2
         anchor1 =  bridge_operator_pb2.Anchor(root=root1,
                                               height=str(merge_height1),
                                               destination_nonce=str(nonce2))
@@ -78,7 +80,6 @@ class ProposerClient:
         approvals= pool.map(worker, validator_indexes)
         sigs1, sigs2, validator_indexes = self.extract_signatures(approvals)
 
-        # TODO verify received signatures of h1 and h2
         msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
         msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
         h1 = hashlib.sha256(msg1).digest()
@@ -107,6 +108,27 @@ class ProposerClient:
         # slice 2/3 of total validator
         two_thirds = (len(self._stubs) * 2) // 3 + ((len(self._stubs) * 2) % 3 > 0)
         return sigs1[:two_thirds], sigs2[:two_thirds], validator_indexes[:two_thirds]
+
+    def wait_for_next_anchor(self, merged_height1, merged_height2):
+        while True:
+            # Get origin and destination best height
+            _, best_height1 = self._aergo1.get_blockchain_status()
+            _, best_height2 = self._aergo2.get_blockchain_status()
+
+            # Waite best height - t_final >= merge block height + t_anchor
+            wait1 = best_height1 - self._t_final - (merged_height1 + self._t_anchor)
+            wait2 = best_height2 - self._t_final - (merged_height2 + self._t_anchor)
+            if wait1 >= 0 and wait2 >= 0:
+                break
+            # choose the longest time to wait.
+            longest_wait = 0
+            if wait1 < longest_wait:
+                longest_wait = wait1
+            if wait2 < longest_wait:
+                longest_wait = wait2
+            print("waiting new anchor time :", -longest_wait, "s ...")
+            time.sleep(-longest_wait)
+        return best_height1, best_height2
 
 
     def run(self):
@@ -138,46 +160,32 @@ class ProposerClient:
                 print("| current update nonces:", nonce1, nonce2)
 
                 while True:
+                    # Wait for the next anchor time
+                    best_height1, best_height2 = self.wait_for_next_anchor(merged_height1, merged_height2)
+
+                    # Calculate finalised block height and root to broadcast
+                    merge_height1 = best_height1 - self._t_final
+                    merge_height2 = best_height2 - self._t_final
+                    block1 = self._aergo1.get_block(block_height=merge_height1)
+                    block2 = self._aergo2.get_block(block_height=merge_height2)
+                    contract1 = self._aergo1.get_account(address=self._addr1, proof=True,
+                                                root=block1.blocks_root_hash)
+                    contract2 = self._aergo2.get_account(address=self._addr2, proof=True,
+                                                root=block2.blocks_root_hash)
+                    root1 = contract1.state_proof.state.storageRoot.hex()
+                    root2 = contract2.state_proof.state.storageRoot.hex()
+                    if len(root1) == 0 or len(root2) == 0:
+                        print("waiting deployment finalization...")
+                        time.sleep(self._t_final/4)
+                        continue
+
+                    print("anchoring new roots :", '"0x' + root1[:17] + '..."', '"0x' + root2[:17] + '..."')
+                    print("Gathering signatures from validators ...")
+
                     try:
-                        # Wait for the next anchor time
-                        while True:
-                            # Get origin and destination best height
-                            _, best_height1 = self._aergo1.get_blockchain_status()
-                            _, best_height2 = self._aergo2.get_blockchain_status()
-
-                            # Waite best height - t_final >= merge block height + t_anchor
-                            wait1 = best_height1 - self._t_final - (merged_height1 + self._t_anchor)
-                            wait2 = best_height2 - self._t_final - (merged_height2 + self._t_anchor)
-                            if wait1 >= 0 and wait2 >= 0:
-                                break
-                            # choose the longest time to wait.
-                            longest_wait = 0
-                            if wait1 < longest_wait:
-                                longest_wait = wait1
-                            if wait2 < longest_wait:
-                                longest_wait = wait2
-                            print("waiting new anchor time :", -longest_wait, "s ...")
-                            time.sleep(-longest_wait)
-
-                        # Calculate finalised block height and root to broadcast
-                        merge_height1 = best_height1 - self._t_final
-                        merge_height2 = best_height2 - self._t_final
-                        block1 = self._aergo1.get_block(block_height=merge_height1)
-                        block2 = self._aergo2.get_block(block_height=merge_height2)
-                        contract1 = self._aergo1.get_account(address=self._addr1, proof=True,
-                                                    root=block1.blocks_root_hash)
-                        contract2 = self._aergo2.get_account(address=self._addr2, proof=True,
-                                                    root=block2.blocks_root_hash)
-                        root1 = contract1.state_proof.state.storageRoot.hex()
-                        root2 = contract2.state_proof.state.storageRoot.hex()
-                        if len(root1) == 0 or len(root2) == 0:
-                            print("waiting deployment finalization...")
-                            time.sleep(self._t_final/4)
-                            continue
-
-                        print("anchoring new roots :", '"0x' + root1[:17] + '..."', '"0x' + root2[:17] + '..."')
-                        print("Gathering signatures from validators ...")
-                        sigs1, sigs2, validator_indexes = self.get_validators_signatures(root1, merge_height1, nonce2, root2, merge_height2, nonce1)
+                        anchor_msg1 = root1, merge_height1, nonce2
+                        anchor_msg2 = root2, merge_height2, nonce1
+                        sigs1, sigs2, validator_indexes = self.get_validators_signatures(anchor_msg1, anchor_msg2)
                     except ValidatorMajorityError:
                         print("Failed to gather 2/3 validators signatures, waiting for next anchor...")
                         time.sleep(self._t_anchor)
@@ -208,7 +216,7 @@ class ProposerClient:
                     self._aergo2.disconnect()
                     return
 
-                # Waite t_anchor
+                # Wait t_anchor
                 print("anchor success, waiting new anchor time :", self._t_anchor-COMMIT_TIME, "s ...")
                 time.sleep(self._t_anchor-COMMIT_TIME)
 
