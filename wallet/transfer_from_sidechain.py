@@ -4,6 +4,7 @@ import sys
 import time
 
 import aergo.herapy as herapy
+from wallet import Wallet
 
 COMMIT_TIME = 3
 
@@ -198,4 +199,8 @@ def run(aer=False):
 
 
 if __name__ == '__main__':
-    run(aer=False)
+    with open("./config.json", "r") as f:
+        config_data = json.load(f)
+    wallet = Wallet(config_data)
+    wallet.transfer_from_sidechain()
+    # run(aer=False)
