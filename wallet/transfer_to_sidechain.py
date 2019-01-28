@@ -132,11 +132,9 @@ def mint(aergo2, receiver, lock_proof, token_origin, addr2):
 def run(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    with open("./bridge_operator/bridge_addresses.txt", "r") as f:
-        addr1 = f.readline()[:52]
-        addr2 = f.readline()[:52]
-    with open("./wallet/token_address.txt", "r") as f:
-        token_origin = f.readline()[:52]
+    addr1 = config_data['aergo1']['bridges']['aergo2']
+    addr2 = config_data['aergo2']['bridges']['aergo1']
+    token_origin = config_data['aergo1']['tokens']['token1']['addr']
     if aer:
         token_origin = "aergo"
     try:
@@ -216,9 +214,10 @@ def run(aer=False):
             print("Balance on origin: ", balance)
 
         # record mint address in file
-        with open("./wallet/token_pegged_address.txt", "w") as f:
-            f.write(token_pegged)
-            f.write("_MINT_TOKEN_1\n")
+        print("------ Store mint address in config.json -----------")
+        config_data['aergo1']['tokens']['token1']['pegs']['aergo2'] = token_pegged
+        with open("./config.json", "w") as f:
+            json.dump(config_data, f, indent=4, sort_keys=True)
 
     except grpc.RpcError as e:
         print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),

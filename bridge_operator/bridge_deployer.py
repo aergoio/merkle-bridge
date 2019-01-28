@@ -91,12 +91,11 @@ def run():
         print("  > SC Address ORIGIN: {}".format(sc_address1))
         print("  > SC Address DESTINATION: {}".format(sc_address2))
 
-        print("------ Store addresses in bridge_addresses.txt -----------")
-        with open("./bridge_operator/bridge_addresses.txt", "w") as f:
-            f.write(sc_address1)
-            f.write("_ADDR_1\n")
-            f.write(sc_address2)
-            f.write("_ADDR_2")
+        print("------ Store bridge addresses in config.json  -----------")
+        config_data['aergo1']['bridges']['aergo2'] = sc_address1
+        config_data['aergo2']['bridges']['aergo1'] = sc_address2
+        with open("./config.json", "w") as f:
+            json.dump(config_data, f, indent=4, sort_keys=True)
 
         print("------ Disconnect AERGO -----------")
         aergo1.disconnect()

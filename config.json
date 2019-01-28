@@ -1,35 +1,51 @@
 {
-    "aergo1":{
-        "ip":"localhost:7845"
+    "aergo1": {
+        "bridges": {
+            "": "bridge address to aergo2",
+            "aergo2": "AmgXs487GR4BoM9Z4fctzawWyMuRRTvbCnQwXHdioMC1gjefxFTw"
+        },
+        "ip": "localhost:7845",
+        "tokens": {
+            "token1": {
+                "addr": "AmgSSzDXR6qzKgykR8DZwKNHMo6UNghoMsbMA2KzxeMe1d1nLVyd",
+                "pegs": {
+                    "": "address of pegged token on aergo2",
+                    "aergo2": "Amg3M3M37Xc2me3T7r9nK5j946N5SBcytBNa4DznDVc7FARDwe2X"
+                }
+            }
+        }
     },
-    "aergo2":{
-        "ip":"localhost:8845"
+    "aergo2": {
+        "bridges": {
+            "": "bridge address to aergo1",
+            "aergo1": "AmgfWfeSAALwnYwKymkNbUc8HPzxqqNkfmupExddU5WsDcJJGYTQ"
+        },
+        "ip": "localhost:8845"
     },
-    "t_anchor":10,
-    "t_final":10,
-    "proposer":{
-        "ip":"localhost:9840",
-        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-        "priv_key":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+    "proposer": {
+        "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+        "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
     },
-    "validators":[
+    "t_anchor": 10,
+    "t_final": 10,
+    "validators": [
         {
-        "ip":"localhost:9841",
-        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-        "priv_key":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+            "ip": "localhost:9841",
+            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
         },
         {
-        "ip":"localhost:9842",
-        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-        "priv_key":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+            "ip": "localhost:9842",
+            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
         },
         {
-        "ip":"localhost:9843",
-        "addr":"AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-        "priv_key":"6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+            "ip": "localhost:9843",
+            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
         }
     ],
-    "wallet":{
-        "priv_key":"6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
+    "wallet": {
+        "priv_key": "6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
     }
 }

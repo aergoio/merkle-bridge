@@ -27,9 +27,8 @@ class ProposerClient:
 
     def __init__(self, config_data):
         self._config_data = config_data
-        with open("./bridge_operator/bridge_addresses.txt", "r") as f:
-            self._addr1 = f.readline()[:52]
-            self._addr2 = f.readline()[:52]
+        self._addr1 = config_data['aergo1']['bridges']['aergo2']
+        self._addr2 = config_data['aergo2']['bridges']['aergo1']
 
         # create all channels with validators
         self._channels = []

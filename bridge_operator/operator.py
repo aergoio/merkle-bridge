@@ -17,9 +17,8 @@ COMMIT_TIME = 3
 def run():
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    with open("./bridge_operator/bridge_addresses.txt", "r") as f:
-        addr1 = f.readline()[:52]
-        addr2 = f.readline()[:52]
+    addr1 = config_data['aergo1']['bridges']['aergo2']
+    addr2 = config_data['aergo2']['bridges']['aergo1']
     t_anchor = config_data['t_anchor']
     t_final = config_data['t_final']
     print(" * anchoring periode : ", t_anchor, "s\n",
