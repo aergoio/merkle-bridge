@@ -33,7 +33,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         self._aergo2.connect(config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data['priv_key']["validator1"]
+        sender_priv_key1 = config_data["validators"][0]['priv_key']
         sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
         print("  > Sender Address: {}".format(sender_account.address))
 
@@ -127,3 +127,5 @@ def serve():
 
 if __name__ == '__main__':
     serve()
+    #serve_all()
+    # TODO serve_all() run serve in different threads

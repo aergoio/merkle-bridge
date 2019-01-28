@@ -33,8 +33,8 @@ def run():
         aergo2.connect(config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data['priv_key']["proposer"]
-        sender_priv_key2 = config_data['priv_key']["proposer"]
+        sender_priv_key1 = config_data["proposer"]['priv_key']
+        sender_priv_key2 = config_data["proposer"]['priv_key']
         sender_account = aergo1.new_account(private_key=sender_priv_key1)
         aergo2.new_account(private_key=sender_priv_key2)
         aergo1.get_account()

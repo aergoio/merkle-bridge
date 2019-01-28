@@ -54,8 +54,8 @@ class ProposerClient:
         self._aergo2.connect(self._config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = self._config_data['priv_key']["proposer"]
-        sender_priv_key2 = self._config_data['priv_key']["proposer"]
+        sender_priv_key1 = self._config_data["proposer"]['priv_key']
+        sender_priv_key2 = self._config_data["proposer"]['priv_key']
         sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
         self._aergo2.new_account(private_key=sender_priv_key2)
         self._aergo1.get_account()

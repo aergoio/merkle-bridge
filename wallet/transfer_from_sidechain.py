@@ -99,8 +99,8 @@ def run(aer=False):
         aergo1.connect(config_data['aergo1']['ip'])
         aergo2.connect(config_data['aergo2']['ip'])
 
-        sender_priv_key1 = config_data['priv_key']["wallet"]
-        sender_priv_key2 = config_data['priv_key']["wallet"]
+        sender_priv_key1 = config_data["wallet"]['priv_key']
+        sender_priv_key2 = config_data["wallet"]['priv_key']
         sender_account = aergo1.new_account(private_key=sender_priv_key1)
         aergo2.new_account(private_key=sender_priv_key2)
         aergo1.get_account()
