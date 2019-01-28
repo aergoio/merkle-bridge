@@ -14,9 +14,7 @@ _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
     """Validates anchors for the bridge proposer"""
 
-    def __init__(self, validator_index=0):
-        with open("./config.json", "r") as f:
-            config_data = json.load(f)
+    def __init__(self, config_data, validator_index=0):
         with open("./bridge_operator/bridge_addresses.txt", "r") as f:
             self._addr1 = f.readline()[:52]
             self._addr2 = f.readline()[:52]
@@ -122,11 +120,11 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         return True
 
 
-def serve():
+def serve(config_data, validator_index=0):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     bridge_operator_pb2_grpc.add_BridgeOperatorServicer_to_server(
-        ValidatorServer(), server)
-    server.add_insecure_port('[::]:9841')
+        ValidatorServer(config_data), server)
+    server.add_insecure_port(config_data['validators'][validator_index]['ip'])
     server.start()
     print("server started")
     try:
@@ -137,6 +135,8 @@ def serve():
 
 
 if __name__ == '__main__':
-    serve()
+    with open("./config.json", "r") as f:
+        config_data = json.load(f)
+    serve(config_data)
     #serve_all()
     # TODO serve_all() run serve in different threads

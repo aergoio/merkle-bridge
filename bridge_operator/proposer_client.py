@@ -24,9 +24,8 @@ class ProposerClient:
     block (now - t_final). Start again after waiting t_anchor.
     """
 
-    def __init__(self):
-        with open("./config.json", "r") as f:
-            self._config_data = json.load(f)
+    def __init__(self, config_data):
+        self._config_data = config_data
         with open("./bridge_operator/bridge_addresses.txt", "r") as f:
             self._addr1 = f.readline()[:52]
             self._addr2 = f.readline()[:52]
@@ -230,5 +229,7 @@ class ProposerClient:
 
 
 if __name__ == '__main__':
-    proposer = ProposerClient()
+    with open("./config.json", "r") as f:
+        config_data = json.load(f)
+    proposer = ProposerClient(config_data)
     proposer.run()
