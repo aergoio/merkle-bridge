@@ -71,6 +71,8 @@ end
 function set_root(root, height, signers, signatures)
     local block_height = system.getBlockheight()
     assert(block_height >= (LastAnchor:get() + T_anchor:get()), "Anchoring time not reached")
+    -- check Height so validator is not tricked by signing multiple anchors
+    assert(height > Height:get(), "Height must be higher that previous anchor")
     LastAnchor:set(block_height)
     old_nonce = Nonce:get()
     message = crypto.sha256(root..tostring(height)..tostring(old_nonce))

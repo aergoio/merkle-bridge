@@ -14,7 +14,7 @@ _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
     """Validates anchors for the bridge proposer"""
 
-    def __init__(self):
+    def __init__(self, validator_index=0):
         with open("./config.json", "r") as f:
             config_data = json.load(f)
         with open("./bridge_operator/bridge_addresses.txt", "r") as f:
@@ -33,7 +33,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         self._aergo2.connect(config_data['aergo2']['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data["validators"][0]['priv_key']
+        sender_priv_key1 = config_data["validators"][validator_index]['priv_key']
         sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
         print("  > Sender Address: {}".format(sender_account.address))
 
@@ -63,10 +63,11 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         """ An anchor is valid if :
             1- it's height is finalized
             2- it's root for that height is correct.
-            3- the nonce is correct
+            3- it's nonce is correct
+            4- it's height it higher than previous anchored height
             aergo1 and aergo2 must be trusted.
         """
-        # get the last block height and check now > origin_height + t_final
+        # 1- get the last block height and check now > origin_height + t_final
         _, best_height1 = self._aergo1.get_blockchain_status()
         _, best_height2 = self._aergo2.get_blockchain_status()
 
@@ -82,7 +83,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         # not necessary as the bridge contract should prevent root updates
         # before last_anchor + t_anchor
 
-        # get contract state root at origin_height and check equals origin root
+        # 2- get contract state root at origin_height and check equals anchor root
         block1 = self._aergo1.get_block(block_height=int(request.anchor1.height))
         block2 = self._aergo2.get_block(block_height=int(request.anchor2.height))
         contract1 = self._aergo1.get_account(address=self._addr1, proof=True,
@@ -98,15 +99,25 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
             print("root to sign doesnt match expected root", request)
             return False
 
-        # check merkle bridge nonces are correct
-        merge_info1 = self._aergo1.query_sc_state(self._addr1, ["_sv_Nonce"])
-        merge_info2 = self._aergo2.query_sc_state(self._addr2, ["_sv_Nonce"])
-        nonce1 = int(merge_info1.var_proofs[0].value)
-        nonce2 = int(merge_info2.var_proofs[0].value)
+        merge_info1 = self._aergo1.query_sc_state(self._addr1, ["_sv_Nonce",
+                                                                "_sv_Height"])
+        merge_info2 = self._aergo2.query_sc_state(self._addr2, ["_sv_Nonce",
+                                                                "_sv_Height"])
+        merged_height2, nonce1 = [int(proof.value) for proof in merge_info1.var_proofs]
+        merged_height1, nonce2 = [int(proof.value) for proof in merge_info2.var_proofs]
+
+        # 3- check merkle bridge nonces are correct
         is_invalid_nonce1 = nonce1 != int(request.anchor2.destination_nonce)
         is_invalid_nonce2 = nonce2 != int(request.anchor1.destination_nonce)
         if is_invalid_nonce1 or is_invalid_nonce2:
             print("root update nonce is invalid", request)
+            return False
+
+        # 4- check anchored height comes after the previous one
+        is_invalid_height2 = merged_height2 >= int(request.anchor2.height)
+        is_invalid_height1 = merged_height1 >= int(request.anchor1.height)
+        if is_invalid_height1 or is_invalid_height2:
+            print("root update height is invalid: must be higher than previous merge", request)
             return False
         return True
 
