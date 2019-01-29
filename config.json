@@ -2,15 +2,15 @@
     "aergo1": {
         "bridges": {
             "": "bridge address to aergo2",
-            "aergo2": "AmgXs487GR4BoM9Z4fctzawWyMuRRTvbCnQwXHdioMC1gjefxFTw"
+            "aergo2": "AmgWWXU6ff4tJyVPMx8QzAQXMEcrwJy2W4SuezEZzEwwFdP1Ghev"
         },
         "ip": "localhost:7845",
         "tokens": {
             "token1": {
-                "addr": "AmgSSzDXR6qzKgykR8DZwKNHMo6UNghoMsbMA2KzxeMe1d1nLVyd",
+                "addr": "Amgr3NpogtpzshtELBD9d79k4Xs2njFSXeuHjNgLzChWbdz9LVpd",
                 "pegs": {
                     "": "address of pegged token on aergo2",
-                    "aergo2": "Amg3M3M37Xc2me3T7r9nK5j946N5SBcytBNa4DznDVc7FARDwe2X"
+                    "aergo2": "Amh8NuX2zYUCbkvjVPCRpj53UfntLRohxgiYysFNWFS1Q2bP79Ve"
                 }
             }
         }
@@ -18,7 +18,7 @@
     "aergo2": {
         "bridges": {
             "": "bridge address to aergo1",
-            "aergo1": "AmgfWfeSAALwnYwKymkNbUc8HPzxqqNkfmupExddU5WsDcJJGYTQ"
+            "aergo1": "Amge87JAXUiCwzufemFhHrBo97E3A3YEbaD7kVRL33vNiedevxos"
         },
         "ip": "localhost:8845"
     },

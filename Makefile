@@ -1,4 +1,4 @@
-.PHONY: docker compile_bridge compile_token deploy_bridge deploy_token bridge transfer_to_sidechain transfer_from_sidechain proposer validator protoc
+.PHONY: docker compile_bridge compile_token deploy_bridge deploy_token bridge transfer_to_sidechain transfer_from_sidechain wallet proposer validator protoc
 
 docker:
 	docker run --rm -d -p 7845:7845 aergo/node aergosvr --config /aergo/testmode.toml
@@ -25,6 +25,9 @@ transfer_to_sidechain:
 
 transfer_from_sidechain:
 	python3 wallet/transfer_from_sidechain.py
+
+wallet:
+	python3 wallet/wallet.py
 
 proposer:
 	python3 bridge_operator/proposer_client.py
