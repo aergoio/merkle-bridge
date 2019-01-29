@@ -40,6 +40,8 @@ class ProposerClient:
             self._channels.append(channel)
             self._stubs.append(stub)
 
+        self._pool = ThreadPool(len(self._stubs))
+
         self._t_anchor = self._config_data['t_anchor']
         self._t_final = self._config_data['t_final']
         print(" * anchoring periode : ", self._t_anchor, "s\n",
@@ -73,10 +75,9 @@ class ProposerClient:
         proposal = bridge_operator_pb2.Proposals(anchor1=anchor1,
                                                  anchor2=anchor2)
         # get validator signatures
-        pool = ThreadPool(len(self._stubs))
         validator_indexes = [i for i in range(len(self._stubs))]
         worker = partial(self.get_signature_worker, proposal)
-        approvals= pool.map(worker, validator_indexes)
+        approvals= self._pool.map(worker, validator_indexes)
         sigs1, sigs2, validator_indexes = self.extract_signatures(approvals)
 
         msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
