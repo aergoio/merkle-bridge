@@ -53,6 +53,7 @@ state.var {
 }
 
 function constructor(addresses, t_anchor, t_final)
+    -- TODO deploy sidechain bridge first and register it's address here. so the validators can watch the right contract
     -- TODO make a setter for T_anchor and T_final with 2/3 sig validation
     T_anchor:set(t_anchor)
     T_final:set(t_final)

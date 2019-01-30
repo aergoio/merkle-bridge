@@ -19,7 +19,7 @@ def run():
         aergo1 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['aergo1']['ip'])
+        aergo1.connect(config_data['mainnet']['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data["wallet"]['priv_key']
@@ -54,7 +54,7 @@ def run():
         print("  > Token Address (ORIGIN): {}".format(sc_address1))
 
         print("------ Store addresse in config.json -----------")
-        config_data['aergo1']['tokens']['token1']['addr'] = sc_address1
+        config_data['mainnet']['tokens']['token1']['addr'] = sc_address1
         with open("./config.json", "w") as f:
             json.dump(config_data, f, indent=4, sort_keys=True)
 

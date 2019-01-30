@@ -82,10 +82,10 @@ def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
 def run(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    addr1 = config_data['aergo1']['bridges']['aergo2']
-    addr2 = config_data['aergo2']['bridges']['aergo1']
-    token_pegged = config_data['aergo1']['tokens']['token1']['pegs']['aergo2']
-    token_origin = config_data['aergo1']['tokens']['token1']['addr']
+    addr1 = config_data['mainnet']['bridges']['sidechain2']
+    addr2 = config_data['sidechain2']['bridges']['mainnet']
+    token_pegged = config_data['mainnet']['tokens']['token1']['pegs']['sidechain2']
+    token_origin = config_data['mainnet']['tokens']['token1']['addr']
     if aer:
         token_origin = "aergo"
     try:
@@ -93,8 +93,8 @@ def run(aer=False):
         aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['aergo1']['ip'])
-        aergo2.connect(config_data['aergo2']['ip'])
+        aergo1.connect(config_data['mainnet']['ip'])
+        aergo2.connect(config_data['sidechain2']['ip'])
 
         sender_priv_key1 = config_data["wallet"]['priv_key']
         sender_priv_key2 = config_data["wallet"]['priv_key']

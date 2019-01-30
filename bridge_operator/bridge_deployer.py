@@ -19,8 +19,8 @@ def run():
         aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['aergo1']['ip'])
-        aergo2.connect(config_data['aergo2']['ip'])
+        aergo1.connect(config_data['mainnet']['ip'])
+        aergo2.connect(config_data['sidechain2']['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data["proposer"]['priv_key']
@@ -92,8 +92,8 @@ def run():
         print("  > SC Address DESTINATION: {}".format(sc_address2))
 
         print("------ Store bridge addresses in config.json  -----------")
-        config_data['aergo1']['bridges']['aergo2'] = sc_address1
-        config_data['aergo2']['bridges']['aergo1'] = sc_address2
+        config_data['mainnet']['bridges']['sidechain2'] = sc_address1
+        config_data['sidechain2']['bridges']['mainnet'] = sc_address2
         with open("./config.json", "w") as f:
             json.dump(config_data, f, indent=4, sort_keys=True)
 

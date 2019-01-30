@@ -18,8 +18,8 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
 
     def __init__(self, config_data, validator_index=0):
         self._validator_index = validator_index
-        self._addr1 = config_data['aergo1']['bridges']['aergo2']
-        self._addr2 = config_data['aergo2']['bridges']['aergo1']
+        self._addr1 = config_data['mainnet']['bridges']['sidechain2']
+        self._addr2 = config_data['sidechain2']['bridges']['mainnet']
         self._t_anchor = config_data['t_anchor']
         self._t_final = config_data['t_final']
         print(" * anchoring periode : ", self._t_anchor, "s\n",
@@ -29,8 +29,8 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(config_data['aergo1']['ip'])
-        self._aergo2.connect(config_data['aergo2']['ip'])
+        self._aergo1.connect(config_data['mainnet']['ip'])
+        self._aergo2.connect(config_data['sidechain2']['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data["validators"][validator_index]['priv_key']

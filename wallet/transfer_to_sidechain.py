@@ -10,8 +10,12 @@ COMMIT_TIME = 3
 
 
 def lock_aer(aergo1, sender, receiver, addr1):
+    # TODO pass in value
+    # TODO check balance is enough in caller of this function
+    # TODO print balance in caller
     print("Balance on origin", aergo1.account.balance.aer)
     value = 8*10**18
+    # TODO print transfering in caller
     print("Transfering", value, "aer...")
     tx, result = aergo1.call_sc(addr1, "lock",
                                 args=[receiver, str(value), "aergo"],
@@ -131,9 +135,9 @@ def mint(aergo2, receiver, lock_proof, token_origin, addr2):
 def run(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    addr1 = config_data['aergo1']['bridges']['aergo2']
-    addr2 = config_data['aergo2']['bridges']['aergo1']
-    token_origin = config_data['aergo1']['tokens']['token1']['addr']
+    addr1 = config_data['mainnet']['bridges']['sidechain2']
+    addr2 = config_data['sidechain2']['bridges']['mainnet']
+    token_origin = config_data['mainnet']['tokens']['token1']['addr']
     if aer:
         token_origin = "aergo"
     try:
@@ -141,8 +145,8 @@ def run(aer=False):
         aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['aergo1']['ip'])
-        aergo2.connect(config_data['aergo2']['ip'])
+        aergo1.connect(config_data['mainnet']['ip'])
+        aergo2.connect(config_data['sidechain2']['ip'])
 
         sender_priv_key1 = config_data["wallet"]['priv_key']
         sender_priv_key2 = config_data["wallet"]['priv_key']
@@ -214,7 +218,7 @@ def run(aer=False):
 
         # record mint address in file
         print("------ Store mint address in config.json -----------")
-        config_data['aergo1']['tokens']['token1']['pegs']['aergo2'] = token_pegged
+        config_data['mainnet']['tokens']['token1']['pegs']['sidechain2'] = token_pegged
         with open("./config.json", "w") as f:
             json.dump(config_data, f, indent=4, sort_keys=True)
 

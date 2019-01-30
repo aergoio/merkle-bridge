@@ -17,8 +17,8 @@ COMMIT_TIME = 3
 def run():
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    addr1 = config_data['aergo1']['bridges']['aergo2']
-    addr2 = config_data['aergo2']['bridges']['aergo1']
+    addr1 = config_data['mainnnet']['bridges']['sidechain2']
+    addr2 = config_data['sidechain2']['bridges']['mainnnet']
     t_anchor = config_data['t_anchor']
     t_final = config_data['t_final']
     print(" * anchoring periode : ", t_anchor, "s\n",
@@ -28,8 +28,8 @@ def run():
         aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['aergo1']['ip'])
-        aergo2.connect(config_data['aergo2']['ip'])
+        aergo1.connect(config_data['mainnnet']['ip'])
+        aergo2.connect(config_data['sidechain2']['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data["proposer"]['priv_key']

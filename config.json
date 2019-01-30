@@ -1,30 +1,36 @@
 {
-    "aergo1": {
+    "mainnet": {
         "bridges": {
             "": "bridge address to aergo2",
-            "aergo2": "AmgWWXU6ff4tJyVPMx8QzAQXMEcrwJy2W4SuezEZzEwwFdP1Ghev"
+            "sidechain2": "AmgBx1WCTNrdtEppFgzJ3EPWWAdUPrQ6DgbnJhvpLXSzQJUQk1Lg"
         },
         "ip": "localhost:7845",
         "tokens": {
+            "aergo": {
+                "addr": "aergo",
+                "pegs": {
+                    "sidechain2": ""
+                }
+            },
             "token1": {
-                "addr": "Amgr3NpogtpzshtELBD9d79k4Xs2njFSXeuHjNgLzChWbdz9LVpd",
+                "addr": "AmhXjnFMNofwctSaqxZ98LsMDCA3bMKVx8gy3RreCbzPAHHniQx3",
                 "pegs": {
                     "": "address of pegged token on aergo2",
-                    "aergo2": "Amh8NuX2zYUCbkvjVPCRpj53UfntLRohxgiYysFNWFS1Q2bP79Ve"
+                    "sidechain2": "AmheNH5UZrzN6NVrh4cVeWVZ5zJbqPzXiwrTP4VWsWy7QuKyuFV8"
                 }
             }
         }
     },
-    "aergo2": {
-        "bridges": {
-            "": "bridge address to aergo1",
-            "aergo1": "Amge87JAXUiCwzufemFhHrBo97E3A3YEbaD7kVRL33vNiedevxos"
-        },
-        "ip": "localhost:8845"
-    },
     "proposer": {
         "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
         "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+    },
+    "sidechain2": {
+        "bridges": {
+            "": "bridge address to aergo1",
+            "mainnet": "AmheUwHzunHXDjiUEGp9C6rMnfUZmnU6579SXovadHbw5RSdxCYn"
+        },
+        "ip": "localhost:8845"
     },
     "t_anchor": 10,
     "t_final": 10,

@@ -27,8 +27,8 @@ class ProposerClient:
 
     def __init__(self, config_data):
         self._config_data = config_data
-        self._addr1 = config_data['aergo1']['bridges']['aergo2']
-        self._addr2 = config_data['aergo2']['bridges']['aergo1']
+        self._addr1 = config_data['mainnet']['bridges']['sidechain2']
+        self._addr2 = config_data['sidechain2']['bridges']['mainnet']
 
         # create all channels with validators
         self._channels = []
@@ -51,8 +51,8 @@ class ProposerClient:
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(self._config_data['aergo1']['ip'])
-        self._aergo2.connect(self._config_data['aergo2']['ip'])
+        self._aergo1.connect(self._config_data['mainnet']['ip'])
+        self._aergo2.connect(self._config_data['sidechain2']['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = self._config_data["proposer"]['priv_key']
