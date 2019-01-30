@@ -8,9 +8,21 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
-def burn(aergo2, receiver, addr2, token_pegged):
+def burn(aergo2, sender, receiver, addr2, token_pegged):
+    # get current balance and nonce
+    initial_state = aergo2.query_sc_state(token_pegged,
+                                            ["_sv_Balances-" +
+                                            sender,
+                                            ])
+    if not initial_state.account.state_proof.inclusion:
+        print("Pegged token doesnt exist in sidechain")
+        aergo2.disconnect()
+        return
+    balance = json.loads(initial_state.var_proofs[0].value)['_bignum']
+    print("Token balance on origin before transfer: ", int(balance)/10**18)
+
     # lock and check block height of lock tx
-    value = 8*10**18
+    value = 1*10**18
     print("Transfering", value/10**18, "tokens...")
     tx, result = aergo2.call_sc(addr2, "burn",
                                 args=[receiver, str(value), token_pegged])
@@ -79,7 +91,7 @@ def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
     return True
 
 
-def run(aer=False):
+def test_script(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
     addr1 = config_data['mainnet']['bridges']['sidechain2']
@@ -141,7 +153,7 @@ def run(aer=False):
             print("Balance on origin: ", balance)
 
         print("\n------ Burn tokens -----------")
-        burn_height, success = burn(aergo2, receiver, addr2, token_pegged)
+        burn_height, success = burn(aergo2, sender, receiver, addr2, token_pegged)
         if not success:
             aergo1.disconnect()
             aergo2.disconnect()
@@ -199,4 +211,4 @@ if __name__ == '__main__':
         # config_data = json.load(f)
     # wallet = Wallet(config_data)
     # wallet.transfer_from_sidechain()
-    run(aer=False)
+    test_script(aer=False)

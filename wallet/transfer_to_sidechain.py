@@ -13,10 +13,10 @@ def lock_aer(aergo1, sender, receiver, addr1):
     # TODO pass in value
     # TODO check balance is enough in caller of this function
     # TODO print balance in caller
-    print("Balance on origin", aergo1.account.balance.aer)
-    value = 8*10**18
+    print("aergo balance on origin before transfer", aergo1.account.balance.aer)
+    value = 1*10**18
     # TODO print transfering in caller
-    print("Transfering", value, "aer...")
+    print("Transfering", value/10**18, "aergo...")
     tx, result = aergo1.call_sc(addr1, "lock",
                                 args=[receiver, str(value), "aergo"],
                                 amount=value)
@@ -48,11 +48,10 @@ def lock_token(aergo1, sender, receiver, addr1, token_origin):
         nonce = int(nonce_p)
     except ValueError:
         nonce = 0
-    print("Token address : ", token_origin)
-    print("Balance on origin: ", balance/10**18)
+    print("Token balance on origin before transfer: ", balance/10**18)
 
     # make a signed transfer of 5000 tokens
-    value = 8*10**18
+    value = 1*10**18
     fee = 0
     deadline = 0
     contractID = str(contractID_p[1:-1], 'utf-8')
@@ -126,13 +125,13 @@ def mint(aergo2, receiver, lock_proof, token_origin, addr2):
         print("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
         return None, False
-    print("Mint success on sidechain : ", result.detail)
+    print("Mint success : ", result.detail)
 
     token_pegged = json.loads(result.detail)[0]
     return token_pegged, True
 
 
-def run(aer=False):
+def test_script(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
     addr1 = config_data['mainnet']['bridges']['sidechain2']
@@ -238,4 +237,4 @@ if __name__ == '__main__':
         # config_data = json.load(f)
     # wallet = Wallet(config_data)
     # wallet.transfer_to_sidechain()
-    run(aer=False)
+    test_script(aer=False)
