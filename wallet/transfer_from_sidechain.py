@@ -4,6 +4,7 @@ import sys
 import time
 
 import aergo.herapy as herapy
+from exceptions import *
 
 COMMIT_TIME = 3
 
@@ -15,9 +16,8 @@ def burn(aergo2, sender, receiver, addr2, token_pegged):
                                             sender,
                                             ])
     if not initial_state.account.state_proof.inclusion:
-        print("Pegged token doesnt exist in sidechain")
-        aergo2.disconnect()
-        return
+        raise UnknownContractError("Pegged token doesnt exist in sidechain")
+    # TODO handle balance with no funds, test
     balance = json.loads(initial_state.var_proofs[0].value)['_bignum']
     print("Token balance on origin before transfer: ", int(balance)/10**18)
 
@@ -32,11 +32,10 @@ def burn(aergo2, sender, receiver, addr2, token_pegged):
     # Check burn success
     result = aergo2.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        print("  > ERROR[{0}]:{1}: {2}".format(
+        raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
-        return None, False
     print("Burn success : ", result.detail)
-    return burn_height, True
+    return burn_height
 
 
 def build_burn_proof(aergo1, aergo2, receiver, addr1, addr2, burn_height,
@@ -67,9 +66,8 @@ def build_burn_proof(aergo1, aergo2, receiver, addr1, addr2, burn_height,
                                        root=merge_block2.blocks_root_hash,
                                        compressed=False)
     if not burn_proof.verify_proof(merge_block2.blocks_root_hash):
-        print("Unable to verify burn proof")
-        return None, False
-    return burn_proof, True
+        raise InvalidMerkleProofError("Unable to verify burn proof")
+    return burn_proof
 
 
 def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
@@ -83,12 +81,10 @@ def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
     time.sleep(COMMIT_TIME)
     result = aergo1.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        print("  > ERROR[{0}]:{1}: {2}".format(
+        raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
-        return False
 
     print("Unlock success on origin : ", result.detail)
-    return True
 
 
 def test_script(aer=False):
@@ -153,26 +149,15 @@ def test_script(aer=False):
             print("Balance on origin: ", balance)
 
         print("\n------ Burn tokens -----------")
-        burn_height, success = burn(aergo2, sender, receiver, addr2, token_pegged)
-        if not success:
-            aergo1.disconnect()
-            aergo2.disconnect()
-            return
+        burn_height = burn(aergo2, sender, receiver, addr2, token_pegged)
 
         print("------ Wait finalisation and get burn proof -----------")
-        burn_proof, success = build_burn_proof(aergo1, aergo2, receiver,
+        burn_proof = build_burn_proof(aergo1, aergo2, receiver,
                                                addr1, addr2, burn_height,
                                                token_origin, t_anchor, t_final)
-        if not success:
-            aergo1.disconnect()
-            aergo2.disconnect()
-            return
 
         print("\n------ Unlock tokens on origin blockchain -----------")
-        if not unlock(aergo1, receiver, burn_proof, token_origin, addr1):
-            aergo1.disconnect()
-            aergo2.disconnect()
-            return
+        unlock(aergo1, receiver, burn_proof, token_origin, addr1)
 
         # remaining balance on sidechain
         sidechain_balance = aergo2.query_sc_state(token_pegged,

@@ -5,6 +5,7 @@ import sys
 import time
 
 import aergo.herapy as herapy
+from exceptions import *
 
 COMMIT_TIME = 3
 
@@ -26,11 +27,10 @@ def lock_aer(aergo1, sender, receiver, addr1):
     # Check lock success
     result = aergo1.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        print("  > ERROR[{0}]:{1}: {2}".format(
+        raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
-        return None, False
     print("Lock success : ", result.detail)
-    return lock_height, True
+    return lock_height
 
 
 def lock_token(aergo1, sender, receiver, addr1, token_origin):
@@ -71,11 +71,10 @@ def lock_token(aergo1, sender, receiver, addr1, token_origin):
     # Check lock success
     result = aergo1.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        print("  > ERROR[{0}]:{1}: {2}".format(
+        raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
-        return None, False
     print("Lock success : ", result.detail)
-    return lock_height, True
+    return lock_height
 
 
 def build_lock_proof(aergo1, aergo2, receiver, addr1, addr2, lock_height,
@@ -106,9 +105,8 @@ def build_lock_proof(aergo1, aergo2, receiver, addr1, addr2, lock_height,
                                        root=merge_block1.blocks_root_hash,
                                        compressed=False)
     if not lock_proof.verify_proof(merge_block1.blocks_root_hash):
-        print("Unable to verify lock proof")
-        return None, False
-    return lock_proof, True
+        raise InvalidMerkleProofError("Unable to verify lock proof")
+    return lock_proof
 
 
 def mint(aergo2, receiver, lock_proof, token_origin, addr2):
@@ -122,13 +120,12 @@ def mint(aergo2, receiver, lock_proof, token_origin, addr2):
     time.sleep(COMMIT_TIME)
     result = aergo2.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        print("  > ERROR[{0}]:{1}: {2}".format(
+        raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
-        return None, False
     print("Mint success : ", result.detail)
 
     token_pegged = json.loads(result.detail)[0]
-    return token_pegged, True
+    return token_pegged
 
 
 def test_script(aer=False):
@@ -169,30 +166,19 @@ def test_script(aer=False):
 
         print("\n------ Lock tokens/aer -----------")
         if aer:
-            lock_height, success = lock_aer(aergo1, sender, receiver, addr1)
+            lock_height = lock_aer(aergo1, sender, receiver, addr1)
         else:
-            lock_height, success = lock_token(aergo1, sender, receiver, addr1,
-                                              token_origin)
-        if not success:
-            aergo1.disconnect()
-            aergo2.disconnect()
+            lock_height = lock_token(aergo1, sender, receiver, addr1,
+                                            token_origin)
 
         print("------ Wait finalisation and get lock proof -----------")
-        lock_proof, success = build_lock_proof(aergo1, aergo2, receiver,
+        lock_proof = build_lock_proof(aergo1, aergo2, receiver,
                                                addr1, addr2, lock_height,
                                                token_origin, t_anchor, t_final)
-        if not success:
-            aergo1.disconnect()
-            aergo2.disconnect()
-            return
 
         print("\n------ Mint tokens on destination blockchain -----------")
-        token_pegged, success = mint(aergo2, receiver, lock_proof,
+        token_pegged = mint(aergo2, receiver, lock_proof,
                                      token_origin, addr2)
-        if not success:
-            aergo1.disconnect()
-            aergo2.disconnect()
-            return
 
         # new balance on sidechain
         sidechain_balance = aergo2.query_sc_state(token_pegged,
