@@ -10,22 +10,22 @@ from exceptions import *
 COMMIT_TIME = 3
 
 
-def lock_aer(aergo1, sender, receiver, addr1):
+def lock_aer(aergo_from, sender, receiver, bridge_from):
     # TODO pass in value
     # TODO check balance is enough in caller of this function
     # TODO print balance in caller
-    print("aergo balance on origin before transfer", aergo1.account.balance.aer)
+    print("aergo balance on origin before transfer", aergo_from.account.balance.aer)
     value = 1*10**18
     # TODO print transfering in caller
     print("Transfering", value/10**18, "aergo...")
-    tx, result = aergo1.call_sc(addr1, "lock",
+    tx, result = aergo_from.call_sc(bridge_from, "lock",
                                 args=[receiver, str(value), "aergo"],
                                 amount=value)
     time.sleep(COMMIT_TIME)
     # Record lock height
-    _, lock_height = aergo1.get_blockchain_status()
+    _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
-    result = aergo1.get_tx_result(tx.tx_hash)
+    result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
         raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
@@ -33,9 +33,9 @@ def lock_aer(aergo1, sender, receiver, addr1):
     return lock_height
 
 
-def lock_token(aergo1, sender, receiver, addr1, token_origin):
+def lock_token(aergo_from, sender, receiver, bridge_from, token_origin):
     # get current balance and nonce
-    initial_state = aergo1.query_sc_state(token_origin,
+    initial_state = aergo_from.query_sc_state(token_origin,
                                           ["_sv_Balances-" +
                                            sender,
                                            "_sv_Nonces-" +
@@ -55,21 +55,21 @@ def lock_token(aergo1, sender, receiver, addr1, token_origin):
     fee = 0
     deadline = 0
     contractID = str(contractID_p[1:-1], 'utf-8')
-    msg = bytes(addr1 + str(value) + str(nonce) + str(fee) +
+    msg = bytes(bridge_from + str(value) + str(nonce) + str(fee) +
                 str(deadline) + contractID, 'utf-8')
     h = hashlib.sha256(msg).digest()
-    sig = aergo1.account.private_key.sign_msg(h).hex()
+    sig = aergo_from.account.private_key.sign_msg(h).hex()
 
     # lock and check block height of lock tx
     print("Transfering", value/10**18, "tokens...")
-    tx, result = aergo1.call_sc(addr1, "lock",
+    tx, result = aergo_from.call_sc(bridge_from, "lock",
                                 args=[receiver, str(value),
                                       token_origin, nonce, sig])
     time.sleep(COMMIT_TIME)
     # Record lock height
-    _, lock_height = aergo1.get_blockchain_status()
+    _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
-    result = aergo1.get_tx_result(tx.tx_hash)
+    result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
         raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
@@ -77,48 +77,48 @@ def lock_token(aergo1, sender, receiver, addr1, token_origin):
     return lock_height
 
 
-def build_lock_proof(aergo1, aergo2, receiver, addr1, addr2, lock_height,
+def build_lock_proof(aergo_from, aergo_to, receiver, bridge_from, bridge_to, lock_height,
                      token_origin, t_anchor, t_final):
     # check current merged height at destination
-    height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
-    merged_height2 = int(height_proof_2.var_proofs[0].value)
-    print("last merged height at destination :", merged_height2)
+    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    merged_height_to = int(height_proof_to.var_proofs[0].value)
+    print("last merged height at destination :", merged_height_to)
     # wait t_final
     print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
     time.sleep(t_final)
     # check last merged height
-    height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
-    last_merged_height2 = int(height_proof_2.var_proofs[0].value)
+    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    last_merged_height_to = int(height_proof_to.var_proofs[0].value)
     # waite for anchor containing our transfer
     sys.stdout.write("waiting new anchor ")
-    while last_merged_height2 < lock_height:
+    while last_merged_height_to < lock_height:
         sys.stdout.flush()
         sys.stdout.write(". ")
         time.sleep(t_anchor/4)
-        height_proof_2 = aergo2.query_sc_state(addr2, ["_sv_Height"])
-        last_merged_height2 = int(height_proof_2.var_proofs[0].value)
+        height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+        last_merged_height_to = int(height_proof_to.var_proofs[0].value)
         # TODO do this with events when available
     # get inclusion proof of lock in last merged block
-    merge_block1 = aergo1.get_block(block_height=last_merged_height2)
+    merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
     account_ref = receiver + token_origin
-    lock_proof = aergo1.query_sc_state(addr1, ["_sv_Locks-" + account_ref],
-                                       root=merge_block1.blocks_root_hash,
+    lock_proof = aergo_from.query_sc_state(bridge_from, ["_sv_Locks-" + account_ref],
+                                       root=merge_block_from.blocks_root_hash,
                                        compressed=False)
-    if not lock_proof.verify_proof(merge_block1.blocks_root_hash):
+    if not lock_proof.verify_proof(merge_block_from.blocks_root_hash):
         raise InvalidMerkleProofError("Unable to verify lock proof")
     return lock_proof
 
 
-def mint(aergo2, receiver, lock_proof, token_origin, addr2):
+def mint(aergo_to, receiver, lock_proof, token_origin, bridge_to):
     balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = lock_proof.var_proofs[0].auditPath
     ap = [node.hex() for node in auditPath]
-    # call mint on aergo2 with the lock proof from aergo1
-    tx, result = aergo2.call_sc(addr2, "mint",
+    # call mint on aergo_to with the lock proof from aergo_from
+    tx, result = aergo_to.call_sc(bridge_to, "mint",
                                 args=[receiver, balance,
                                       token_origin, ap])
     time.sleep(COMMIT_TIME)
-    result = aergo2.get_tx_result(tx.tx_hash)
+    result = aergo_to.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
         raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
@@ -131,32 +131,32 @@ def mint(aergo2, receiver, lock_proof, token_origin, addr2):
 def test_script(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    addr1 = config_data['mainnet']['bridges']['sidechain2']
-    addr2 = config_data['sidechain2']['bridges']['mainnet']
+    bridge_from = config_data['mainnet']['bridges']['sidechain2']
+    bridge_to = config_data['sidechain2']['bridges']['mainnet']
     token_origin = config_data['mainnet']['tokens']['token1']['addr']
     if aer:
         token_origin = "aergo"
     try:
-        aergo1 = herapy.Aergo()
-        aergo2 = herapy.Aergo()
+        aergo_from = herapy.Aergo()
+        aergo_to = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['mainnet']['ip'])
-        aergo2.connect(config_data['sidechain2']['ip'])
+        aergo_from.connect(config_data['mainnet']['ip'])
+        aergo_to.connect(config_data['sidechain2']['ip'])
 
-        sender_priv_key1 = config_data["wallet"]['priv_key']
-        sender_priv_key2 = config_data["wallet"]['priv_key']
-        sender_account = aergo1.new_account(private_key=sender_priv_key1)
-        aergo2.new_account(private_key=sender_priv_key2)
-        aergo1.get_account()
-        aergo2.get_account()
+        sender_private_key_from = config_data["wallet"]['priv_key']
+        sender_priv_key_to = config_data["wallet"]['priv_key']
+        sender_account = aergo_from.new_account(private_key=sender_private_key_from)
+        aergo_to.new_account(private_key=sender_priv_key_to)
+        aergo_from.get_account()
+        aergo_to.get_account()
 
         sender = sender_account.address.__str__()
         receiver = sender
         print("  > Sender Address: ", sender)
 
         # Get bridge information
-        bridge_info = aergo1.query_sc_state(addr1,
+        bridge_info = aergo_from.query_sc_state(bridge_from,
                                             ["_sv_T_anchor",
                                              "_sv_T_final",
                                              ])
@@ -166,22 +166,22 @@ def test_script(aer=False):
 
         print("\n------ Lock tokens/aer -----------")
         if aer:
-            lock_height = lock_aer(aergo1, sender, receiver, addr1)
+            lock_height = lock_aer(aergo_from, sender, receiver, bridge_from)
         else:
-            lock_height = lock_token(aergo1, sender, receiver, addr1,
+            lock_height = lock_token(aergo_from, sender, receiver, bridge_from,
                                             token_origin)
 
         print("------ Wait finalisation and get lock proof -----------")
-        lock_proof = build_lock_proof(aergo1, aergo2, receiver,
-                                               addr1, addr2, lock_height,
+        lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
+                                               bridge_from, bridge_to, lock_height,
                                                token_origin, t_anchor, t_final)
 
         print("\n------ Mint tokens on destination blockchain -----------")
-        token_pegged = mint(aergo2, receiver, lock_proof,
-                                     token_origin, addr2)
+        token_pegged = mint(aergo_to, receiver, lock_proof,
+                                     token_origin, bridge_to)
 
         # new balance on sidechain
-        sidechain_balance = aergo2.query_sc_state(token_pegged,
+        sidechain_balance = aergo_to.query_sc_state(token_pegged,
                                                   ["_sv_Balances-" +
                                                    receiver,
                                                    ])
@@ -191,10 +191,10 @@ def test_script(aer=False):
 
         # remaining balance on origin
         if aer:
-            aergo1.get_account()
-            print("Balance on origin: ", aergo1.account.balance.aer)
+            aergo_from.get_account()
+            print("Balance on origin: ", aergo_from.account.balance.aer)
         else:
-            origin_balance = aergo1.query_sc_state(token_origin,
+            origin_balance = aergo_from.query_sc_state(token_origin,
                                                 ["_sv_Balances-" +
                                                     sender,
                                                     ])
@@ -214,8 +214,8 @@ def test_script(aer=False):
         print("Shutting down operator")
 
     print("------ Disconnect AERGO -----------")
-    aergo1.disconnect()
-    aergo2.disconnect()
+    aergo_from.disconnect()
+    aergo_to.disconnect()
 
 
 if __name__ == '__main__':

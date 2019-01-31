@@ -88,8 +88,8 @@ def run():
         sc_address1 = result1.contract_address
         sc_address2 = result2.contract_address
 
-        print("  > SC Address ORIGIN: {}".format(sc_address1))
-        print("  > SC Address DESTINATION: {}".format(sc_address2))
+        print("  > SC Address CHAIN1: {}".format(sc_address1))
+        print("  > SC Address CHAIN2: {}".format(sc_address2))
 
         print("------ Store bridge addresses in config.json  -----------")
         config_data['mainnet']['bridges']['sidechain2'] = sc_address1

@@ -44,8 +44,8 @@ class Wallet:
         pass
 
     def transfer_to_sidechain(self,
-                              origin_chain,
-                              destination_chain,
+                              from_chain,
+                              to_chain,
                               asset_name,
                               amount,
                               sender=None,
@@ -53,16 +53,16 @@ class Wallet:
                               priv_key=None):
         if priv_key == None:
             priv_key = self._config_data["wallet"]['priv_key']
-        lock_height = self.initiate_transfer_lock(origin_chain, destination_chain,
+        lock_height = self.initiate_transfer_lock(from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
-        self.finalize_transfer_mint(lock_height, origin_chain, destination_chain,
+        self.finalize_transfer_mint(lock_height, from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
 
     def transfer_from_sidechain(self,
-                              origin_chain,
-                              destination_chain,
+                              from_chain,
+                              to_chain,
                               asset_name,
                               amount,
                               sender=None,
@@ -70,16 +70,16 @@ class Wallet:
                               priv_key=None):
         if priv_key == None:
             priv_key = self._config_data["wallet"]['priv_key']
-        burn_height = self.initiate_transfer_burn(origin_chain, destination_chain,
+        burn_height = self.initiate_transfer_burn(from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
-        self.finalize_transfer_unlock(burn_height, origin_chain, destination_chain,
+        self.finalize_transfer_unlock(burn_height, from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
 
     def initiate_transfer_lock(self,
-                               origin_chain,
-                               destination_chain,
+                               from_chain,
+                               to_chain,
                                asset_name,
                                amount,
                                sender=None,
@@ -89,42 +89,42 @@ class Wallet:
         if priv_key == None:
             priv_key = self._config_data['wallet']['priv_key']
 
-        aergo1 = self._connect_aergo(origin_chain)
+        aergo_from = self._connect_aergo(from_chain)
 
-        locker_account = aergo1.new_account(private_key=priv_key)
+        locker_account = aergo_from.new_account(private_key=priv_key)
         if sender == None:
             sender = locker_account.address.__str__()
         if receiver == None:
             receiver = sender
 
-        addr1 = self._config_data[origin_chain]['bridges'][destination_chain]
+        bridge_from = self._config_data[from_chain]['bridges'][to_chain]
 
         print("\n\n------ Lock {} -----------".format(asset_name))
-        asset_address = self._config_data[origin_chain]['tokens'][asset_name]['addr']
+        asset_address = self._config_data[from_chain]['tokens'][asset_name]['addr']
         if asset_name == "aergo":
             # TODO pass amount
-            lock_height = lock_aer(aergo1, sender, receiver, addr1)
+            lock_height = lock_aer(aergo_from, sender, receiver, bridge_from)
         else:
-            lock_height = lock_token(aergo1, sender, receiver, addr1,
+            lock_height = lock_token(aergo_from, sender, receiver, bridge_from,
                                               asset_address)
         # remaining balance on origin
         if asset_name == "aergo":
-            aergo1.get_account()
-            print("Remaining {} balance on origin after transfer: {}".format(asset_name, aergo1.account.balance.aer))
+            aergo_from.get_account()
+            print("Remaining {} balance on origin after transfer: {}".format(asset_name, aergo_from.account.balance.aer))
         else:
-            origin_balance = aergo1.query_sc_state(asset_address,
+            origin_balance = aergo_from.query_sc_state(asset_address,
                                                 ["_sv_Balances-" +
                                                     sender,
                                                     ])
             balance = json.loads(origin_balance.var_proofs[0].value)['_bignum']
             print("Remaining {} balance on origin after transfer: {}".format(asset_name, int(balance)/10**18))
-        aergo1.disconnect()
+        aergo_from.disconnect()
         return lock_height
 
     def finalize_transfer_mint(self,
                                lock_height,
-                               origin_chain,
-                               destination_chain,
+                               from_chain,
+                               to_chain,
                                asset_name,
                                amount,
                                sender=None,
@@ -134,27 +134,27 @@ class Wallet:
         if priv_key == None:
             priv_key = self._config_data['wallet']['priv_key']
 
-        aergo1 = self._connect_aergo(origin_chain)
-        aergo2 = self._connect_aergo(destination_chain)
-        aergo1.new_account(private_key=priv_key)
-        minter_account = aergo2.new_account(private_key=priv_key)
+        aergo_from = self._connect_aergo(from_chain)
+        aergo_to = self._connect_aergo(to_chain)
+        aergo_from.new_account(private_key=priv_key)
+        minter_account = aergo_to.new_account(private_key=priv_key)
         if receiver == None:
             receiver = minter_account.address.__str__()
 
-        addr1 = self._config_data[origin_chain]['bridges'][destination_chain]
-        addr2 = self._config_data[destination_chain]['bridges'][origin_chain]
+        bridge_from = self._config_data[from_chain]['bridges'][to_chain]
+        bridge_to = self._config_data[to_chain]['bridges'][from_chain]
 
         print("\n------ Wait finalisation and get lock proof -----------")
-        asset_address = self._config_data[origin_chain]['tokens'][asset_name]['addr']
-        t_anchor, t_final = self.get_bridge_tempo(aergo2, addr2)
-        lock_proof = build_lock_proof(aergo1, aergo2, receiver,
-                                               addr1, addr2, lock_height,
+        asset_address = self._config_data[from_chain]['tokens'][asset_name]['addr']
+        t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
+        lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
+                                               bridge_from, bridge_to, lock_height,
                                                asset_address, t_anchor, t_final)
 
         print("\n\n------ Mint {} on destination blockchain -----------".format(asset_name))
         try:
-            token_pegged = self._config_data[origin_chain]['tokens'][asset_name]['pegs'][destination_chain]
-            sidechain_balance = aergo2.query_sc_state(token_pegged,
+            token_pegged = self._config_data[from_chain]['tokens'][asset_name]['pegs'][to_chain]
+            sidechain_balance = aergo_to.query_sc_state(token_pegged,
                                                     ["_sv_Balances-" +
                                                     receiver,
                                                     ])
@@ -163,29 +163,29 @@ class Wallet:
         except KeyError:
             print("Pegged token not yet know because never transferred by this wallet")
 
-        token_pegged = mint(aergo2, receiver, lock_proof,
-                                     asset_address, addr2)
+        token_pegged = mint(aergo_to, receiver, lock_proof,
+                                     asset_address, bridge_to)
 
         # new balance on sidechain
-        sidechain_balance = aergo2.query_sc_state(token_pegged,
+        sidechain_balance = aergo_to.query_sc_state(token_pegged,
                                                   ["_sv_Balances-" +
                                                    receiver,
                                                    ])
         balance = json.loads(sidechain_balance.var_proofs[0].value)['_bignum']
         print("{} balance on destination after transfer : {}".format(asset_name, int(balance)/10**18))
 
-        aergo1.disconnect()
-        aergo2.disconnect()
+        aergo_from.disconnect()
+        aergo_to.disconnect()
 
         # record mint address in file
         print("\n------ Store mint address in config.json -----------")
-        self._config_data[origin_chain]['tokens'][asset_name]['pegs'][destination_chain] = token_pegged
+        self._config_data[from_chain]['tokens'][asset_name]['pegs'][to_chain] = token_pegged
         with open("./config.json", "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
 
     def initiate_transfer_burn(self,
-                               origin_chain,
-                               destination_chain,
+                               from_chain,
+                               to_chain,
                                asset_name,
                                amount,
                                sender=None,
@@ -194,9 +194,9 @@ class Wallet:
         if priv_key == None:
             priv_key = self._config_data['wallet']['priv_key']
 
-        aergo2 = self._connect_aergo(origin_chain)
+        aergo_from = self._connect_aergo(from_chain)
 
-        burner_account = aergo2.new_account(private_key=priv_key)
+        burner_account = aergo_from.new_account(private_key=priv_key)
 
         if sender == None:
             # minted token currently doesnt support delegated burn
@@ -204,30 +204,30 @@ class Wallet:
         if receiver == None:
             receiver = sender
 
-        addr2 = self._config_data[origin_chain]['bridges'][destination_chain]
-        token_pegged = self._config_data[destination_chain]['tokens'][asset_name]['pegs'][origin_chain]
+        bridge_from = self._config_data[from_chain]['bridges'][to_chain]
+        token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
 
 
         print("\n\n------ Burn {}-----------".format(asset_name))
-        burn_height = burn(aergo2, sender, receiver, addr2, token_pegged)
+        burn_height = burn(aergo_from, sender, receiver, bridge_from, token_pegged)
 
         # remaining balance on sidechain
-        token_pegged = self._config_data[destination_chain]['tokens'][asset_name]['pegs'][origin_chain]
-        sidechain_balance = aergo2.query_sc_state(token_pegged,
+        token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
+        sidechain_balance = aergo_from.query_sc_state(token_pegged,
                                                   ["_sv_Balances-" +
                                                    sender,
                                                    ])
         balance = json.loads(sidechain_balance.var_proofs[0].value)['_bignum']
         print("Remaining {} balance on sidechain after transfer: {}".format(asset_name, int(balance)/10**18))
 
-        aergo2.disconnect()
+        aergo_from.disconnect()
 
         return burn_height
 
     def finalize_transfer_unlock(self,
                                     burn_height,
-                                    origin_chain,
-                                    destination_chain,
+                                    from_chain,
+                                    to_chain,
                                     asset_name,
                                     amount,
                                     sender=None,
@@ -237,31 +237,31 @@ class Wallet:
         if priv_key == None:
             priv_key = self._config_data['wallet']['priv_key']
 
-        aergo1 = self._connect_aergo(destination_chain)
-        aergo2 = self._connect_aergo(origin_chain)
-        aergo1.new_account(private_key=priv_key)
-        unlocker_account = aergo2.new_account(private_key=priv_key)
+        aergo_to = self._connect_aergo(to_chain)
+        aergo_from = self._connect_aergo(from_chain)
+        aergo_to.new_account(private_key=priv_key)
+        unlocker_account = aergo_from.new_account(private_key=priv_key)
         if receiver == None:
             receiver = unlocker_account.address.__str__()
 
-        addr1 = self._config_data[destination_chain]['bridges'][origin_chain]
-        addr2 = self._config_data[origin_chain]['bridges'][destination_chain]
+        bridge_to = self._config_data[to_chain]['bridges'][from_chain]
+        bridge_from = self._config_data[from_chain]['bridges'][to_chain]
 
         # TODO store t_anchor and t_final for that bridge in config.json. if it
         # doesnt exist, only then query to contract and store it for later
         print("\n------ Wait finalisation and get burn proof -----------")
-        asset_address = self._config_data[destination_chain]['tokens'][asset_name]['addr']
-        t_anchor, t_final = self.get_bridge_tempo(aergo1, addr1)
-        burn_proof = build_burn_proof(aergo1, aergo2, receiver,
-                                               addr1, addr2, burn_height,
+        asset_address = self._config_data[to_chain]['tokens'][asset_name]['addr']
+        t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
+        burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
+                                               bridge_to, bridge_from, burn_height,
                                                asset_address, t_anchor, t_final)
 
         print("\n\n------ Unlock {} on origin blockchain -----------".format(asset_name))
         if asset_name == "aergo":
-            aergo1.get_account()
-            print("{} balance on destination before transfer: {}".format(asset_name, aergo1.account.balance.aer))
+            aergo_to.get_account()
+            print("{} balance on destination before transfer: {}".format(asset_name, aergo_to.account.balance.aer))
         else:
-            origin_balance = aergo1.query_sc_state(asset_address,
+            origin_balance = aergo_to.query_sc_state(asset_address,
                                                    ["_sv_Balances-" +
                                                     receiver,
                                                     ])
@@ -269,14 +269,14 @@ class Wallet:
             balance = json.loads(origin_balance.var_proofs[0].value)['_bignum']
             print("{} balance on destination before transfer: {}".format(asset_name, int(balance)/10**18))
 
-        unlock(aergo1, receiver, burn_proof, asset_address, addr1)
+        unlock(aergo_to, receiver, burn_proof, asset_address, bridge_to)
 
         # new balance on origin
         if asset_name == "aergo":
-            aergo1.get_account()
-            print("{} balance on destination before transfer: {}".format(asset_name, aergo1.account.balance.aer))
+            aergo_to.get_account()
+            print("{} balance on destination before transfer: {}".format(asset_name, aergo_to.account.balance.aer))
         else:
-            origin_balance = aergo1.query_sc_state(asset_address,
+            origin_balance = aergo_to.query_sc_state(asset_address,
                                                    ["_sv_Balances-" +
                                                     receiver,
                                                     ])
@@ -284,8 +284,8 @@ class Wallet:
             balance = json.loads(origin_balance.var_proofs[0].value)['_bignum']
             print("{} balance on destination after transfer: {}".format(asset_name, int(balance)/10**18))
 
-        aergo1.disconnect()
-        aergo2.disconnect()
+        aergo_to.disconnect()
+        aergo_from.disconnect()
 
 
 
@@ -296,10 +296,10 @@ if __name__ == '__main__':
     wallet.transfer_to_sidechain(
                                 'mainnet',
                                 'sidechain2',
-                                'aergo',
+                                'token1',
                                 500)
     wallet.transfer_from_sidechain(
                                 'sidechain2',
                                 'mainnet',
-                                'aergo',
+                                'token1',
                                 500)

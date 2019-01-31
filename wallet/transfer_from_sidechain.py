@@ -9,9 +9,9 @@ from exceptions import *
 COMMIT_TIME = 3
 
 
-def burn(aergo2, sender, receiver, addr2, token_pegged):
+def burn(aergo_from, sender, receiver, bridge_from, token_pegged):
     # get current balance and nonce
-    initial_state = aergo2.query_sc_state(token_pegged,
+    initial_state = aergo_from.query_sc_state(token_pegged,
                                             ["_sv_Balances-" +
                                             sender,
                                             ])
@@ -24,13 +24,13 @@ def burn(aergo2, sender, receiver, addr2, token_pegged):
     # lock and check block height of lock tx
     value = 1*10**18
     print("Transfering", value/10**18, "tokens...")
-    tx, result = aergo2.call_sc(addr2, "burn",
+    tx, result = aergo_from.call_sc(bridge_from, "burn",
                                 args=[receiver, str(value), token_pegged])
     time.sleep(COMMIT_TIME)
     # Record burn height
-    _, burn_height = aergo2.get_blockchain_status()
+    _, burn_height = aergo_from.get_blockchain_status()
     # Check burn success
-    result = aergo2.get_tx_result(tx.tx_hash)
+    result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
         raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
@@ -38,48 +38,48 @@ def burn(aergo2, sender, receiver, addr2, token_pegged):
     return burn_height
 
 
-def build_burn_proof(aergo1, aergo2, receiver, addr1, addr2, burn_height,
+def build_burn_proof(aergo_to, aergo_from, receiver, bridge_to, bridge_from, burn_height,
                      token_origin, t_anchor, t_final):
     # check current merged height at destination
-    height_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Height"])
-    merged_height1 = int(height_proof_1.var_proofs[0].value)
-    print("last merged height at destination :", merged_height1)
+    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    merged_height_to = int(height_proof_to.var_proofs[0].value)
+    print("last merged height at destination :", merged_height_to)
     # wait t_final
     print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
     time.sleep(t_final)
     # check last merged height
-    height_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Height"])
-    last_merged_height1 = int(height_proof_1.var_proofs[0].value)
+    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    last_merged_height_to = int(height_proof_to.var_proofs[0].value)
     # waite for anchor containing our transfer
     sys.stdout.write("waiting new anchor ")
-    while last_merged_height1 < burn_height:
+    while last_merged_height_to < burn_height:
         sys.stdout.flush()
         sys.stdout.write(". ")
         time.sleep(t_anchor/4)
-        height_proof_1 = aergo1.query_sc_state(addr1, ["_sv_Height"])
-        last_merged_height1 = int(height_proof_1.var_proofs[0].value)
+        height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+        last_merged_height_to = int(height_proof_to.var_proofs[0].value)
         # TODO do this with events when available
     # get inclusion proof of lock in last merged block
-    merge_block2 = aergo2.get_block(block_height=last_merged_height1)
+    merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
     account_ref = receiver + token_origin
-    burn_proof = aergo2.query_sc_state(addr2, ["_sv_Burns-" + account_ref],
-                                       root=merge_block2.blocks_root_hash,
+    burn_proof = aergo_from.query_sc_state(bridge_from, ["_sv_Burns-" + account_ref],
+                                       root=merge_block_from.blocks_root_hash,
                                        compressed=False)
-    if not burn_proof.verify_proof(merge_block2.blocks_root_hash):
+    if not burn_proof.verify_proof(merge_block_from.blocks_root_hash):
         raise InvalidMerkleProofError("Unable to verify burn proof")
     return burn_proof
 
 
-def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
+def unlock(aergo_to, receiver, burn_proof, token_origin, bridge_to):
     balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = burn_proof.var_proofs[0].auditPath
     ap = [node.hex() for node in auditPath]
-    # call mint on aergo2 with the lock proof from aergo1
-    tx, result = aergo1.call_sc(addr1, "unlock",
+    # call mint on aergo_from with the lock proof from aergo_to
+    tx, result = aergo_to.call_sc(bridge_to, "unlock",
                                 args=[receiver, balance,
                                       token_origin, ap])
     time.sleep(COMMIT_TIME)
-    result = aergo1.get_tx_result(tx.tx_hash)
+    result = aergo_to.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
         raise TxError("  > ERROR[{0}]:{1}: {2}".format(
             result.contract_address, result.status, result.detail))
@@ -90,33 +90,33 @@ def unlock(aergo1, receiver, burn_proof, token_origin, addr1):
 def test_script(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    addr1 = config_data['mainnet']['bridges']['sidechain2']
-    addr2 = config_data['sidechain2']['bridges']['mainnet']
+    bridge_to = config_data['mainnet']['bridges']['sidechain2']
+    bridge_from = config_data['sidechain2']['bridges']['mainnet']
     token_pegged = config_data['mainnet']['tokens']['token1']['pegs']['sidechain2']
     token_origin = config_data['mainnet']['tokens']['token1']['addr']
     if aer:
         token_origin = "aergo"
     try:
-        aergo1 = herapy.Aergo()
-        aergo2 = herapy.Aergo()
+        aergo_to = herapy.Aergo()
+        aergo_from = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['mainnet']['ip'])
-        aergo2.connect(config_data['sidechain2']['ip'])
+        aergo_to.connect(config_data['mainnet']['ip'])
+        aergo_from.connect(config_data['sidechain2']['ip'])
 
-        sender_priv_key1 = config_data["wallet"]['priv_key']
-        sender_priv_key2 = config_data["wallet"]['priv_key']
-        sender_account = aergo1.new_account(private_key=sender_priv_key1)
-        aergo2.new_account(private_key=sender_priv_key2)
-        aergo1.get_account()
-        aergo2.get_account()
+        sender_priv_key_to = config_data["wallet"]['priv_key']
+        sender_priv_key_from = config_data["wallet"]['priv_key']
+        sender_account = aergo_to.new_account(private_key=sender_priv_key_to)
+        aergo_from.new_account(private_key=sender_priv_key_from)
+        aergo_to.get_account()
+        aergo_from.get_account()
 
         sender = sender_account.address.__str__()
         receiver = sender
         print("  > Sender Address: ", sender)
 
         # Get bridge information
-        bridge_info = aergo1.query_sc_state(addr1,
+        bridge_info = aergo_to.query_sc_state(bridge_to,
                                             ["_sv_T_anchor",
                                              "_sv_T_final",
                                              ])
@@ -125,23 +125,23 @@ def test_script(aer=False):
               "* chain finality periode : ", t_final, "s\n")
 
         # get current balance and nonce
-        initial_state = aergo2.query_sc_state(token_pegged,
+        initial_state = aergo_from.query_sc_state(token_pegged,
                                               ["_sv_Balances-" +
                                                sender,
                                                ])
         print("Token address in sidechain : ", token_pegged)
         if not initial_state.account.state_proof.inclusion:
             print("Pegged token doesnt exist in sidechain")
-            aergo1.disconnect()
-            aergo2.disconnect()
+            aergo_to.disconnect()
+            aergo_from.disconnect()
             return
         balance = json.loads(initial_state.var_proofs[0].value)
         print("Token balance on sidechain: ", balance)
         # balance on origin
         if aer:
-            print("Balance on origin: ", aergo1.account.balance.aer)
+            print("Balance on origin: ", aergo_to.account.balance.aer)
         else:
-            origin_balance = aergo1.query_sc_state(token_origin,
+            origin_balance = aergo_to.query_sc_state(token_origin,
                                                    ["_sv_Balances-" +
                                                     receiver,
                                                     ])
@@ -149,18 +149,18 @@ def test_script(aer=False):
             print("Balance on origin: ", balance)
 
         print("\n------ Burn tokens -----------")
-        burn_height = burn(aergo2, sender, receiver, addr2, token_pegged)
+        burn_height = burn(aergo_from, sender, receiver, bridge_from, token_pegged)
 
         print("------ Wait finalisation and get burn proof -----------")
-        burn_proof = build_burn_proof(aergo1, aergo2, receiver,
-                                               addr1, addr2, burn_height,
+        burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
+                                               bridge_to, bridge_from, burn_height,
                                                token_origin, t_anchor, t_final)
 
         print("\n------ Unlock tokens on origin blockchain -----------")
-        unlock(aergo1, receiver, burn_proof, token_origin, addr1)
+        unlock(aergo_to, receiver, burn_proof, token_origin, bridge_to)
 
         # remaining balance on sidechain
-        sidechain_balance = aergo2.query_sc_state(token_pegged,
+        sidechain_balance = aergo_from.query_sc_state(token_pegged,
                                                   ["_sv_Balances-" +
                                                    sender,
                                                    ])
@@ -169,10 +169,10 @@ def test_script(aer=False):
 
         # new balance on origin
         if aer:
-            aergo1.get_account()
-            print("Balance on origin: ", aergo1.account.balance.aer)
+            aergo_to.get_account()
+            print("Balance on origin: ", aergo_to.account.balance.aer)
         else:
-            origin_balance = aergo1.query_sc_state(token_origin,
+            origin_balance = aergo_to.query_sc_state(token_origin,
                                                    ["_sv_Balances-" +
                                                     receiver,
                                                     ])
@@ -187,8 +187,8 @@ def test_script(aer=False):
         print("Shutting down operator")
 
     print("------ Disconnect AERGO -----------")
-    aergo1.disconnect()
-    aergo2.disconnect()
+    aergo_to.disconnect()
+    aergo_from.disconnect()
 
 
 if __name__ == '__main__':
