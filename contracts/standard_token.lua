@@ -106,6 +106,7 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     Balances[from] = Balances[from] - bvalue - bfee
     if Balances[to] == nil then Balances[to] = b0 end
     Balances[to] = Balances[to] + bvalue
+    -- TODO use system.getOrigin() so a fee is payed to the tx signer if the tx executed another contract that called signed_transfer
     if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
     Balances[system.getSender()] = Balances[system.getSender()] + bfee
     Nonces[from] = Nonces[from] + 1

@@ -126,7 +126,7 @@ end
 
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
 -- nonce and signature are used when making a token lockup
-function lock(receiver, amount, token_address, nonce, signature)
+function lock(receiver, amount, token_address, nonce, signature, sender, fee, deadline)
     local bamount = bignum.number(amount)
     local b0 = bignum.number(0)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
@@ -138,12 +138,18 @@ function lock(receiver, amount, token_address, nonce, signature)
         assert(token_address == "aergo", "for safety and clarity don't provide a token address when locking aergo bits")
         assert(system.getAmount() == bignum.tostring(bamount), "for safety and clarity, amount must match the amount sent in the tx")
    else
-        local sender = system.getSender()
-        -- TODO pass sender as parameter to enable delegated token transfer in bridge
         this_contract = system.getContractID()
         -- FIXME how can this be hacked with a reentrant call if the token_address is malicious ?
-        if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, "0", 0, signature) then
-            error("failed to receive token to lock")
+        if sender == nil then
+            sender = system.getSender()
+            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, "0", 0, signature) then
+                error("failed to receive token to lock")
+            end
+        else
+            -- TODO fix standard token, currently doesnt pay fee to tx signer but to caller contract instead
+            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, fee, deadline, signature) then
+                error("failed to receive token to lock")
+            end
         end
     end
 
@@ -209,18 +215,25 @@ function mint(receiver, balance, token_origin, merkle_proof)
 end
 
 -- burn a sidechain token
-function burn(receiver, amount, mint_address)
+function burn(receiver, amount, mint_address, sender, nonce, fee, deadline, signature)
     local bamount = bignum.number(amount)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(bamount > bignum.number(0), "amount must be positive")
     assert(system.getAmount() == "0", "burn function not payable, only tokens can be burned")
 
     -- Burn token
-    local sender = system.getSender()
     local origin_address = MintedTokens[mint_address]
     assert(origin_address ~= nil, "cannot burn token : must have been minted by bridge")
-    if not contract.call(mint_address, "burn", sender, bignum.tostring(bamount)) then
-        error("failed to burn token")
+    if sender == nil then
+        sender = system.getSender()
+        if not contract.call(mint_address, "burn", sender, bignum.tostring(bamount)) then
+            error("failed to burn token")
+        end
+    else
+        -- TODO fix minted token, currently doesnt pay fee to tx signer but to caller contract instead
+        if not contract.call(mint_address, "signed_burn", sender, bignum.tostring(bamount), nonce, fee, deadline, signature) then
+            error("failed to burn token")
+        end
     end
 
     -- Add burnt amount to total
@@ -434,7 +447,7 @@ function _deploy_minteable_token()
 
 
         ---------------------------------------
-        -- Mint and Burn are specific to the token contract controlled by
+        -- mint, burn and signed_burn are specific to the token contract controlled by
         -- the merkle bridge contract and representing transfered assets.
         ---------------------------------------
 
@@ -460,7 +473,7 @@ function _deploy_minteable_token()
         end
 
         ---------------------------------------
-        -- Burn burns the tokens of 'from'
+        -- burn the tokens of 'from'
         -- @type        call
         -- @param from  a target address
         -- @param value an amount of token to send
@@ -480,9 +493,52 @@ function _deploy_minteable_token()
             return true
         end
 
+        ---------------------------------------
+        -- signed_burn the tokens of 'from' according to signed data from the owner
+        -- @type            call
+        -- @param from      a target address
+        -- @param value     an amount of token to send
+        -- @param nonce     nonce of the sender to prevent replay
+        -- @param fee       string fee given to the tx broadcaster
+        -- @param deadline  block number before which the tx can be executed
+        -- @param signature signature proving sender's consent
+        -- @return          success
+        ---------------------------------------
+        function signed_burn(from, value, nonce, fee, deadline, signature)
+            assert(type_check.isValidNumber(value), "invalid value format (must be string)")
+            assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
+            local bfee = bignum.number(fee)
+            local bvalue = bignum.number(value)
+            local b0 = bignum.number(0)
+            -- check addresses
+            assert(type_check.isValidAddress(from), "invalid address format: " .. from)
+            -- check amounts, fee
+            assert(bfee >= b0, "fee must be positive")
+            assert(bvalue >= b0, "value must be positive")
+            assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
+            -- check deadline
+            assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
+            -- check nonce
+            if Nonces[from] == nil then Nonces[from] = 0 end
+            assert(Nonces[from] == nonce, "nonce is invalid or already spent")
+            -- construct signed transfer and verifiy signature
+            data = crypto.sha256(bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+            assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
+            -- execute burn
+            new_total = TotalSupply:get() - bvalue - bfee
+            TotalSupply:set(new_total)
+            Balances[from] = Balances[from] - bvalue - bfee
+            -- TODO replace getSender() with getOrigin() needed for paying a fee to tx signer
+            -- if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
+            -- Balances[system.getSender()] = Balances[system.getSender()] + bfee
+            Nonces[from] = Nonces[from] + 1
+            -- TODO event notification
+            return true
+        end
+
 
         -- register functions to abi
-        abi.register(transfer, signed_transfer, mint, burn)
+        abi.register(transfer, signed_transfer, mint, burn, signed_burn)
         ]]
     addr, success = contract.deploy(src)
     return addr, success

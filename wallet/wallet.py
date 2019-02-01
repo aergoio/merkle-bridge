@@ -40,6 +40,13 @@ class Wallet:
         # TODO delegated transfer and bridge transfer
         pass
 
+    def sign_transfer():
+        # signs a transfer to be given to a 3rd party
+        pass
+
+    # TODO create a tx broadcaster that calls signed transfer, lock or burn with a
+    # signature. gRPC with params arguments
+
     def deploy_token(asset_name, total_supply, receiver=None, priv_key=None):
         pass
 
