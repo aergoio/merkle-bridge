@@ -10,13 +10,12 @@ from exceptions import InvalidMerkleProofError, TxError
 COMMIT_TIME = 3
 
 
-def lock_aer(aergo_from, sender, receiver, bridge_from):
+def lock_aer(aergo_from, sender, receiver, value, bridge_from):
     # TODO pass in value
     # TODO check balance is enough in caller of this function
     # TODO print balance in caller
     print("aergo balance on origin before transfer",
           aergo_from.account.balance.aer)
-    value = 1*10**18
     # TODO print transfering in caller
     print("Transfering", value/10**18, "aergo...")
     tx, result = aergo_from.call_sc(bridge_from, "lock",
@@ -35,7 +34,7 @@ def lock_aer(aergo_from, sender, receiver, bridge_from):
     return lock_height
 
 
-def lock_token(aergo_from, sender, receiver, bridge_from, token_origin):
+def lock_token(aergo_from, sender, receiver, value, token_origin, bridge_from):
     # get current balance and nonce
     initial_state = aergo_from.query_sc_state(token_origin,
                                               ["_sv_Balances-" +
@@ -53,7 +52,6 @@ def lock_token(aergo_from, sender, receiver, bridge_from, token_origin):
     print("Token balance on origin before transfer: ", balance/10**18)
 
     # make a signed transfer of 5000 tokens
-    value = 1*10**18
     fee = 0
     deadline = 0
     contractID = str(contractID_p[1:-1], 'utf-8')
@@ -171,10 +169,10 @@ def test_script(aer=False):
 
         print("\n------ Lock tokens/aer -----------")
         if aer:
-            lock_height = lock_aer(aergo_from, sender, receiver, bridge_from)
+            lock_height = lock_aer(aergo_from, sender, receiver, 1*10**18, bridge_from)
         else:
-            lock_height = lock_token(aergo_from, sender, receiver, bridge_from,
-                                     token_origin)
+            lock_height = lock_token(aergo_from, sender, receiver, 1*10**18,
+                                     token_origin, bridge_from)
 
         print("------ Wait finalisation and get lock proof -----------")
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,

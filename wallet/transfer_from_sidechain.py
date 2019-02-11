@@ -9,7 +9,7 @@ from exceptions import UnknownContractError, TxError, InvalidMerkleProofError
 COMMIT_TIME = 3
 
 
-def burn(aergo_from, sender, receiver, bridge_from, token_pegged):
+def burn(aergo_from, sender, receiver, value, token_pegged, bridge_from):
     # get current balance and nonce
     initial_state = aergo_from.query_sc_state(token_pegged,
                                               ["_sv_Balances-" +
@@ -22,7 +22,6 @@ def burn(aergo_from, sender, receiver, bridge_from, token_pegged):
     print("Token balance on origin before transfer: ", int(balance)/10**18)
 
     # lock and check block height of lock tx
-    value = 1*10**18
     print("Transfering", value/10**18, "tokens...")
     tx, result = aergo_from.call_sc(bridge_from, "burn",
                                     args=[receiver, str(value), token_pegged])
@@ -152,8 +151,8 @@ def test_script(aer=False):
             print("Balance on origin: ", balance)
 
         print("\n------ Burn tokens -----------")
-        burn_height = burn(aergo_from, sender, receiver, bridge_from,
-                           token_pegged)
+        burn_height = burn(aergo_from, sender, receiver, 1*10**18,
+                           token_pegged, bridge_from)
 
         print("------ Wait finalisation and get burn proof -----------")
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,

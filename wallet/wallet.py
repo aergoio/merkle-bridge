@@ -63,8 +63,7 @@ class Wallet:
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
         self.finalize_transfer_mint(lock_height, from_chain, to_chain,
-                                    asset_name, amount, sender,
-                                    receiver, priv_key)
+                                    asset_name, receiver, priv_key)
 
     def transfer_from_sidechain(self,
                                 from_chain,
@@ -80,8 +79,7 @@ class Wallet:
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
         self.finalize_transfer_unlock(burn_height, from_chain, to_chain,
-                                      asset_name, amount, sender,
-                                      receiver, priv_key)
+                                      asset_name, receiver, priv_key)
 
     def initiate_transfer_lock(self,
                                from_chain,
@@ -111,10 +109,10 @@ class Wallet:
         asset_address = self._config_data[from_chain]['tokens'][asset_name]['addr']
         if asset_name == "aergo":
             # TODO pass amount
-            lock_height = lock_aer(aergo_from, sender, receiver, bridge_from)
+            lock_height = lock_aer(aergo_from, sender, receiver, amount, bridge_from)
         else:
-            lock_height = lock_token(aergo_from, sender, receiver, bridge_from,
-                                     asset_address)
+            lock_height = lock_token(aergo_from, sender, receiver, amount,
+                                     asset_address, bridge_from)
         # remaining balance on origin
         if asset_name == "aergo":
             # TODO get balance ()
@@ -137,11 +135,11 @@ class Wallet:
                                from_chain,
                                to_chain,
                                asset_name,
-                               amount,
-                               sender=None,
                                receiver=None,
                                priv_key=None):
         # NOTE anybody can mint so sender is not necessary
+        # amount to mint is the difference between total deposit and
+        # already minted amount
         if priv_key is None:
             priv_key = self._config_data['wallet']['priv_key']
 
@@ -223,8 +221,8 @@ class Wallet:
         token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
 
         print("\n\n------ Burn {}-----------".format(asset_name))
-        burn_height = burn(aergo_from, sender, receiver, bridge_from,
-                           token_pegged)
+        burn_height = burn(aergo_from, sender, receiver, amount,
+                           token_pegged, bridge_from)
 
         # remaining balance on sidechain
         token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
@@ -245,11 +243,11 @@ class Wallet:
                                  from_chain,
                                  to_chain,
                                  asset_name,
-                                 amount,
-                                 sender=None,
                                  receiver=None,
                                  priv_key=None):
         # NOTE anybody can unlock so sender is not necessary
+        # amount to unlock is the difference between total burn and
+        # already unlocked amount
         if priv_key is None:
             priv_key = self._config_data['wallet']['priv_key']
 
@@ -314,11 +312,12 @@ if __name__ == '__main__':
     with open("./config.json", "r") as f:
         config_data = json.load(f)
     wallet = Wallet(config_data)
+    amount = 1*10**18
     wallet.transfer_to_sidechain('mainnet',
                                  'sidechain2',
-                                 'aergo',
-                                 500)
+                                 'token1',
+                                 amount)
     wallet.transfer_from_sidechain('sidechain2',
                                    'mainnet',
-                                   'aergo',
-                                   500)
+                                   'token1',
+                                   amount)
