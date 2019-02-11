@@ -14,6 +14,7 @@ import aergo.herapy as herapy
 
 COMMIT_TIME = 3
 
+
 def run():
     with open("./config.json", "r") as f:
         config_data = json.load(f)
@@ -60,8 +61,10 @@ def run():
             merged_height1, merged_root1, nonce2 = [proof.value for proof in merge_info2.var_proofs]
             merged_height1 = int(merged_height1)
             nonce2 = int(nonce2)
-            print(" __\n| last merged heights :", merged_height1, merged_height2)
-            print("| last merged contract trie roots:", merged_root1[:20] + b'..."',
+            print(" __\n| last merged heights :",
+                  merged_height1, merged_height2)
+            print("| last merged contract trie roots:",
+                  merged_root1[:20] + b'..."',
                   merged_root2[:20] + b'..."')
             print("| current update nonces:", nonce1, nonce2)
 
@@ -101,7 +104,8 @@ def run():
                 time.sleep(t_final/4)
                 continue
 
-            print("anchoring new roots :", '"0x' + root1[:17] + '..."', '"0x' + root2[:17] + '..."')
+            print("anchoring new roots : '0x{}...', '0x{}'..."
+                  .format(root1[:17], root2[:17]))
             # Sign root and height update
             msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
             msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
@@ -121,15 +125,17 @@ def run():
             time.sleep(COMMIT_TIME)
             result1 = aergo1.get_tx_result(tx1.tx_hash)
             if result1.status != herapy.SmartcontractStatus.SUCCESS:
-                print("  > ERROR[{0}]:{1}: {2}".format(
-                    result1.contract_address, result1.status, result1.detail))
+                print("  > ERROR[{0}]:{1}: {2}"
+                      .format(result1.contract_address, result1.status,
+                              result1.detail))
                 aergo1.disconnect()
                 aergo2.disconnect()
                 return
             result2 = aergo2.get_tx_result(tx2.tx_hash)
             if result2.status != herapy.SmartcontractStatus.SUCCESS:
-                print("  > ERROR[{0}]:{1}: {2}".format(
-                    result2.contract_address, result2.status, result2.detail))
+                print("  > ERROR[{0}]:{1}: {2}"
+                      .format(result2.contract_address, result2.status,
+                              result2.detail))
                 aergo1.disconnect()
                 aergo2.disconnect()
                 return
@@ -139,8 +145,8 @@ def run():
             time.sleep(t_anchor-COMMIT_TIME)
 
     except grpc.RpcError as e:
-        print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),
-                                                                  e.details()))
+        print('Get Blockchain Status failed with {0}: {1}'
+              .format(e.code(), e.details()))
     except KeyboardInterrupt:
         print("Shutting down operator")
 

@@ -29,23 +29,24 @@ def run():
 
         print("------ Deploy Token-----------")
         tx, result = aergo.deploy_sc(amount=0,
-                                        payload=payload,
-                                        args=[500*10**6*10**18])
+                                     payload=payload,
+                                     args=[500*10**6*10**18])
         if result.status != herapy.CommitStatus.TX_OK:
-            print("    > ERROR[{0}]: {1}".format(result.status,
-                                                 result.detail))
+            print("    > ERROR[{0}]: {1}"
+                  .format(result.status, result.detail))
             aergo.disconnect()
             return
-        print("    > result[{0}] : {1}".format(result.tx_id,
-                                               result.status.name))
+        print("    > result[{0}] : {1}"
+              .format(result.tx_id, result.status.name))
 
         time.sleep(COMMIT_TIME)
 
         print("------ Check deployment of SC -----------")
         result = aergo.get_tx_result(tx.tx_hash)
         if result.status != herapy.SmartcontractStatus.CREATED:
-            print("  > ERROR[{0}]:{1}: {2}".format(
-                result.contract_address, result.status, result.detail))
+            print("  > ERROR[{0}]:{1}: {2}"
+                  .format(result.contract_address, result.status,
+                          result.detail))
             aergo.disconnect()
             return
 
@@ -61,8 +62,8 @@ def run():
         print("------ Disconnect AERGO -----------")
         aergo.disconnect()
     except grpc.RpcError as e:
-        print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),
-                                                                  e.details()))
+        print('Get Blockchain Status failed with {0}: {1}'
+              .format(e.code(), e.details()))
 
 
 if __name__ == '__main__':

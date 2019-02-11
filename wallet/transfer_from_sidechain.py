@@ -4,7 +4,7 @@ import sys
 import time
 
 import aergo.herapy as herapy
-from exceptions import *
+from exceptions import UnknownContractError, TxError, InvalidMerkleProofError
 
 COMMIT_TIME = 3
 
@@ -12,9 +12,9 @@ COMMIT_TIME = 3
 def burn(aergo_from, sender, receiver, bridge_from, token_pegged):
     # get current balance and nonce
     initial_state = aergo_from.query_sc_state(token_pegged,
-                                            ["_sv_Balances-" +
-                                            sender,
-                                            ])
+                                              ["_sv_Balances-" +
+                                               sender,
+                                               ])
     if not initial_state.account.state_proof.inclusion:
         raise UnknownContractError("Pegged token doesnt exist in sidechain")
     # TODO handle balance with no funds, test
@@ -25,21 +25,22 @@ def burn(aergo_from, sender, receiver, bridge_from, token_pegged):
     value = 1*10**18
     print("Transfering", value/10**18, "tokens...")
     tx, result = aergo_from.call_sc(bridge_from, "burn",
-                                args=[receiver, str(value), token_pegged])
+                                    args=[receiver, str(value), token_pegged])
     time.sleep(COMMIT_TIME)
     # Record burn height
     _, burn_height = aergo_from.get_blockchain_status()
     # Check burn success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}".format(
-            result.contract_address, result.status, result.detail))
+        raise TxError("  > ERROR[{0}]:{1}: {2}"
+                      .format(result.contract_address, result.status,
+                              result.detail))
     print("Burn success : ", result.detail)
     return burn_height
 
 
-def build_burn_proof(aergo_to, aergo_from, receiver, bridge_to, bridge_from, burn_height,
-                     token_origin, t_anchor, t_final):
+def build_burn_proof(aergo_to, aergo_from, receiver, bridge_to, bridge_from,
+                     burn_height, token_origin, t_anchor, t_final):
     # check current merged height at destination
     height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
     merged_height_to = int(height_proof_to.var_proofs[0].value)
@@ -62,9 +63,10 @@ def build_burn_proof(aergo_to, aergo_from, receiver, bridge_to, bridge_from, bur
     # get inclusion proof of lock in last merged block
     merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
     account_ref = receiver + token_origin
-    burn_proof = aergo_from.query_sc_state(bridge_from, ["_sv_Burns-" + account_ref],
-                                       root=merge_block_from.blocks_root_hash,
-                                       compressed=False)
+    burn_proof = aergo_from.query_sc_state(bridge_from,
+                                           ["_sv_Burns-" + account_ref],
+                                           root=merge_block_from.blocks_root_hash,
+                                           compressed=False)
     if not burn_proof.verify_proof(merge_block_from.blocks_root_hash):
         raise InvalidMerkleProofError("Unable to verify burn proof")
     return burn_proof
@@ -76,13 +78,14 @@ def unlock(aergo_to, receiver, burn_proof, token_origin, bridge_to):
     ap = [node.hex() for node in auditPath]
     # call mint on aergo_from with the lock proof from aergo_to
     tx, result = aergo_to.call_sc(bridge_to, "unlock",
-                                args=[receiver, balance,
-                                      token_origin, ap])
+                                  args=[receiver, balance,
+                                        token_origin, ap])
     time.sleep(COMMIT_TIME)
     result = aergo_to.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}".format(
-            result.contract_address, result.status, result.detail))
+        raise TxError("  > ERROR[{0}]:{1}: {2}"
+                      .format(result.contract_address, result.status,
+                              result.detail))
 
     print("Unlock success on origin : ", result.detail)
 
@@ -117,18 +120,18 @@ def test_script(aer=False):
 
         # Get bridge information
         bridge_info = aergo_to.query_sc_state(bridge_to,
-                                            ["_sv_T_anchor",
-                                             "_sv_T_final",
-                                             ])
+                                              ["_sv_T_anchor",
+                                               "_sv_T_final",
+                                               ])
         t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
         print(" * anchoring periode : ", t_anchor, "s\n",
               "* chain finality periode : ", t_final, "s\n")
 
         # get current balance and nonce
         initial_state = aergo_from.query_sc_state(token_pegged,
-                                              ["_sv_Balances-" +
-                                               sender,
-                                               ])
+                                                  ["_sv_Balances-" +
+                                                   sender,
+                                                   ])
         print("Token address in sidechain : ", token_pegged)
         if not initial_state.account.state_proof.inclusion:
             print("Pegged token doesnt exist in sidechain")
@@ -142,28 +145,29 @@ def test_script(aer=False):
             print("Balance on origin: ", aergo_to.account.balance.aer)
         else:
             origin_balance = aergo_to.query_sc_state(token_origin,
-                                                   ["_sv_Balances-" +
-                                                    receiver,
-                                                    ])
+                                                     ["_sv_Balances-" +
+                                                      receiver,
+                                                      ])
             balance = json.loads(origin_balance.var_proofs[0].value)
             print("Balance on origin: ", balance)
 
         print("\n------ Burn tokens -----------")
-        burn_height = burn(aergo_from, sender, receiver, bridge_from, token_pegged)
+        burn_height = burn(aergo_from, sender, receiver, bridge_from,
+                           token_pegged)
 
         print("------ Wait finalisation and get burn proof -----------")
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
-                                               bridge_to, bridge_from, burn_height,
-                                               token_origin, t_anchor, t_final)
+                                      bridge_to, bridge_from, burn_height,
+                                      token_origin, t_anchor, t_final)
 
         print("\n------ Unlock tokens on origin blockchain -----------")
         unlock(aergo_to, receiver, burn_proof, token_origin, bridge_to)
 
         # remaining balance on sidechain
         sidechain_balance = aergo_from.query_sc_state(token_pegged,
-                                                  ["_sv_Balances-" +
-                                                   sender,
-                                                   ])
+                                                      ["_sv_Balances-" +
+                                                       sender,
+                                                       ])
         balance = json.loads(sidechain_balance.var_proofs[0].value)
         print("Balance on sidechain: ", balance)
 
@@ -173,16 +177,16 @@ def test_script(aer=False):
             print("Balance on origin: ", aergo_to.account.balance.aer)
         else:
             origin_balance = aergo_to.query_sc_state(token_origin,
-                                                   ["_sv_Balances-" +
-                                                    receiver,
-                                                    ])
+                                                     ["_sv_Balances-" +
+                                                      receiver,
+                                                      ])
             # remaining balance on sidechain
             balance = json.loads(origin_balance.var_proofs[0].value)
             print("Balance on origin: ", balance)
 
     except grpc.RpcError as e:
-        print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),
-                                                                  e.details()))
+        print('Get Blockchain Status failed with {0}: {1}'
+              .format(e.code(), e.details()))
     except KeyboardInterrupt:
         print("Shutting down operator")
 

@@ -13,6 +13,7 @@ import aergo.herapy as herapy
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
+
 class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
     """Validates anchors for the bridge proposer"""
 
@@ -23,7 +24,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         self._t_anchor = config_data['t_anchor']
         self._t_final = config_data['t_final']
         print(" * anchoring periode : ", self._t_anchor, "s\n",
-            "* chain finality periode : ", self._t_final, "s\n")
+              "* chain finality periode : ", self._t_final, "s\n")
 
         self._aergo1 = herapy.Aergo()
         self._aergo2 = herapy.Aergo()
@@ -88,9 +89,9 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         block1 = self._aergo1.get_block(block_height=int(request.anchor1.height))
         block2 = self._aergo2.get_block(block_height=int(request.anchor2.height))
         contract1 = self._aergo1.get_account(address=self._addr1, proof=True,
-                                    root=block1.blocks_root_hash)
+                                             root=block1.blocks_root_hash)
         contract2 = self._aergo2.get_account(address=self._addr2, proof=True,
-                                    root=block2.blocks_root_hash)
+                                             root=block2.blocks_root_hash)
         root1 = contract1.state_proof.state.storageRoot.hex()
         root2 = contract2.state_proof.state.storageRoot.hex()
 
@@ -135,6 +136,7 @@ def serve(config_data, validator_index=0):
             time.sleep(_ONE_DAY_IN_SECONDS)
     except KeyboardInterrupt:
         server.stop(0)
+
 
 def serve_all(config_data):
     validator_indexes = [i for i in range(len(config_data['validators']))]

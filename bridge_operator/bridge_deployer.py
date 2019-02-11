@@ -7,6 +7,7 @@ import aergo.herapy as herapy
 
 COMMIT_TIME = 3
 
+
 def run():
     with open("./config.json", "r") as f:
         config_data = json.load(f)
@@ -39,7 +40,7 @@ def run():
         validators = []
         for validator in config_data['validators']:
             validators.append(validator['addr'])
-        print(validators)
+        print('validators : ', validators)
         tx1, result1 = aergo1.deploy_sc(amount=0,
                                         payload=payload,
                                         args=[validators,
@@ -51,36 +52,38 @@ def run():
                                               t_anchor,
                                               t_final])
         if result1.status != herapy.CommitStatus.TX_OK:
-            print("    > ERROR[{0}]: {1}".format(result1.status,
-                                                 result1.detail))
+            print("    > ERROR[{0}]: {1}"
+                  .format(result1.status, result1.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        print("    > result[{0}] : {1}".format(result1.tx_id,
-                                               result1.status.name))
+        print("    > result[{0}] : {1}"
+              .format(result1.tx_id, result1.status.name))
         if result2.status != herapy.CommitStatus.TX_OK:
-            print("    > ERROR[{0}]: {1}".format(result2.status,
-                                                 result2.detail))
+            print("    > ERROR[{0}]: {1}"
+                  .format(result2.status, result2.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
-        print("    > result[{0}] : {1}".format(result2.tx_id,
-                                               result2.status.name))
+        print("    > result[{0}] : {1}"
+              .format(result2.tx_id, result2.status.name))
 
         time.sleep(COMMIT_TIME)
 
         print("------ Check deployment of SC -----------")
         result1 = aergo1.get_tx_result(tx1.tx_hash)
         if result1.status != herapy.SmartcontractStatus.CREATED:
-            print("  > ERROR[{0}]:{1}: {2}".format(
-                result1.contract_address, result1.status, result1.detail))
+            print("  > ERROR[{0}]:{1}: {2}"
+                  .format(result1.contract_address, result1.status,
+                          result1.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
         result2 = aergo2.get_tx_result(tx2.tx_hash)
         if result2.status != herapy.SmartcontractStatus.CREATED:
-            print("  > ERROR[{0}]:{1}: {2}".format(
-                result2.contract_address, result2.status, result2.detail))
+            print("  > ERROR[{0}]:{1}: {2}"
+                  .format(result2.contract_address, result2.status,
+                          result2.detail))
             aergo1.disconnect()
             aergo2.disconnect()
             return
@@ -101,8 +104,8 @@ def run():
         aergo1.disconnect()
         aergo2.disconnect()
     except grpc.RpcError as e:
-        print('Get Blockchain Status failed with {0}: {1}'.format(e.code(),
-                                                                  e.details()))
+        print('Get Blockchain Status failed with {0}: {1}'
+              .format(e.code(), e.details()))
 
 
 if __name__ == '__main__':
