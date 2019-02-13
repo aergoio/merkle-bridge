@@ -11,12 +11,9 @@ COMMIT_TIME = 3
 
 
 def lock_aer(aergo_from, sender, receiver, value, bridge_from):
-    # TODO pass in value
-    # TODO check balance is enough in caller of this function
-    # TODO print balance in caller
+    # TODO check balance is enough and raise exception
     print("aergo balance on origin before transfer",
           aergo_from.account.balance.aer)
-    # TODO print transfering in caller
     print("Transfering", value/10**18, "aergo...")
     tx, result = aergo_from.call_sc(bridge_from, "lock",
                                     args=[receiver, str(value), "aergo"],

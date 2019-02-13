@@ -24,8 +24,31 @@ class Wallet:
         aergo.connect(self._config_data[network_name]['ip'])
         return aergo
 
-    def get_balance(aergo, asset_name, address):
-        pass
+    def get_balance(self, account, asset_name=None,
+                    asset_addr=None, network_name=None, aergo=None):
+        balance = 0
+        disconnect_me = False
+        if aergo is None:
+            if network_name is None:
+                raise InvalidArguments("Provide network_name")
+            aergo = self._connect_aergo(network_name)
+            disconnect_me = True
+        if asset_name == "aergo":
+            aergo.get_account()
+            balance = aergo.account.balance
+        else:
+            if asset_addr is None:
+                if asset_name is None or network_name is None:
+                    raise InvalidArguments("Provide asset address")
+                asset_addr = self._config_data[network_name]['tokens'][asset_name]['addr']
+            balance_q = aergo.query_sc_state(asset_addr,
+                                             ["_sv_Balances-" +
+                                              account
+                                              ])
+            balance = json.loads(balance_q.var_proofs[0].value)['_bignum']
+        if disconnect_me:
+            aergo.disconnect()
+        return int(balance)
 
     def get_bridge_tempo(self, aergo, bridge_address):
         # Get bridge information
@@ -109,25 +132,17 @@ class Wallet:
         print("\n\n------ Lock {} -----------".format(asset_name))
         asset_address = self._config_data[from_chain]['tokens'][asset_name]['addr']
         if asset_name == "aergo":
-            # TODO pass amount
-            lock_height = lock_aer(aergo_from, sender, receiver, amount, bridge_from)
+            lock_height = lock_aer(aergo_from, sender, receiver, amount,
+                                   bridge_from)
         else:
             lock_height = lock_token(aergo_from, sender, receiver, amount,
                                      asset_address, bridge_from)
         # remaining balance on origin
-        if asset_name == "aergo":
-            # TODO get balance ()
-            aergo_from.get_account()
-            print("Remaining {} balance on origin after transfer: {}"
-                  .format(asset_name, aergo_from.account.balance.aer))
-        else:
-            origin_balance = aergo_from.query_sc_state(asset_address,
-                                                       ["_sv_Balances-" +
-                                                        sender
-                                                        ])
-            balance = json.loads(origin_balance.var_proofs[0].value)['_bignum']
-            print("Remaining {} balance on origin after transfer: {}"
-                  .format(asset_name, int(balance)/10**18))
+        balance = self.get_balance(sender, asset_name=asset_name,
+                                   asset_addr=asset_address, aergo=aergo_from)
+        print("Remaining {} balance on origin after transfer: {}"
+              .format(asset_name, balance/10**18))
+
         aergo_from.disconnect()
         return lock_height
 
@@ -146,7 +161,6 @@ class Wallet:
 
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self._connect_aergo(to_chain)
-        aergo_from.new_account(private_key=priv_key)
         minter_account = aergo_to.new_account(private_key=priv_key)
         if receiver is None:
             receiver = minter_account.address.__str__()
@@ -165,13 +179,10 @@ class Wallet:
               .format(asset_name))
         try:
             token_pegged = self._config_data[from_chain]['tokens'][asset_name]['pegs'][to_chain]
-            sidechain_balance = aergo_to.query_sc_state(token_pegged,
-                                                        ["_sv_Balances-" +
-                                                         receiver
-                                                         ])
-            balance = json.loads(sidechain_balance.var_proofs[0].value)['_bignum']
+            balance = self.get_balance(receiver, asset_addr=token_pegged,
+                                       aergo=aergo_to)
             print("{} balance on destination before transfer : {}"
-                  .format(asset_name, int(balance)/10**18))
+                  .format(asset_name, balance/10**18))
         except KeyError:
             # TODO get pegged address from the bridge_to contract
             print("Pegged token unknow by wallet")
@@ -180,13 +191,10 @@ class Wallet:
                             bridge_to)
 
         # new balance on sidechain
-        sidechain_balance = aergo_to.query_sc_state(token_pegged,
-                                                    ["_sv_Balances-" +
-                                                     receiver,
-                                                     ])
-        balance = json.loads(sidechain_balance.var_proofs[0].value)['_bignum']
+        balance = self.get_balance(receiver, asset_addr=token_pegged,
+                                   aergo=aergo_to)
         print("{} balance on destination after transfer : {}"
-              .format(asset_name, int(balance)/10**18))
+              .format(asset_name, balance/10**18))
 
         aergo_from.disconnect()
         aergo_to.disconnect()
@@ -227,13 +235,10 @@ class Wallet:
 
         # remaining balance on sidechain
         token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
-        sidechain_balance = aergo_from.query_sc_state(token_pegged,
-                                                      ["_sv_Balances-" +
-                                                       sender,
-                                                       ])
-        balance = json.loads(sidechain_balance.var_proofs[0].value)['_bignum']
+        balance = self.get_balance(sender, asset_addr=token_pegged,
+                                   aergo=aergo_from)
         print("Remaining {} balance on sidechain after transfer: {}"
-              .format(asset_name, int(balance)/10**18))
+              .format(asset_name, balance/10**18))
 
         aergo_from.disconnect()
 
@@ -255,7 +260,7 @@ class Wallet:
         aergo_to = self._connect_aergo(to_chain)
         aergo_from = self._connect_aergo(from_chain)
         aergo_to.new_account(private_key=priv_key)
-        unlocker_account = aergo_from.new_account(private_key=priv_key)
+        unlocker_account = aergo_to.new_account(private_key=priv_key)
         if receiver is None:
             receiver = unlocker_account.address.__str__()
 
@@ -274,36 +279,18 @@ class Wallet:
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
-        if asset_name == "aergo":
-            aergo_to.get_account()
-            print("{} balance on destination before transfer: {}"
-                  .format(asset_name, aergo_to.account.balance.aer))
-        else:
-            origin_balance = aergo_to.query_sc_state(asset_address,
-                                                     ["_sv_Balances-" +
-                                                      receiver,
-                                                      ])
-            # remaining balance on sidechain
-            balance = json.loads(origin_balance.var_proofs[0].value)['_bignum']
-            print("{} balance on destination before transfer: {}"
-                  .format(asset_name, int(balance)/10**18))
+        balance = self.get_balance(receiver, asset_name=asset_name,
+                                   asset_addr=asset_address, aergo=aergo_to)
+        print("{} balance on destination before transfer: {}"
+              .format(asset_name, balance/10**18))
 
         unlock(aergo_to, receiver, burn_proof, asset_address, bridge_to)
 
         # new balance on origin
-        if asset_name == "aergo":
-            aergo_to.get_account()
-            print("{} balance on destination before transfer: {}"
-                  .format(asset_name, aergo_to.account.balance.aer))
-        else:
-            origin_balance = aergo_to.query_sc_state(asset_address,
-                                                     ["_sv_Balances-" +
-                                                      receiver,
-                                                      ])
-            # remaining balance on sidechain
-            balance = json.loads(origin_balance.var_proofs[0].value)['_bignum']
-            print("{} balance on destination after transfer: {}"
-                  .format(asset_name, int(balance)/10**18))
+        balance = self.get_balance(receiver, asset_name=asset_name,
+                                   asset_addr=asset_address, aergo=aergo_to)
+        print("{} balance on destination before transfer: {}"
+              .format(asset_name, balance/10**18))
 
         aergo_to.disconnect()
         aergo_from.disconnect()
@@ -316,9 +303,9 @@ if __name__ == '__main__':
     amount = 1*10**18
     wallet.transfer_to_sidechain('mainnet',
                                  'sidechain2',
-                                 'token1',
+                                 'aergo',
                                  amount)
     wallet.transfer_from_sidechain('sidechain2',
                                    'mainnet',
-                                   'token1',
+                                   'aergo',
                                    amount)

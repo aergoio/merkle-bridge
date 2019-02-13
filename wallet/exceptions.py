@@ -8,3 +8,7 @@ class InvalidMerkleProofError(Exception):
 
 class UnknownContractError(Exception):
     pass
+
+
+class InvalidArguments(Exception):
+    pass
