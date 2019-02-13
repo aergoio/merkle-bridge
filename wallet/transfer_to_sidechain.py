@@ -5,7 +5,7 @@ import sys
 import time
 
 import aergo.herapy as herapy
-from exceptions import InvalidMerkleProofError, TxError
+from wallet.exceptions import InvalidMerkleProofError, TxError
 
 COMMIT_TIME = 3
 

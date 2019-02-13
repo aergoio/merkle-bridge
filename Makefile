@@ -21,13 +21,13 @@ bridge:
 	python3 bridge_operator/operator.py
 
 transfer_to_sidechain:
-	python3 wallet/transfer_to_sidechain.py
+	python3 -m wallet.transfer_to_sidechain
 
 transfer_from_sidechain:
-	python3 wallet/transfer_from_sidechain.py
+	python3 -m wallet.transfer_from_sidechain
 
 wallet:
-	python3 wallet/wallet.py
+	python3 -m wallet.wallet
 
 proposer:
 	python3 bridge_operator/proposer_client.py

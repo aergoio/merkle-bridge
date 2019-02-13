@@ -2,8 +2,9 @@ import json
 
 import aergo.herapy as herapy
 
-from transfer_to_sidechain import lock_aer, lock_token, build_lock_proof, mint
-from transfer_from_sidechain import burn, build_burn_proof, unlock
+from wallet.transfer_to_sidechain import lock_aer, lock_token, build_lock_proof, mint
+from wallet.transfer_from_sidechain import burn, build_burn_proof, unlock
+from wallet.exceptions import InvalidArguments
 
 COMMIT_TIME = 3
 
