@@ -1,10 +1,25 @@
 import json
+import time
 
 import aergo.herapy as herapy
 
-from wallet.transfer_to_sidechain import lock_aer, lock_token, build_lock_proof, mint
-from wallet.transfer_from_sidechain import burn, build_burn_proof, unlock
-from wallet.exceptions import InvalidArguments
+from wallet.transfer_to_sidechain import (
+    lock_aer,
+    lock_token,
+    build_lock_proof,
+    mint,
+)
+from wallet.transfer_from_sidechain import (
+    burn,
+    build_burn_proof,
+    unlock,
+)
+from wallet.token_deployer import (
+    deploy_token,
+)
+from wallet.exceptions import (
+    InvalidArguments,
+)
 
 COMMIT_TIME = 3
 
@@ -61,17 +76,40 @@ class Wallet:
 
     def transfer(asset_name, amount, receiver, priv_key=None):
         # TODO delegated transfer and bridge transfer
+        # TODO add priv_key_1 in wallet in config.json
         pass
 
-    def sign_transfer():
+    def signed_transfer():
         # signs a transfer to be given to a 3rd party
+        # TODO use before calling lock
         pass
 
     # TODO create a tx broadcaster that calls signed transfer,
     # lock or burn with a signature. gRPC with params arguments
 
-    def deploy_token(asset_name, total_supply, receiver=None, priv_key=None):
-        pass
+    def deploy_token(self, payload_str, asset_name,
+                     total_supply, network_name='mainnet',
+                     aergo=None, receiver=None, priv_key=None):
+        disconnect_me = False
+        if aergo is None:
+            disconnect_me = True
+            aergo = self._connect_aergo(network_name)
+            if priv_key is None:
+                priv_key = self._config_data['wallet']['priv_key']
+            aergo.new_account(private_key=priv_key)
+        if receiver is None:
+            receiver = aergo.account.address.__str__()
+        print("  > Sender Address: {}".format(receiver))
+
+        sc_address = deploy_token(payload_str, aergo, receiver, total_supply)
+
+        print("------ Store addresse in config.json -----------")
+        self._config_data[network_name]['tokens'][asset_name] = {}
+        self._config_data[network_name]['tokens'][asset_name]['addr'] = sc_address
+        with open("./config.json", "w") as f:
+            json.dump(self._config_data, f, indent=4, sort_keys=True)
+        if disconnect_me:
+            aergo.disconnect()
 
     def transfer_to_sidechain(self,
                               from_chain,
@@ -135,6 +173,8 @@ class Wallet:
             lock_height = lock_aer(aergo_from, sender, receiver, amount,
                                    bridge_from)
         else:
+            # TODO make signed transfer here, use same lock function with
+            # 'aergo'?
             lock_height = lock_token(aergo_from, sender, receiver, amount,
                                      asset_address, bridge_from)
         # remaining balance on origin
@@ -297,15 +337,26 @@ class Wallet:
 
 
 if __name__ == '__main__':
+
+    selection = 1
+
     with open("./config.json", "r") as f:
         config_data = json.load(f)
     wallet = Wallet(config_data)
-    amount = 1*10**18
-    wallet.transfer_to_sidechain('mainnet',
-                                 'sidechain2',
-                                 'aergo',
-                                 amount)
-    wallet.transfer_from_sidechain('sidechain2',
-                                   'mainnet',
-                                   'aergo',
-                                   amount)
+
+    if selection == 0:
+        amount = 1*10**18
+        wallet.transfer_to_sidechain('mainnet',
+                                    'sidechain2',
+                                    'aergo',
+                                    amount)
+        wallet.transfer_from_sidechain('sidechain2',
+                                    'mainnet',
+                                    'aergo',
+                                    amount)
+    elif selection == 1:
+        with open("./contracts/token_bytecode.txt", "r") as f:
+            payload_str = f.read()[:-1]
+        total_supply = 500*10**6*10**18
+        wallet.deploy_token(payload_str, "token2", total_supply)
+

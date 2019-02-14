@@ -32,13 +32,14 @@ state.var {
     ContractID = state.value(),
 }
 
-function constructor(total_supply) 
+function constructor(total_supply, receiver) 
+    assert(type_check.isValidAddress(receiver), "invalid address format: "..receiver)
     Symbol:set("TOKEN")
     Name:set("Standard Token on Aergo")
     Decimals:set(18)
     total_supply = bignum.number(total_supply)
     TotalSupply:set(total_supply)
-    Balances[system.getSender()] = total_supply
+    Balances[receiver] = total_supply
     -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
     ContractID:set(crypto.sha256(system.getContractID()..system.getPrevBlockHash()))
 end

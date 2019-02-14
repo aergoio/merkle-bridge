@@ -48,7 +48,8 @@ def lock_token(aergo_from, sender, receiver, value, token_origin, bridge_from):
         nonce = 0
     print("Token balance on origin before transfer: ", balance/10**18)
 
-    # make a signed transfer of 5000 tokens
+    # TODO move signed transfer to caller and use wallet.sign_transfer()
+    # Move token balance before transfer to caller function
     fee = 0
     deadline = 0
     contractID = str(contractID_p[1:-1], 'utf-8')
