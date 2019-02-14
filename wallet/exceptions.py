@@ -10,5 +10,9 @@ class UnknownContractError(Exception):
     pass
 
 
-class InvalidArguments(Exception):
+class InvalidArgumentsError(Exception):
+    pass
+
+
+class InsufficientBalanceError(Exception):
     pass

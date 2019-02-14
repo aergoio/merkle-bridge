@@ -1,10 +1,10 @@
+import hashlib
 import json
 
 import aergo.herapy as herapy
 
 from wallet.transfer_to_sidechain import (
-    lock_aer,
-    lock_token,
+    lock,
     build_lock_proof,
     mint,
 )
@@ -17,7 +17,8 @@ from wallet.token_deployer import (
     deploy_token,
 )
 from wallet.exceptions import (
-    InvalidArguments,
+    InvalidArgumentsError,
+    InsufficientBalanceError,
 )
 
 COMMIT_TIME = 3
@@ -44,7 +45,7 @@ class Wallet:
         disconnect_me = False
         if aergo is None:
             if network_name is None:
-                raise InvalidArguments("Provide network_name")
+                raise InvalidArgumentsError("Provide network_name")
             aergo = self._connect_aergo(network_name)
             disconnect_me = True
         if asset_name == "aergo":
@@ -53,7 +54,7 @@ class Wallet:
         else:
             if asset_addr is None:
                 if asset_name is None or network_name is None:
-                    raise InvalidArguments("Provide asset address")
+                    raise InvalidArgumentsError("Provide asset address")
                 asset_addr = self._config_data[network_name]['tokens'][asset_name]['addr']
             balance_q = aergo.query_sc_state(asset_addr,
                                              ["_sv_Balances-" +
@@ -73,15 +74,37 @@ class Wallet:
         t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
         return t_anchor, t_final
 
-    def transfer(asset_name, amount, receiver, priv_key=None):
+    def transfer(asset_name, amount, to, priv_key=None):
         # TODO delegated transfer and bridge transfer
         # TODO add priv_key_1 in wallet in config.json
         pass
 
-    def signed_transfer():
+    def get_signed_transfer(self, aergo, asset_address, value, to, fee=0, deadline=0):
         # signs a transfer to be given to a 3rd party
-        # TODO use before calling lock
-        pass
+        # TODO option to create aergo with private key
+        # get current balance and nonce
+        sender = aergo.account.address.__str__()
+        initial_state = aergo.query_sc_state(asset_address,
+                                             ["_sv_Balances-" +
+                                             sender,
+                                             "_sv_Nonces-" +
+                                             sender,
+                                             "_sv_ContractID"
+                                             ])
+        balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
+        balance = int(json.loads(balance_p)["_bignum"])
+
+        try:
+            nonce = int(nonce_p)
+        except ValueError:
+            nonce = 0
+
+        contractID = str(contractID_p[1:-1], 'utf-8')
+        msg = bytes(to + str(value) + str(nonce) + str(fee) +
+                    str(deadline) + contractID, 'utf-8')
+        h = hashlib.sha256(msg).digest()
+        sig = aergo.account.private_key.sign_msg(h).hex()
+        return nonce, sig, balance
 
     # TODO create a tx broadcaster that calls signed transfer,
     # lock or burn with a signature. gRPC with params arguments
@@ -168,14 +191,27 @@ class Wallet:
 
         print("\n\n------ Lock {} -----------".format(asset_name))
         asset_address = self._config_data[from_chain]['tokens'][asset_name]['addr']
+
+
+        balance = 0
+        signed_transfer = None
         if asset_name == "aergo":
-            lock_height = lock_aer(aergo_from, sender, receiver, amount,
-                                   bridge_from)
+            balance = self.get_balance(sender, asset_name=asset_name,
+                                    asset_addr=asset_address, aergo=aergo_from)
         else:
-            # TODO make signed transfer here, use same lock function with
-            # 'aergo'?
-            lock_height = lock_token(aergo_from, sender, receiver, amount,
-                                     asset_address, bridge_from)
+            nonce, signature, balance = self.get_signed_transfer(aergo_from,
+                                                        asset_address,
+                                                        amount,
+                                                        bridge_from)
+            signed_transfer = [nonce, signature]
+        print("{} balance on origin before transfer: {}"
+            .format(asset_name, balance/10**18))
+        if balance < amount:
+            raise InsufficientBalanceError("not enough balance")
+        lock_height = lock(aergo_from, bridge_from,
+                            receiver, amount, asset_address,
+                            signed_transfer)
+
         # remaining balance on origin
         balance = self.get_balance(sender, asset_name=asset_name,
                                    asset_addr=asset_address, aergo=aergo_from)

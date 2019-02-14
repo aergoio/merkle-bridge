@@ -124,18 +124,18 @@ def test_script(aer=False):
 
     # Get bridge information
     bridge_info = aergo_to.query_sc_state(bridge_to,
-                                            ["_sv_T_anchor",
-                                            "_sv_T_final",
-                                            ])
+                                          ["_sv_T_anchor",
+                                           "_sv_T_final",
+                                           ])
     t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
     print(" * anchoring periode : ", t_anchor, "s\n",
-            "* chain finality periode : ", t_final, "s\n")
+          "* chain finality periode : ", t_final, "s\n")
 
     # get current balance and nonce
     initial_state = aergo_from.query_sc_state(token_pegged,
-                                                ["_sv_Balances-" +
-                                                sender,
-                                                ])
+                                              ["_sv_Balances-" +
+                                               sender,
+                                               ])
     print("Token address in sidechain : ", token_pegged)
     if not initial_state.account.state_proof.inclusion:
         print("Pegged token doesnt exist in sidechain")
@@ -149,29 +149,29 @@ def test_script(aer=False):
         print("Balance on origin: ", aergo_to.account.balance.aer)
     else:
         origin_balance = aergo_to.query_sc_state(token_origin,
-                                                    ["_sv_Balances-" +
-                                                    receiver,
-                                                    ])
+                                                 ["_sv_Balances-" +
+                                                  receiver,
+                                                  ])
         balance = json.loads(origin_balance.var_proofs[0].value)
         print("Balance on origin: ", balance)
 
     print("\n------ Burn tokens -----------")
     burn_height = burn(aergo_from, sender, receiver, 1*10**18,
-                        token_pegged, bridge_from)
+                       token_pegged, bridge_from)
 
     print("------ Wait finalisation and get burn proof -----------")
     burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
-                                    bridge_to, bridge_from, burn_height,
-                                    token_origin, t_anchor, t_final)
+                                  bridge_to, bridge_from, burn_height,
+                                  token_origin, t_anchor, t_final)
 
     print("\n------ Unlock tokens on origin blockchain -----------")
     unlock(aergo_to, receiver, burn_proof, token_origin, bridge_to)
 
     # remaining balance on sidechain
     sidechain_balance = aergo_from.query_sc_state(token_pegged,
-                                                    ["_sv_Balances-" +
-                                                    sender,
-                                                    ])
+                                                  ["_sv_Balances-" +
+                                                   sender,
+                                                   ])
     balance = json.loads(sidechain_balance.var_proofs[0].value)
     print("Balance on sidechain: ", balance)
 
@@ -181,9 +181,9 @@ def test_script(aer=False):
         print("Balance on origin: ", aergo_to.account.balance.aer)
     else:
         origin_balance = aergo_to.query_sc_state(token_origin,
-                                                    ["_sv_Balances-" +
-                                                    receiver,
-                                                    ])
+                                                 ["_sv_Balances-" +
+                                                  receiver,
+                                                  ])
         # remaining balance on sidechain
         balance = json.loads(origin_balance.var_proofs[0].value)
         print("Balance on origin: ", balance)

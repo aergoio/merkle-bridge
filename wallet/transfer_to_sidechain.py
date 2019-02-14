@@ -8,9 +8,102 @@ import aergo.herapy as herapy
 from wallet.exceptions import (
     InvalidMerkleProofError,
     TxError,
+    InvalidArgumentsError,
 )
 
 COMMIT_TIME = 3
+
+
+def lock(aergo_from, bridge_from,
+         receiver, value, asset,
+         signed_transfer=None, delegate_data=None):
+    """ lock can be call to lock aergo aer or tokens.
+        it supports delegated transfers when tx broadcaster is not
+        the same as the token owner : delegate_data = [sender, fee, deadline]
+    """
+    if asset == "aergo":
+        tx, result = aergo_from.call_sc(bridge_from, "lock",
+                                        args=[receiver, str(value), asset],
+                                        amount=value)
+    else:
+        if signed_transfer is None:
+            raise InvalidArgumentsError("""provide signature
+                                        and nonce for token transfers""")
+        args = [receiver, str(value), asset] + signed_transfer
+        if delegate_data is not None:
+            if delegate_data[0] == aergo_from.account.address.__str__():
+                raise InvalidArgumentsError("""if delegated lock, sender should
+                                            be different from aergo account""")
+            args = args + delegate_data
+        tx, result = aergo_from.call_sc(bridge_from, "lock",
+                                        args=args,
+                                        amount=0)
+
+    time.sleep(COMMIT_TIME)
+    # Record lock height
+    _, lock_height = aergo_from.get_blockchain_status()
+    # Check lock success
+    result = aergo_from.get_tx_result(tx.tx_hash)
+    if result.status != herapy.SmartcontractStatus.SUCCESS:
+        raise TxError("  > ERROR[{0}]:{1}: {2}"
+                      .format(result.contract_address, result.status,
+                              result.detail))
+    print("Lock success : ", result.detail)
+    return lock_height
+
+
+def build_lock_proof(aergo_from, aergo_to, receiver, bridge_from, bridge_to,
+                     lock_height, token_origin, t_anchor, t_final):
+    # check current merged height at destination
+    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    merged_height_to = int(height_proof_to.var_proofs[0].value)
+    print("last merged height at destination :", merged_height_to)
+    # wait t_final
+    # TODO refactor : wait finalization in caller
+    print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
+    time.sleep(t_final)
+    # check last merged height
+    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    last_merged_height_to = int(height_proof_to.var_proofs[0].value)
+    # waite for anchor containing our transfer
+    sys.stdout.write("waiting new anchor ")
+    while last_merged_height_to < lock_height:
+        sys.stdout.flush()
+        sys.stdout.write(". ")
+        time.sleep(t_anchor/4)
+        height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+        last_merged_height_to = int(height_proof_to.var_proofs[0].value)
+        # TODO do this with events when available
+    # get inclusion proof of lock in last merged block
+    merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
+    account_ref = receiver + token_origin
+    lock_proof = aergo_from.query_sc_state(bridge_from,
+                                           ["_sv_Locks-" + account_ref],
+                                           root=merge_block_from.blocks_root_hash,
+                                           compressed=False)
+    if not lock_proof.verify_proof(merge_block_from.blocks_root_hash):
+        raise InvalidMerkleProofError("Unable to verify lock proof")
+    return lock_proof
+
+
+def mint(aergo_to, receiver, lock_proof, token_origin, bridge_to):
+    balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
+    auditPath = lock_proof.var_proofs[0].auditPath
+    ap = [node.hex() for node in auditPath]
+    # call mint on aergo_to with the lock proof from aergo_from
+    tx, result = aergo_to.call_sc(bridge_to, "mint",
+                                  args=[receiver, balance,
+                                        token_origin, ap])
+    time.sleep(COMMIT_TIME)
+    result = aergo_to.get_tx_result(tx.tx_hash)
+    if result.status != herapy.SmartcontractStatus.SUCCESS:
+        raise TxError("  > ERROR[{0}]:{1}: {2}"
+                      .format(result.contract_address,
+                              result.status, result.detail))
+    print("Mint success : ", result.detail)
+
+    token_pegged = json.loads(result.detail)[0]
+    return token_pegged
 
 
 def lock_aer(aergo_from, sender, receiver, value, bridge_from):
@@ -79,60 +172,6 @@ def lock_token(aergo_from, sender, receiver, value, token_origin, bridge_from):
     return lock_height
 
 
-def build_lock_proof(aergo_from, aergo_to, receiver, bridge_from, bridge_to,
-                     lock_height, token_origin, t_anchor, t_final):
-    # check current merged height at destination
-    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
-    merged_height_to = int(height_proof_to.var_proofs[0].value)
-    print("last merged height at destination :", merged_height_to)
-    # wait t_final
-    # TODO refactor : wait finalization in caller
-    print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-    time.sleep(t_final)
-    # check last merged height
-    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
-    last_merged_height_to = int(height_proof_to.var_proofs[0].value)
-    # waite for anchor containing our transfer
-    sys.stdout.write("waiting new anchor ")
-    while last_merged_height_to < lock_height:
-        sys.stdout.flush()
-        sys.stdout.write(". ")
-        time.sleep(t_anchor/4)
-        height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
-        last_merged_height_to = int(height_proof_to.var_proofs[0].value)
-        # TODO do this with events when available
-    # get inclusion proof of lock in last merged block
-    merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
-    account_ref = receiver + token_origin
-    lock_proof = aergo_from.query_sc_state(bridge_from,
-                                           ["_sv_Locks-" + account_ref],
-                                           root=merge_block_from.blocks_root_hash,
-                                           compressed=False)
-    if not lock_proof.verify_proof(merge_block_from.blocks_root_hash):
-        raise InvalidMerkleProofError("Unable to verify lock proof")
-    return lock_proof
-
-
-def mint(aergo_to, receiver, lock_proof, token_origin, bridge_to):
-    balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
-    auditPath = lock_proof.var_proofs[0].auditPath
-    ap = [node.hex() for node in auditPath]
-    # call mint on aergo_to with the lock proof from aergo_from
-    tx, result = aergo_to.call_sc(bridge_to, "mint",
-                                  args=[receiver, balance,
-                                        token_origin, ap])
-    time.sleep(COMMIT_TIME)
-    result = aergo_to.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address,
-                              result.status, result.detail))
-    print("Mint success : ", result.detail)
-
-    token_pegged = json.loads(result.detail)[0]
-    return token_pegged
-
-
 def test_script(aer=False):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
@@ -163,23 +202,23 @@ def test_script(aer=False):
     # Get bridge information
     bridge_info = aergo_from.query_sc_state(bridge_from,
                                             ["_sv_T_anchor",
-                                                "_sv_T_final",
-                                                ])
+                                             "_sv_T_final",
+                                             ])
     t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
     print(" * anchoring periode : ", t_anchor, "s\n",
-            "* chain finality periode : ", t_final, "s\n")
+          "* chain finality periode : ", t_final, "s\n")
 
     print("\n------ Lock tokens/aer -----------")
     if aer:
         lock_height = lock_aer(aergo_from, sender, receiver, 1*10**18, bridge_from)
     else:
         lock_height = lock_token(aergo_from, sender, receiver, 1*10**18,
-                                    token_origin, bridge_from)
+                                 token_origin, bridge_from)
 
     print("------ Wait finalisation and get lock proof -----------")
     lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
-                                    bridge_from, bridge_to, lock_height,
-                                    token_origin, t_anchor, t_final)
+                                  bridge_from, bridge_to, lock_height,
+                                  token_origin, t_anchor, t_final)
 
     print("\n------ Mint tokens on destination blockchain -----------")
     token_pegged = mint(aergo_to, receiver, lock_proof,
@@ -188,8 +227,8 @@ def test_script(aer=False):
     # new balance on sidechain
     sidechain_balance = aergo_to.query_sc_state(token_pegged,
                                                 ["_sv_Balances-" +
-                                                    receiver,
-                                                    ])
+                                                 receiver,
+                                                 ])
     balance = json.loads(sidechain_balance.var_proofs[0].value)
     print("Pegged contract address on sidechain :", token_pegged)
     print("Balance on sidechain : ", balance)
@@ -200,7 +239,7 @@ def test_script(aer=False):
         print("Balance on origin: ", aergo_from.account.balance.aer)
     else:
         origin_balance = aergo_from.query_sc_state(token_origin,
-                                                    ["_sv_Balances-" +
+                                                   ["_sv_Balances-" +
                                                     sender,
                                                     ])
         balance = json.loads(origin_balance.var_proofs[0].value)
