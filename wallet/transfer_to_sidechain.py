@@ -1,11 +1,14 @@
-import grpc
 import hashlib
 import json
 import sys
 import time
 
 import aergo.herapy as herapy
-from wallet.exceptions import InvalidMerkleProofError, TxError
+
+from wallet.exceptions import (
+    InvalidMerkleProofError,
+    TxError,
+)
 
 COMMIT_TIME = 3
 
@@ -83,6 +86,7 @@ def build_lock_proof(aergo_from, aergo_to, receiver, bridge_from, bridge_to,
     merged_height_to = int(height_proof_to.var_proofs[0].value)
     print("last merged height at destination :", merged_height_to)
     # wait t_final
+    # TODO refactor : wait finalization in caller
     print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
     time.sleep(t_final)
     # check last merged height
@@ -137,82 +141,76 @@ def test_script(aer=False):
     token_origin = config_data['mainnet']['tokens']['token1']['addr']
     if aer:
         token_origin = "aergo"
-    try:
-        aergo_from = herapy.Aergo()
-        aergo_to = herapy.Aergo()
 
-        print("------ Connect AERGO -----------")
-        aergo_from.connect(config_data['mainnet']['ip'])
-        aergo_to.connect(config_data['sidechain2']['ip'])
+    aergo_from = herapy.Aergo()
+    aergo_to = herapy.Aergo()
 
-        sender_private_key_from = config_data["wallet"]['priv_key']
-        sender_priv_key_to = config_data["wallet"]['priv_key']
-        sender_account = aergo_from.new_account(private_key=sender_private_key_from)
-        aergo_to.new_account(private_key=sender_priv_key_to)
+    print("------ Connect AERGO -----------")
+    aergo_from.connect(config_data['mainnet']['ip'])
+    aergo_to.connect(config_data['sidechain2']['ip'])
+
+    sender_private_key_from = config_data["wallet"]['priv_key']
+    sender_priv_key_to = config_data["wallet"]['priv_key']
+    sender_account = aergo_from.new_account(private_key=sender_private_key_from)
+    aergo_to.new_account(private_key=sender_priv_key_to)
+    aergo_from.get_account()
+    aergo_to.get_account()
+
+    sender = sender_account.address.__str__()
+    receiver = sender
+    print("  > Sender Address: ", sender)
+
+    # Get bridge information
+    bridge_info = aergo_from.query_sc_state(bridge_from,
+                                            ["_sv_T_anchor",
+                                                "_sv_T_final",
+                                                ])
+    t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
+    print(" * anchoring periode : ", t_anchor, "s\n",
+            "* chain finality periode : ", t_final, "s\n")
+
+    print("\n------ Lock tokens/aer -----------")
+    if aer:
+        lock_height = lock_aer(aergo_from, sender, receiver, 1*10**18, bridge_from)
+    else:
+        lock_height = lock_token(aergo_from, sender, receiver, 1*10**18,
+                                    token_origin, bridge_from)
+
+    print("------ Wait finalisation and get lock proof -----------")
+    lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
+                                    bridge_from, bridge_to, lock_height,
+                                    token_origin, t_anchor, t_final)
+
+    print("\n------ Mint tokens on destination blockchain -----------")
+    token_pegged = mint(aergo_to, receiver, lock_proof,
+                        token_origin, bridge_to)
+
+    # new balance on sidechain
+    sidechain_balance = aergo_to.query_sc_state(token_pegged,
+                                                ["_sv_Balances-" +
+                                                    receiver,
+                                                    ])
+    balance = json.loads(sidechain_balance.var_proofs[0].value)
+    print("Pegged contract address on sidechain :", token_pegged)
+    print("Balance on sidechain : ", balance)
+
+    # remaining balance on origin
+    if aer:
         aergo_from.get_account()
-        aergo_to.get_account()
-
-        sender = sender_account.address.__str__()
-        receiver = sender
-        print("  > Sender Address: ", sender)
-
-        # Get bridge information
-        bridge_info = aergo_from.query_sc_state(bridge_from,
-                                                ["_sv_T_anchor",
-                                                 "_sv_T_final",
-                                                 ])
-        t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
-        print(" * anchoring periode : ", t_anchor, "s\n",
-              "* chain finality periode : ", t_final, "s\n")
-
-        print("\n------ Lock tokens/aer -----------")
-        if aer:
-            lock_height = lock_aer(aergo_from, sender, receiver, 1*10**18, bridge_from)
-        else:
-            lock_height = lock_token(aergo_from, sender, receiver, 1*10**18,
-                                     token_origin, bridge_from)
-
-        print("------ Wait finalisation and get lock proof -----------")
-        lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
-                                      bridge_from, bridge_to, lock_height,
-                                      token_origin, t_anchor, t_final)
-
-        print("\n------ Mint tokens on destination blockchain -----------")
-        token_pegged = mint(aergo_to, receiver, lock_proof,
-                            token_origin, bridge_to)
-
-        # new balance on sidechain
-        sidechain_balance = aergo_to.query_sc_state(token_pegged,
+        print("Balance on origin: ", aergo_from.account.balance.aer)
+    else:
+        origin_balance = aergo_from.query_sc_state(token_origin,
                                                     ["_sv_Balances-" +
-                                                     receiver,
-                                                     ])
-        balance = json.loads(sidechain_balance.var_proofs[0].value)
-        print("Pegged contract address on sidechain :", token_pegged)
-        print("Balance on sidechain : ", balance)
+                                                    sender,
+                                                    ])
+        balance = json.loads(origin_balance.var_proofs[0].value)
+        print("Balance on origin: ", balance)
 
-        # remaining balance on origin
-        if aer:
-            aergo_from.get_account()
-            print("Balance on origin: ", aergo_from.account.balance.aer)
-        else:
-            origin_balance = aergo_from.query_sc_state(token_origin,
-                                                       ["_sv_Balances-" +
-                                                        sender,
-                                                        ])
-            balance = json.loads(origin_balance.var_proofs[0].value)
-            print("Balance on origin: ", balance)
-
-        # record mint address in file
-        print("------ Store mint address in config.json -----------")
-        config_data['mainnet']['tokens']['token1']['pegs']['sidechain2'] = token_pegged
-        with open("./config.json", "w") as f:
-            json.dump(config_data, f, indent=4, sort_keys=True)
-
-    except grpc.RpcError as e:
-        print('Get Blockchain Status failed with {0}: {1}'
-              .format(e.code(), e.details()))
-    except KeyboardInterrupt:
-        print("Shutting down operator")
+    # record mint address in file
+    print("------ Store mint address in config.json -----------")
+    config_data['mainnet']['tokens']['token1']['pegs']['sidechain2'] = token_pegged
+    with open("./config.json", "w") as f:
+        json.dump(config_data, f, indent=4, sort_keys=True)
 
     print("------ Disconnect AERGO -----------")
     aergo_from.disconnect()
@@ -220,8 +218,4 @@ def test_script(aer=False):
 
 
 if __name__ == '__main__':
-    # with open("./config.json", "r") as f:
-        # config_data = json.load(f)
-    # wallet = Wallet(config_data)
-    # wallet.transfer_to_sidechain()
     test_script(aer=False)

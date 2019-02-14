@@ -1,8 +1,12 @@
-from functools import partial
+from functools import (
+    partial,
+)
 import grpc
 import hashlib
 import json
-from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing.dummy import (
+    Pool,
+)
 import time
 
 import aergo.herapy as herapy
@@ -41,7 +45,7 @@ class ProposerClient:
             self._channels.append(channel)
             self._stubs.append(stub)
 
-        self._pool = ThreadPool(len(self._stubs))
+        self._pool = Pool(len(self._stubs))
 
         self._t_anchor = self._config_data['t_anchor']
         self._t_final = self._config_data['t_final']
@@ -229,9 +233,6 @@ class ProposerClient:
                 print("anchor success, waiting new anchor time :", self._t_anchor-COMMIT_TIME, "s ...")
                 time.sleep(self._t_anchor-COMMIT_TIME)
 
-        except grpc.RpcError as e:
-            print('Get Blockchain Status failed with {0}: {1}'
-                  .format(e.code(), e.details()))
         except KeyboardInterrupt:
             print("Shutting down proposer")
 

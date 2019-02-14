@@ -1,4 +1,3 @@
-import grpc
 import hashlib
 import json
 import time
@@ -144,9 +143,6 @@ def run():
             print("anchor success, waiting new anchor time :", t_anchor-COMMIT_TIME, "s ...")
             time.sleep(t_anchor-COMMIT_TIME)
 
-    except grpc.RpcError as e:
-        print('Get Blockchain Status failed with {0}: {1}'
-              .format(e.code(), e.details()))
     except KeyboardInterrupt:
         print("Shutting down operator")
 

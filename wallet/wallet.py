@@ -1,5 +1,4 @@
 import json
-import time
 
 import aergo.herapy as herapy
 
@@ -329,7 +328,7 @@ class Wallet:
         # new balance on origin
         balance = self.get_balance(receiver, asset_name=asset_name,
                                    asset_addr=asset_address, aergo=aergo_to)
-        print("{} balance on destination before transfer: {}"
+        print("{} balance on destination after transfer: {}"
               .format(asset_name, balance/10**18))
 
         aergo_to.disconnect()
@@ -338,7 +337,7 @@ class Wallet:
 
 if __name__ == '__main__':
 
-    selection = 1
+    selection = 0
 
     with open("./config.json", "r") as f:
         config_data = json.load(f)
@@ -347,16 +346,15 @@ if __name__ == '__main__':
     if selection == 0:
         amount = 1*10**18
         wallet.transfer_to_sidechain('mainnet',
-                                    'sidechain2',
-                                    'aergo',
-                                    amount)
+                                     'sidechain2',
+                                     'token1',
+                                     amount)
         wallet.transfer_from_sidechain('sidechain2',
-                                    'mainnet',
-                                    'aergo',
-                                    amount)
+                                       'mainnet',
+                                       'token1',
+                                       amount)
     elif selection == 1:
         with open("./contracts/token_bytecode.txt", "r") as f:
             payload_str = f.read()[:-1]
         total_supply = 500*10**6*10**18
         wallet.deploy_token(payload_str, "token2", total_supply)
-

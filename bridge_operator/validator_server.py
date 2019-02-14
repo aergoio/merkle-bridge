@@ -1,15 +1,21 @@
-import bridge_operator_pb2_grpc
-import bridge_operator_pb2
-
-from concurrent import futures
-from functools import partial
+from concurrent import (
+    futures,
+)
+from functools import (
+    partial,
+)
 import grpc
 import hashlib
 import json
-from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing.dummy import (
+    Pool,
+)
 import time
 
 import aergo.herapy as herapy
+import bridge_operator_pb2_grpc
+import bridge_operator_pb2
+
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
@@ -141,7 +147,7 @@ def serve(config_data, validator_index=0):
 def serve_all(config_data):
     validator_indexes = [i for i in range(len(config_data['validators']))]
     worker = partial(serve, config_data)
-    pool = ThreadPool(len(validator_indexes))
+    pool = Pool(len(validator_indexes))
     pool.map(worker, validator_indexes)
 
 

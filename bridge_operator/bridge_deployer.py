@@ -1,5 +1,5 @@
-import grpc
 import json
+import grpc
 import time
 
 import aergo.herapy as herapy

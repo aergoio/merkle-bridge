@@ -14,7 +14,6 @@ COMMIT_TIME = 3
 def deploy_token(payload_str, aergo, receiver, total_supply):
     payload = herapy.utils.decode_address(payload_str)
     print("------ Deploy Token-----------")
-
     tx, result = aergo.deploy_sc(amount=0,
                                  payload=payload,
                                  args=[total_supply, receiver])
