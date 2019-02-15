@@ -2,21 +2,26 @@
     "mainnet": {
         "bridges": {
             "": "bridge address to aergo2",
-            "sidechain2": "AmhX9y523ysG1fxCmhfAFDQWcjW3vGzvqaNepLMsYNvM6cESYnBd"
+            "sidechain2": "Amg63EZuhaGAkMp9pKcY4NiP9KfDb6ySxzohjpff2eQ1HhugqgSB"
         },
         "ip": "localhost:7845",
         "tokens": {
             "aergo": {
                 "addr": "aergo",
                 "pegs": {
-                    "": "address of pegged token on aergo2"
+                    "": "address of pegged token on aergo2",
+                    "sidechain2": "Amh5KG9LSyEMTZBGF3UZXJqpC7CqS3LRBYcB9kmbnf2KjJ3Z7YSa"
                 }
             },
             "token1": {
                 "addr": "AmhHw2gne4H9jr9JbuJgQYFjH6vxWonRGawpafPgmyauCxAdikTm",
                 "pegs": {
-                    "": "address of pegged token on aergo2"
+                    "": "address of pegged token on aergo2",
+                    "sidechain2": "AmhfQqxRtfkrv1G2kiscXLuFA4ar8E2yJnuoziYAmVrRhsYK36hi"
                 }
+            },
+            "token2": {
+                "addr": "Amgh7px2WphxFfX2VbvDxo5CZ6cDKtXQ7JonzVSepx86yCoktagp"
             }
         }
     },
@@ -27,7 +32,7 @@
     "sidechain2": {
         "bridges": {
             "": "bridge address to aergo1",
-            "mainnet": "AmhX9y523ysG1fxCmhfAFDQWcjW3vGzvqaNepLMsYNvM6cESYnBd"
+            "mainnet": "Amg63EZuhaGAkMp9pKcY4NiP9KfDb6ySxzohjpff2eQ1HhugqgSB"
         },
         "ip": "localhost:8845"
     },
@@ -51,6 +56,7 @@
         }
     ],
     "wallet": {
+        "addr": "AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs",
         "priv_key": "6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
     }
 }
