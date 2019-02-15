@@ -14,19 +14,6 @@ COMMIT_TIME = 3
 
 
 def burn(aergo_from, sender, receiver, value, token_pegged, bridge_from):
-    # get current balance and nonce
-    initial_state = aergo_from.query_sc_state(token_pegged,
-                                              ["_sv_Balances-" +
-                                               sender,
-                                               ])
-    if not initial_state.account.state_proof.inclusion:
-        raise UnknownContractError("Pegged token doesnt exist in sidechain")
-    # TODO handle balance with no funds, test
-    balance = json.loads(initial_state.var_proofs[0].value)['_bignum']
-    print("Token balance on origin before transfer: ", int(balance)/10**18)
-
-    # lock and check block height of lock tx
-    print("Transfering", value/10**18, "tokens...")
     tx, result = aergo_from.call_sc(bridge_from, "burn",
                                     args=[receiver, str(value), token_pegged])
     time.sleep(COMMIT_TIME)
@@ -44,14 +31,6 @@ def burn(aergo_from, sender, receiver, value, token_pegged, bridge_from):
 
 def build_burn_proof(aergo_to, aergo_from, receiver, bridge_to, bridge_from,
                      burn_height, token_origin, t_anchor, t_final):
-    # check current merged height at destination
-    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
-    merged_height_to = int(height_proof_to.var_proofs[0].value)
-    print("last merged height at destination :", merged_height_to)
-    # wait t_final
-    # TODO refactor : wait finalization in caller
-    print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-    time.sleep(t_final)
     # check last merged height
     height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
     last_merged_height_to = int(height_proof_to.var_proofs[0].value)

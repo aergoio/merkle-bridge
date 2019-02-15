@@ -1,3 +1,4 @@
+from deprecated import deprecated
 import hashlib
 import json
 import sys
@@ -54,14 +55,6 @@ def lock(aergo_from, bridge_from,
 
 def build_lock_proof(aergo_from, aergo_to, receiver, bridge_from, bridge_to,
                      lock_height, token_origin, t_anchor, t_final):
-    # check current merged height at destination
-    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
-    merged_height_to = int(height_proof_to.var_proofs[0].value)
-    print("last merged height at destination :", merged_height_to)
-    # wait t_final
-    # TODO refactor : wait finalization in caller
-    print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-    time.sleep(t_final)
     # check last merged height
     height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
     last_merged_height_to = int(height_proof_to.var_proofs[0].value)
@@ -106,8 +99,8 @@ def mint(aergo_to, receiver, lock_proof, token_origin, bridge_to):
     return token_pegged
 
 
+@deprecated(reason="Use lock() instead")
 def lock_aer(aergo_from, sender, receiver, value, bridge_from):
-    # TODO check balance is enough and raise exception
     print("aergo balance on origin before transfer",
           aergo_from.account.balance.aer)
     print("Transfering", value/10**18, "aergo...")
@@ -127,6 +120,7 @@ def lock_aer(aergo_from, sender, receiver, value, bridge_from):
     return lock_height
 
 
+@deprecated(reason="Use lock() instead")
 def lock_token(aergo_from, sender, receiver, value, token_origin, bridge_from):
     # get current balance and nonce
     initial_state = aergo_from.query_sc_state(token_origin,
@@ -144,8 +138,6 @@ def lock_token(aergo_from, sender, receiver, value, token_origin, bridge_from):
         nonce = 0
     print("Token balance on origin before transfer: ", balance/10**18)
 
-    # TODO move signed transfer to caller and use wallet.sign_transfer()
-    # Move token balance before transfer to caller function
     fee = 0
     deadline = 0
     contractID = str(contractID_p[1:-1], 'utf-8')

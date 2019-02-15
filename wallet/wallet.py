@@ -49,7 +49,7 @@ class Wallet:
             aergo = self.get_aergo(priv_key, network_name)
             disconnect_me = True
         if asset_name == "aergo":
-            ret_account = aergo.get_account(address = account)
+            ret_account = aergo.get_account(address=account)
             balance = ret_account.balance
             asset_addr = asset_name
         else:
@@ -300,6 +300,9 @@ class Wallet:
         print("\n------ Wait finalisation and get lock proof -----------")
         asset_address = self._config_data[from_chain]['tokens'][asset_name]['addr']
         t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
+        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
+        time.sleep(t_final)
+        # TODO dont't make a mint transaction if the lock was rolled back.
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
                                       asset_address, t_anchor, t_final)
@@ -359,11 +362,18 @@ class Wallet:
         token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
 
         print("\n\n------ Burn {}-----------".format(asset_name))
+        token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
+        balance, _ = self.get_balance(sender, asset_addr=token_pegged,
+                                      aergo=aergo_from)
+        print("{} balance on sidechain before transfer: {}"
+              .format(asset_name, balance/10**18))
+        if balance < amount:
+            raise InsufficientBalanceError("not enough balance")
+
         burn_height = burn(aergo_from, sender, receiver, amount,
                            token_pegged, bridge_from)
 
         # remaining balance on sidechain
-        token_pegged = self._config_data[to_chain]['tokens'][asset_name]['pegs'][from_chain]
         balance, _ = self.get_balance(sender, asset_addr=token_pegged,
                                       aergo=aergo_from)
         print("Remaining {} balance on sidechain after transfer: {}"
@@ -402,6 +412,9 @@ class Wallet:
         print("\n------ Wait finalisation and get burn proof -----------")
         asset_address = self._config_data[to_chain]['tokens'][asset_name]['addr']
         t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
+        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
+        time.sleep(t_final)
+        # TODO dont't make unlock transaction if the burn was rolled back.
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
                                       bridge_to, bridge_from, burn_height,
                                       asset_address, t_anchor, t_final)
@@ -427,7 +440,7 @@ class Wallet:
 
 if __name__ == '__main__':
 
-    selection = 1
+    selection = 0
 
     with open("./config.json", "r") as f:
         config_data = json.load(f)
@@ -435,13 +448,14 @@ if __name__ == '__main__':
 
     if selection == 0:
         amount = 1*10**18
+        asset = 'token1'
         wallet.transfer_to_sidechain('mainnet',
                                      'sidechain2',
-                                     'aergo',
+                                     asset,
                                      amount)
         wallet.transfer_from_sidechain('sidechain2',
                                        'mainnet',
-                                       'aergo',
+                                       asset,
                                        amount)
     elif selection == 1:
         with open("./contracts/token_bytecode.txt", "r") as f:
@@ -452,14 +466,18 @@ if __name__ == '__main__':
         to = config_data['validators'][0]['addr']
         sender = config_data['wallet']['addr']
         asset = 'aergo'
-        result = wallet.get_balance(to, asset_name=asset, network_name='mainnet')
+        result = wallet.get_balance(to, asset_name=asset,
+                                    network_name='mainnet')
         print('receiver balance before', result)
-        result = wallet.get_balance(sender, asset_name=asset, network_name='mainnet')
+        result = wallet.get_balance(sender, asset_name=asset,
+                                    network_name='mainnet')
         print('sender balance before', result)
 
         wallet.transfer(2, to, asset_name=asset, network_name='mainnet')
 
-        result = wallet.get_balance(to, asset_name=asset, network_name='mainnet')
+        result = wallet.get_balance(to, asset_name=asset,
+                                    network_name='mainnet')
         print('receiver balance result', result)
-        result = wallet.get_balance(sender, asset_name=asset, network_name='mainnet')
+        result = wallet.get_balance(sender, asset_name=asset,
+                                    network_name='mainnet')
         print('sender balance after', result)
