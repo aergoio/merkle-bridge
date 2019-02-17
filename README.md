@@ -53,7 +53,7 @@ wallet.deploy_token(p, "token_name", total_supply)
 ```
 
 ### Transfer tokens from mainnet to sidechain and back again
-```py
+``` py
 from wallet.wallet import Wallet
 
 # load config file that stores network ip, asset addresses...
@@ -76,4 +76,25 @@ wallet.transfer_from_sidechain('sidechain2',
                                'mainnet',
                                asset,
                                amount)
+```
+
+### Quick test from scratch
+**Setup node ip addresses in config.json**
+
+Deploy bridge on mainnet and sidechain, deploy a new token on mainnet.
+```sh
+$ make deploy_bridge
+$ make deploy_token
+```
+In a new terminal : start proposer
+```sh
+$ make proposer
+```
+In a new terminal : start validator
+```sh
+$ make validator
+```
+In a new terminal : test wallet transfer to sidechain and back.
+```sh
+$ make wallet
 ```

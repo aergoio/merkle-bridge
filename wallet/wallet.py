@@ -182,6 +182,7 @@ class Wallet:
         print("------ Store addresse in config.json -----------")
         self._config_data[network_name]['tokens'][asset_name] = {}
         self._config_data[network_name]['tokens'][asset_name]['addr'] = sc_address
+        self._config_data[network_name]['tokens'][asset_name]['pegs'] = {}
         with open("./config.json", "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
         if disconnect_me:

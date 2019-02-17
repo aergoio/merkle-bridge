@@ -65,5 +65,6 @@ if __name__ == '__main__':
     print("------ Store addresse in config.json -----------")
     config_data['mainnet']['tokens']['token1'] = {}
     config_data['mainnet']['tokens']['token1']['addr'] = sc_address
+    config_data['mainnet']['tokens']['token1']['pegs'] = {}
     with open("./config.json", "w") as f:
         json.dump(config_data, f, indent=4, sort_keys=True)
