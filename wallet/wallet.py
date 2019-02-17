@@ -102,22 +102,26 @@ class Wallet:
             raise InsufficientBalanceError("not enough balance")
 
         if asset_name == "aergo":
+            # transfer aer
             tx, result = aergo.send_payload(to_address=to,
                                             amount=value, payload=None)
-            # TODO is checking commit status necessary if execution status is
-            # checked after (smart contract statue)
         else:
             # transfer token
             tx, result = aergo.call_sc(asset_addr, "transfer",
                                        args=[to, str(value)],
                                        amount=0)
+        if result.status != herapy.CommitStatus.TX_OK:
+            raise TxError("Transfer asset Tx commit failed : {}"
+                          .format(result))
+
         time.sleep(COMMIT_TIME)
         # Check lock success
         result = aergo.get_tx_result(tx.tx_hash)
+        # TODO handle new result status for aer tx
         if result.status != herapy.SmartcontractStatus.SUCCESS:
-            raise TxError("  > ERROR[{0}]:{1}: {2}"
-                          .format(result.contract_address, result.status,
-                                  result.detail))
+            raise TxError("Transfer asset Tx execution failed : {}"
+                          .format(result))
+
         print("Transfer success")
         if disconnect_me:
             aergo.disconnect()
@@ -134,10 +138,8 @@ class Wallet:
         # get current balance and nonce
         sender = aergo.account.address.__str__()
         initial_state = aergo.query_sc_state(asset_address,
-                                             ["_sv_Balances-" +
-                                              sender,
-                                              "_sv_Nonces-" +
-                                              sender,
+                                             ["_sv_Balances-" + sender,
+                                              "_sv_Nonces-" + sender,
                                               "_sv_ContractID"
                                               ])
         balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
@@ -303,6 +305,7 @@ class Wallet:
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final)
         # TODO dont't make a mint transaction if the lock was rolled back.
+        # calculate difference between locked and minted
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
                                       asset_address, t_anchor, t_final)
@@ -415,6 +418,7 @@ class Wallet:
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final)
         # TODO dont't make unlock transaction if the burn was rolled back.
+        # calculate difference between burnt and unlocked
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
                                       bridge_to, bridge_from, burn_height,
                                       asset_address, t_anchor, t_final)

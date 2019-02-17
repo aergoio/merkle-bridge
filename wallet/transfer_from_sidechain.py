@@ -5,7 +5,6 @@ import time
 import aergo.herapy as herapy
 
 from wallet.exceptions import (
-    UnknownContractError,
     TxError,
     InvalidMerkleProofError,
 )
@@ -16,15 +15,17 @@ COMMIT_TIME = 3
 def burn(aergo_from, sender, receiver, value, token_pegged, bridge_from):
     tx, result = aergo_from.call_sc(bridge_from, "burn",
                                     args=[receiver, str(value), token_pegged])
+    if result.status != herapy.CommitStatus.TX_OK:
+        raise TxError("Burn asset Tx commit failed : {}".format(result))
+
     time.sleep(COMMIT_TIME)
     # Record burn height
     _, burn_height = aergo_from.get_blockchain_status()
     # Check burn success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address, result.status,
-                              result.detail))
+        raise TxError("Burn asset Tx execution failed : {}".format(result))
+
     print("Burn success : ", result.detail)
     return burn_height
 
@@ -63,12 +64,13 @@ def unlock(aergo_to, receiver, burn_proof, token_origin, bridge_to):
     tx, result = aergo_to.call_sc(bridge_to, "unlock",
                                   args=[receiver, balance,
                                         token_origin, ap])
+    if result.status != herapy.CommitStatus.TX_OK:
+        raise TxError("Unlock asset Tx commit failed : {}".format(result))
+
     time.sleep(COMMIT_TIME)
     result = aergo_to.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address, result.status,
-                              result.detail))
+        raise TxError("Unlock asset Tx execution failed : {}".format(result))
 
     print("Unlock success on origin : ", result.detail)
 

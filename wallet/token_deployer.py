@@ -18,8 +18,7 @@ def deploy_token(payload_str, aergo, receiver, total_supply):
                                  payload=payload,
                                  args=[total_supply, receiver])
     if result.status != herapy.CommitStatus.TX_OK:
-        raise TxError("    > ERROR[{0}]: {1}"
-                      .format(result.status, result.detail))
+        raise TxError("Token deployment Tx commit failed : {}".format(result))
     print("    > result[{0}] : {1}"
           .format(result.tx_id, result.status.name))
 
@@ -28,13 +27,12 @@ def deploy_token(payload_str, aergo, receiver, total_supply):
     print("------ Check deployment of SC -----------")
     result = aergo.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.CREATED:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address, result.status,
-                              result.detail))
+        raise TxError("Token deployment Tx execution failed : {}"
+                      .format(result))
 
     sc_address = result.contract_address
 
-    print("  > Token Address (MAINNET): {}".format(sc_address))
+    print("  > Token Address : {}".format(sc_address))
 
     return sc_address
 

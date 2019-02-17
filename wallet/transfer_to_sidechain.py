@@ -39,6 +39,8 @@ def lock(aergo_from, bridge_from,
         tx, result = aergo_from.call_sc(bridge_from, "lock",
                                         args=args,
                                         amount=0)
+    if result.status != herapy.CommitStatus.TX_OK:
+        raise TxError("Lock asset Tx commit failed : {}".format(result))
 
     time.sleep(COMMIT_TIME)
     # Record lock height
@@ -46,9 +48,8 @@ def lock(aergo_from, bridge_from,
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address, result.status,
-                              result.detail))
+        raise TxError("Lock asset Tx execution failed : {}".format(result))
+
     print("Lock success : ", result.detail)
     return lock_height
 
@@ -87,15 +88,16 @@ def mint(aergo_to, receiver, lock_proof, token_origin, bridge_to):
     tx, result = aergo_to.call_sc(bridge_to, "mint",
                                   args=[receiver, balance,
                                         token_origin, ap])
+    if result.status != herapy.CommitStatus.TX_OK:
+        raise TxError("Mint asset Tx commit failed : {}".format(result))
+
     time.sleep(COMMIT_TIME)
     result = aergo_to.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address,
-                              result.status, result.detail))
-    print("Mint success : ", result.detail)
+        raise TxError("Mint asset Tx execution failed : {}".format(result))
 
     token_pegged = json.loads(result.detail)[0]
+    print("Mint success : ", result.detail)
     return token_pegged
 
 
@@ -107,15 +109,17 @@ def lock_aer(aergo_from, sender, receiver, value, bridge_from):
     tx, result = aergo_from.call_sc(bridge_from, "lock",
                                     args=[receiver, str(value), "aergo"],
                                     amount=value)
+    if result.status != herapy.CommitStatus.TX_OK:
+        raise TxError("Lock aer Tx commit failed : {}".format(result))
+
     time.sleep(COMMIT_TIME)
     # Record lock height
     _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address, result.status,
-                              result.detail))
+        raise TxError("Lock aer Tx execution failed : {}".format(result))
+
     print("Lock success : ", result.detail)
     return lock_height
 
@@ -151,15 +155,17 @@ def lock_token(aergo_from, sender, receiver, value, token_origin, bridge_from):
     tx, result = aergo_from.call_sc(bridge_from, "lock",
                                     args=[receiver, str(value),
                                           token_origin, nonce, sig])
+    if result.status != herapy.CommitStatus.TX_OK:
+        raise TxError("Lock token Tx commit failed : {}".format(result))
+
     time.sleep(COMMIT_TIME)
     # Record lock height
     _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.SmartcontractStatus.SUCCESS:
-        raise TxError("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address, result.status,
-                              result.detail))
+        raise TxError("Lock token Tx execution failed : {}".format(result))
+
     print("Lock success : ", result.detail)
     return lock_height
 
