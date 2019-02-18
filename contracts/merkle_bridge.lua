@@ -435,8 +435,7 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     -- execute transfer
     Balances[from] = Balances[from] - bvalue - bfee
     Balances[to] = (Balances[to] or b0) + bvalue
-    -- TODO use system.getOrigin() so a fee is payed to the tx signer if the tx executed another contract that called signed_transfer
-    Balances[system.getSender()] = (Balances[system.getSender()] or b0) + bfee
+    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
     -- TODO event notification
     return true
@@ -524,8 +523,7 @@ function signed_burn(from, value, nonce, fee, deadline, signature)
     new_total = TotalSupply:get() - bvalue
     TotalSupply:set(new_total)
     Balances[from] = Balances[from] - bvalue - bfee
-    -- TODO replace getSender() with getOrigin() needed for paying a fee to tx signer
-    Balances[system.getSender()] = (Balances[system.getSender()] or b0) + bfee
+    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
     -- TODO event notification
     return true
