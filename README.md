@@ -78,6 +78,25 @@ wallet.transfer_from_sidechain('sidechain2',
                                amount)
 ```
 
+### Get balance and transfer assets on a specific network
+``` py
+from wallet.wallet import Wallet
+
+# load config file that stores network ip, asset addresses...
+with open("./config.json", "r") as f:
+    c = json.load(f)
+
+# create a wallet
+wallet = Wallet(c)
+
+asset = 'token1' # token name or 'aergo' in config.json 
+balance = wallet.get_balance(account_address, asset_name=asset,
+                            network_name='mainnet')
+
+# transfer 2 assets, uses the 'wallet' priv_key by default
+wallet.transfer(2*10**18, to_address, asset_name=asset, network_name='mainnet')
+```
+
 ### Quick test from scratch
 **Setup node ip addresses in config.json**
 

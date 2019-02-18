@@ -8,7 +8,7 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
-def run():
+def run(mainnet='mainnet', sidechain='sidechain2'):
     with open("./config.json", "r") as f:
         config_data = json.load(f)
     with open("./contracts/bridge_bytecode.txt", "r") as f:
@@ -20,8 +20,8 @@ def run():
         aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        aergo1.connect(config_data['mainnet']['ip'])
-        aergo2.connect(config_data['sidechain2']['ip'])
+        aergo1.connect(config_data[mainnet]['ip'])
+        aergo2.connect(config_data[sidechain]['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data["proposer"]['priv_key']
@@ -95,8 +95,8 @@ def run():
         print("  > SC Address CHAIN2: {}".format(sc_address2))
 
         print("------ Store bridge addresses in config.json  -----------")
-        config_data['mainnet']['bridges']['sidechain2'] = sc_address1
-        config_data['sidechain2']['bridges']['mainnet'] = sc_address2
+        config_data[mainnet]['bridges'][sidechain] = sc_address1
+        config_data[sidechain]['bridges'][mainnet] = sc_address2
         with open("./config.json", "w") as f:
             json.dump(config_data, f, indent=4, sort_keys=True)
 
@@ -109,4 +109,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    run(mainnet='mainnet', sidechain='sidechain2')

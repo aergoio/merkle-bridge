@@ -1,3 +1,4 @@
+from deprecated import deprecated
 import hashlib
 import json
 import time
@@ -14,6 +15,7 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
+@deprecated(reason="This is the centralized bridge, use proposer + validators instead")
 def run():
     with open("./config.json", "r") as f:
         config_data = json.load(f)
