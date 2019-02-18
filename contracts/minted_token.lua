@@ -66,10 +66,8 @@ function transfer(to, value)
     assert(to ~= from, "same sender and receiver")
     assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
     Balances[from] = Balances[from] - bvalue
-    if Nonces[from] == nil then Nonces[from] = 0 end
-    Nonces[from] = Nonces[from] + 1
-    if Balances[to] == nil then Balances[to] = b0 end
-    Balances[to] = Balances[to] + bvalue
+    Nonces[from] = (Nonces[from] or 0) + 1
+    Balances[to] = (Balances[to] or b0) + bvalue
     -- TODO event notification
     return true
 end
@@ -110,10 +108,9 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute transfer
     Balances[from] = Balances[from] - bvalue - bfee
-    if Balances[to] == nil then Balances[to] = b0 end
-    Balances[to] = Balances[to] + bvalue
-    if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
-    Balances[system.getSender()] = Balances[system.getSender()] + bfee
+    Balances[to] = (Balances[to] or b0) + bvalue
+    -- TODO use system.getOrigin() so a fee is payed to the tx signer if the tx executed another contract that called signed_transfer
+    Balances[system.getSender()] = (Balances[system.getSender()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
     -- TODO event notification
     return true
@@ -140,8 +137,7 @@ function mint(to, value)
     assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
     local new_total = TotalSupply:get() + bvalue
     TotalSupply:set(new_total)
-    if Balances[to] == nil then Balances[to] = b0 end
-    Balances[to] = Balances[to] + bvalue;
+    Balances[to] = (Balances[to] or b0) + bvalue;
     -- TODO event notification
     return true
 end
@@ -199,12 +195,11 @@ function signed_burn(from, value, nonce, fee, deadline, signature)
     data = crypto.sha256(bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute burn
-    new_total = TotalSupply:get() - bvalue - bfee
+    new_total = TotalSupply:get() - bvalue
     TotalSupply:set(new_total)
     Balances[from] = Balances[from] - bvalue - bfee
     -- TODO replace getSender() with getOrigin() needed for paying a fee to tx signer
-    -- if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
-    -- Balances[system.getSender()] = Balances[system.getSender()] + bfee
+    Balances[system.getSender()] = (Balances[system.getSender()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
     -- TODO event notification
     return true

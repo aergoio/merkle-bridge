@@ -1,5 +1,4 @@
-.PHONY: install compile_bridge compile_token deploy_bridge proposer validator protoc wallet 
-deploy_token transfer_to_sidechain transfer_from_sidechain docker 
+.PHONY: install compile_bridge compile_token deploy_bridge proposer validator protoc wallet deploy_token transfer_to_sidechain transfer_from_sidechain docker 
 
 install:
 	pip install git+ssh://git@github.com/aergoio/herapy.git@949a24d5fe882aaa7b63c53e0668d25824c93a2d
@@ -30,7 +29,7 @@ protoc: ## generate *_pb2.py and *_pb2_grpc.py in bridge_operator/grpc from brid
 	#find ./aergo/herapy/grpc -type f -name '*_pb2_grpc.py' -exec sed -i '' -e 's/^import\(.*\)_pb2\(.*\)$$/from . import\1_pb2\2/g' {} \;
 
 
-# Below commands are simple tools for development only
+#Below commands are simple tools for development only
 wallet:
 	python3 -m wallet.wallet
 

@@ -61,10 +61,8 @@ function transfer(to, value)
     assert(to ~= from, "same sender and receiver")
     assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
     Balances[from] = Balances[from] - bvalue
-    if Nonces[from] == nil then Nonces[from] = 0 end
-    Nonces[from] = Nonces[from] + 1
-    if Balances[to] == nil then Balances[to] = b0 end
-    Balances[to] = Balances[to] + bvalue
+    Nonces[from] = (Nonces[from] or 0) + 1
+    Balances[to] = (Balances[to] or b0) + bvalue
     -- TODO event notification
     return true
 end
@@ -105,11 +103,9 @@ function signed_transfer(from, to, value, nonce, fee, deadline, signature)
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute transfer
     Balances[from] = Balances[from] - bvalue - bfee
-    if Balances[to] == nil then Balances[to] = b0 end
-    Balances[to] = Balances[to] + bvalue
+    Balances[to] = (Balances[to] or b0) + bvalue
     -- TODO use system.getOrigin() so a fee is payed to the tx signer if the tx executed another contract that called signed_transfer
-    if Balances[system.getSender()] == nil then Balances[system.getSender()] = b0 end
-    Balances[system.getSender()] = Balances[system.getSender()] + bfee
+    Balances[system.getSender()] = (Balances[system.getSender()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
     -- TODO event notification
     return true
