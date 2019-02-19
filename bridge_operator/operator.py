@@ -122,10 +122,17 @@ def run():
             tx1, result1 = aergo1.call_sc(addr1, "set_root",
                                           args=[root2, merge_height2,
                                                 [1], [sig2]])
+            if result1.status != herapy.CommitStatus.TX_OK:
+                print("Deploy on aergo1 Tx commit failed : {}".format(result1))
+                return
+            if result2.status != herapy.CommitStatus.TX_OK:
+                print("Deploy on aergo1 Tx commit failed : {}".format(result2))
+                return
 
+            print(result1, result2)
             time.sleep(COMMIT_TIME)
             result1 = aergo1.get_tx_result(tx1.tx_hash)
-            if result1.status != herapy.SmartcontractStatus.SUCCESS:
+            if result1.status != herapy.TxResultStatus.SUCCESS:
                 print("  > ERROR[{0}]:{1}: {2}"
                       .format(result1.contract_address, result1.status,
                               result1.detail))
@@ -133,7 +140,7 @@ def run():
                 aergo2.disconnect()
                 return
             result2 = aergo2.get_tx_result(tx2.tx_hash)
-            if result2.status != herapy.SmartcontractStatus.SUCCESS:
+            if result2.status != herapy.TxResultStatus.SUCCESS:
                 print("  > ERROR[{0}]:{1}: {2}"
                       .format(result2.contract_address, result2.status,
                               result2.detail))

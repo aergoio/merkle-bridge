@@ -23,7 +23,7 @@ def burn(aergo_from, sender, receiver, value, token_pegged, bridge_from):
     _, burn_height = aergo_from.get_blockchain_status()
     # Check burn success
     result = aergo_from.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.SUCCESS:
+    if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Burn asset Tx execution failed : {}".format(result))
 
     print("Burn success : ", result.detail)
@@ -69,7 +69,7 @@ def unlock(aergo_to, receiver, burn_proof, token_origin, bridge_to):
 
     time.sleep(COMMIT_TIME)
     result = aergo_to.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.SUCCESS:
+    if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Unlock asset Tx execution failed : {}".format(result))
 
     print("Unlock success on origin : ", result.detail)

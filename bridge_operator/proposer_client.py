@@ -212,17 +212,27 @@ class ProposerClient:
                                                     args=[root2, merge_height2,
                                                           validator_indexes,
                                                           sigs2])
+                if result2.status != herapy.CommitStatus.TX_OK:
+                    print("Deploy bridge aergo2 Tx commit failed : {}".format(result2))
+                    self._aergo1.disconnect()
+                    self._aergo2.disconnect()
+                    return
+                if result1.status != herapy.CommitStatus.TX_OK:
+                    print("Deploy bridge aergo1 Tx commit failed : {}".format(result1))
+                    self._aergo1.disconnect()
+                    self._aergo2.disconnect()
+                    return
 
                 time.sleep(COMMIT_TIME)
                 result1 = self._aergo1.get_tx_result(tx1.tx_hash)
-                if result1.status != herapy.SmartcontractStatus.SUCCESS:
+                if result1.status != herapy.TxResultStatus.SUCCESS:
                     print("  > ERROR[{0}]:{1}: {2}"
                           .format(result1.contract_address, result1.status, result1.detail))
                     self._aergo1.disconnect()
                     self._aergo2.disconnect()
                     return
                 result2 = self._aergo2.get_tx_result(tx2.tx_hash)
-                if result2.status != herapy.SmartcontractStatus.SUCCESS:
+                if result2.status != herapy.TxResultStatus.SUCCESS:
                     print("  > ERROR[{0}]:{1}: {2}"
                           .format(result2.contract_address, result2.status, result2.detail))
                     self._aergo1.disconnect()

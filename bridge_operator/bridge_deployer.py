@@ -72,7 +72,7 @@ def run(mainnet='mainnet', sidechain='sidechain2'):
 
         print("------ Check deployment of SC -----------")
         result1 = aergo1.get_tx_result(tx1.tx_hash)
-        if result1.status != herapy.SmartcontractStatus.CREATED:
+        if result1.status != herapy.TxResultStatus.CREATED:
             print("  > ERROR[{0}]:{1}: {2}"
                   .format(result1.contract_address, result1.status,
                           result1.detail))
@@ -80,7 +80,7 @@ def run(mainnet='mainnet', sidechain='sidechain2'):
             aergo2.disconnect()
             return
         result2 = aergo2.get_tx_result(tx2.tx_hash)
-        if result2.status != herapy.SmartcontractStatus.CREATED:
+        if result2.status != herapy.TxResultStatus.CREATED:
             print("  > ERROR[{0}]:{1}: {2}"
                   .format(result2.contract_address, result2.status,
                           result2.detail))

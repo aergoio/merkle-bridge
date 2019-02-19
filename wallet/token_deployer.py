@@ -26,7 +26,7 @@ def deploy_token(payload_str, aergo, receiver, total_supply):
 
     print("------ Check deployment of SC -----------")
     result = aergo.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.CREATED:
+    if result.status != herapy.TxResultStatus.CREATED:
         raise TxError("Token deployment Tx execution failed : {}"
                       .format(result))
 

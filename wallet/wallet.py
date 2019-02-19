@@ -118,7 +118,7 @@ class Wallet:
         # Check lock success
         result = aergo.get_tx_result(tx.tx_hash)
         # TODO handle new result status for aer tx
-        if result.status != herapy.SmartcontractStatus.SUCCESS:
+        if result.status != herapy.TxResultStatus.SUCCESS:
             raise TxError("Transfer asset Tx execution failed : {}"
                           .format(result))
 
@@ -470,7 +470,7 @@ if __name__ == '__main__':
     elif selection == 2:
         to = config_data['validators'][0]['addr']
         sender = config_data['wallet']['addr']
-        asset = 'aergo'
+        asset = 'token1'
         result = wallet.get_balance(to, asset_name=asset,
                                     network_name='mainnet')
         print('receiver balance before', result)

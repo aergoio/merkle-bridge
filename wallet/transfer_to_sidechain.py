@@ -47,7 +47,7 @@ def lock(aergo_from, bridge_from,
     _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.SUCCESS:
+    if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Lock asset Tx execution failed : {}".format(result))
 
     print("Lock success : ", result.detail)
@@ -93,7 +93,7 @@ def mint(aergo_to, receiver, lock_proof, token_origin, bridge_to):
 
     time.sleep(COMMIT_TIME)
     result = aergo_to.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.SUCCESS:
+    if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Mint asset Tx execution failed : {}".format(result))
 
     token_pegged = json.loads(result.detail)[0]
@@ -117,7 +117,7 @@ def lock_aer(aergo_from, sender, receiver, value, bridge_from):
     _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.SUCCESS:
+    if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Lock aer Tx execution failed : {}".format(result))
 
     print("Lock success : ", result.detail)
@@ -163,7 +163,7 @@ def lock_token(aergo_from, sender, receiver, value, token_origin, bridge_from):
     _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
-    if result.status != herapy.SmartcontractStatus.SUCCESS:
+    if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Lock token Tx execution failed : {}".format(result))
 
     print("Lock success : ", result.detail)
