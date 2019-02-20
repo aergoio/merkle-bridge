@@ -13,20 +13,28 @@ from multiprocessing.dummy import (
 import time
 
 import aergo.herapy as herapy
-import bridge_operator_pb2_grpc
-import bridge_operator_pb2
+
+from bridge_operator.bridge_operator_pb2_grpc import (
+    BridgeOperatorServicer,
+    add_BridgeOperatorServicer_to_server,
+)
+from bridge_operator.bridge_operator_pb2 import (
+    Approvals,
+)
+# import bridge_operator_pb2_grpc
+# import bridge_operator_pb2
 
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 
-class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
+class ValidatorServer(BridgeOperatorServicer):
     """Validates anchors for the bridge proposer"""
 
-    def __init__(self, config_data, validator_index=0):
+    def __init__(self, config_data, aergo1, aergo2, validator_index=0):
         self._validator_index = validator_index
-        self._addr1 = config_data['mainnet']['bridges']['sidechain2']
-        self._addr2 = config_data['sidechain2']['bridges']['mainnet']
+        self._addr1 = config_data[aergo1]['bridges'][aergo2]
+        self._addr2 = config_data[aergo2]['bridges'][aergo1]
         self._t_anchor = config_data['t_anchor']
         self._t_final = config_data['t_final']
         print(" * anchoring periode : ", self._t_anchor, "s\n",
@@ -36,8 +44,8 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(config_data['mainnet']['ip'])
-        self._aergo2.connect(config_data['sidechain2']['ip'])
+        self._aergo1.connect(config_data[aergo1]['ip'])
+        self._aergo2.connect(config_data[aergo2]['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data["validators"][validator_index]['priv_key']
@@ -47,7 +55,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
     def GetAnchorSignature(self, request, context):
         """ Verifies the anchors are valid and signes them """
         if not self.is_valid_anchor(request):
-            return bridge_operator_pb2.Approvals()
+            return Approvals()
 
         print(request)
         # sign anchor and return approval
@@ -61,9 +69,7 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         h2 = hashlib.sha256(msg2).digest()
         sig1 = "0x" + self._aergo1.account.private_key.sign_msg(h1).hex()
         sig2 = "0x" + self._aergo1.account.private_key.sign_msg(h2).hex()
-        approvals = bridge_operator_pb2.Approvals(address="address",
-                                                  sig1=sig1,
-                                                  sig2=sig2)
+        approvals = Approvals(address="address", sig1=sig1, sig2=sig2)
         print("Validator ", self._validator_index, "signed a new anchor")
         return approvals
 
@@ -130,10 +136,10 @@ class ValidatorServer(bridge_operator_pb2_grpc.BridgeOperatorServicer):
         return True
 
 
-def serve(config_data, validator_index=0):
+def serve(config_data, aergo1, aergo2, validator_index=0):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    bridge_operator_pb2_grpc.add_BridgeOperatorServicer_to_server(
-        ValidatorServer(config_data, validator_index), server)
+    add_BridgeOperatorServicer_to_server(
+        ValidatorServer(config_data, aergo1, aergo2, validator_index), server)
     server.add_insecure_port(config_data['validators'][validator_index]['ip'])
     server.start()
     print("server", validator_index, " started")
@@ -144,9 +150,9 @@ def serve(config_data, validator_index=0):
         server.stop(0)
 
 
-def serve_all(config_data):
+def serve_all(config_data, aergo1, aergo2):
     validator_indexes = [i for i in range(len(config_data['validators']))]
-    worker = partial(serve, config_data)
+    worker = partial(serve, config_data, aergo1, aergo2)
     pool = Pool(len(validator_indexes))
     pool.map(worker, validator_indexes)
 
@@ -154,6 +160,5 @@ def serve_all(config_data):
 if __name__ == '__main__':
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    # serve(config_data)
-    serve_all(config_data)
-    # TODO serve_all() run serve in different threads
+    # serve(config_data, 'mainnet', 'sidechain2')
+    serve_all(config_data, 'mainnet', 'sidechain2')

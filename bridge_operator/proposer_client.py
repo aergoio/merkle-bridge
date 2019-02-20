@@ -10,8 +10,14 @@ from multiprocessing.dummy import (
 import time
 
 import aergo.herapy as herapy
-import bridge_operator_pb2_grpc
-import bridge_operator_pb2
+
+from bridge_operator.bridge_operator_pb2_grpc import (
+    BridgeOperatorStub,
+)
+from bridge_operator.bridge_operator_pb2 import (
+    Anchor,
+    Proposals,
+)
 
 
 COMMIT_TIME = 3
@@ -30,10 +36,10 @@ class ProposerClient:
     block (now - t_final). Start again after waiting t_anchor.
     """
 
-    def __init__(self, config_data):
+    def __init__(self, config_data, aergo1, aergo2):
         self._config_data = config_data
-        self._addr1 = config_data['mainnet']['bridges']['sidechain2']
-        self._addr2 = config_data['sidechain2']['bridges']['mainnet']
+        self._addr1 = config_data[aergo1]['bridges'][aergo2]
+        self._addr2 = config_data[aergo2]['bridges'][aergo1]
 
         # create all channels with validators
         self._channels = []
@@ -41,7 +47,7 @@ class ProposerClient:
         for validator in self._config_data['validators']:
             ip = validator['ip']
             channel = grpc.insecure_channel(ip)
-            stub = bridge_operator_pb2_grpc.BridgeOperatorStub(channel)
+            stub = BridgeOperatorStub(channel)
             self._channels.append(channel)
             self._stubs.append(stub)
 
@@ -56,8 +62,8 @@ class ProposerClient:
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(self._config_data['mainnet']['ip'])
-        self._aergo2.connect(self._config_data['sidechain2']['ip'])
+        self._aergo1.connect(self._config_data[aergo1]['ip'])
+        self._aergo2.connect(self._config_data[aergo2]['ip'])
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = self._config_data["proposer"]['priv_key']
@@ -71,14 +77,13 @@ class ProposerClient:
     def get_validators_signatures(self, anchor_msg1, anchor_msg2):
         root1, merge_height1, nonce2 = anchor_msg1
         root2, merge_height2, nonce1 = anchor_msg2
-        anchor1 = bridge_operator_pb2.Anchor(root=root1,
-                                             height=str(merge_height1),
-                                             destination_nonce=str(nonce2))
-        anchor2 = bridge_operator_pb2.Anchor(root=root2,
-                                             height=str(merge_height2),
-                                             destination_nonce=str(nonce1))
-        proposal = bridge_operator_pb2.Proposals(anchor1=anchor1,
-                                                 anchor2=anchor2)
+        anchor1 = Anchor(root=root1,
+                         height=str(merge_height1),
+                         destination_nonce=str(nonce2))
+        anchor2 = Anchor(root=root2,
+                         height=str(merge_height2),
+                         destination_nonce=str(nonce1))
+        proposal = Proposals(anchor1=anchor1, anchor2=anchor2)
         # get validator signatures
         validator_indexes = [i for i in range(len(self._stubs))]
         worker = partial(self.get_signature_worker, proposal)
@@ -259,5 +264,5 @@ class ProposerClient:
 if __name__ == '__main__':
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    proposer = ProposerClient(config_data)
+    proposer = ProposerClient(config_data, 'mainnet', 'sidechain2')
     proposer.run()

@@ -11,20 +11,20 @@ compile_token:
 	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/standard_token.lua > contracts/token_bytecode.txt
 
 deploy_bridge:
-	python3 bridge_operator/bridge_deployer.py
+	python3 -m bridge_operator.bridge_deployer
 
 proposer:
-	python3 bridge_operator/proposer_client.py
+	python3 -m bridge_operator.proposer_client
 
 validator:
-	python3 bridge_operator/validator_server.py
+	python3 -m bridge_operator.validator_server
 
 protoc: ## generate *_pb2.py and *_pb2_grpc.py in bridge_operator/grpc from bridge_operator/proto/*.proto
 	python3 -m grpc_tools.protoc \
-		-I./bridge_operator/proto \
-		--python_out=./bridge_operator \
-		--grpc_python_out=./bridge_operator \
-		./bridge_operator/proto/*.proto
+		-I proto \
+		--python_out=. \
+		--grpc_python_out=. \
+		./proto/bridge_operator/*.proto
 	#find ./aergo/herapy/grpc -type f -name '*_pb2.py' -exec sed -i '' -e 's/^import\(.*\)_pb2\(.*\)$$/from . import\1_pb2\2/g' {} \;
 	#find ./aergo/herapy/grpc -type f -name '*_pb2_grpc.py' -exec sed -i '' -e 's/^import\(.*\)_pb2\(.*\)$$/from . import\1_pb2\2/g' {} \;
 
