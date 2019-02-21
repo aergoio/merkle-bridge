@@ -250,8 +250,7 @@ class ProposerClient:
 
         except KeyboardInterrupt:
             print("Shutting down proposer")
-
-        self.shutdown()
+            self.shutdown()
 
     def shutdown(self):
         print("------ Disconnect AERGO -----------")

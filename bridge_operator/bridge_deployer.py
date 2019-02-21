@@ -8,11 +8,7 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
-def run(mainnet='mainnet', sidechain='sidechain2'):
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
-    with open("./contracts/bridge_bytecode.txt", "r") as f:
-        payload_str = f.read()[:-1]
+def run(config_data, payload_str, mainnet, sidechain, path="./config.json"):
     payload = herapy.utils.decode_address(payload_str)
     print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")
     try:
@@ -97,7 +93,7 @@ def run(mainnet='mainnet', sidechain='sidechain2'):
         print("------ Store bridge addresses in config.json  -----------")
         config_data[mainnet]['bridges'][sidechain] = sc_address1
         config_data[sidechain]['bridges'][mainnet] = sc_address2
-        with open("./config.json", "w") as f:
+        with open(path, "w") as f:
             json.dump(config_data, f, indent=4, sort_keys=True)
 
         print("------ Disconnect AERGO -----------")
@@ -109,4 +105,8 @@ def run(mainnet='mainnet', sidechain='sidechain2'):
 
 
 if __name__ == '__main__':
-    run(mainnet='mainnet', sidechain='sidechain2')
+    with open("./config.json", "r") as f:
+        config_data = json.load(f)
+    with open("./contracts/bridge_bytecode.txt", "r") as f:
+        payload_str = f.read()[:-1]
+    run(config_data, payload_str, mainnet='mainnet', sidechain='sidechain2')

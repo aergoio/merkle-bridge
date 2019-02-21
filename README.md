@@ -31,9 +31,31 @@ $ make deploy_bridge
 ```sh
 $ make proposer
 ```
+or
+``` py
+import json
+from bridge_operator.proposer_client import ProposerClient
+
+with open("./config.json", "r") as f:
+    c = json.load(f)
+
+proposer = ProposerClient(c, 'mainnet', 'sidechain2')
+proposer.run()
+```
 #### Start the bridge validators
 ```sh
 $ make validator
+```
+or
+``` py
+import json
+from bridge_operator.validator_server import ValidatorServer
+
+with open("./config.json", "r") as f:
+    c = json.load(f)
+
+validator = ValidatorServer(c, 'mainnet', 'sidechain2')
+validator.run()
 ```
 
 ### Deploy a new token contract

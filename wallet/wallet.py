@@ -165,7 +165,8 @@ class Wallet:
 
     def deploy_token(self, payload_str, asset_name,
                      total_supply, network_name='mainnet',
-                     aergo=None, receiver=None, priv_key=None):
+                     aergo=None, receiver=None, priv_key=None,
+                     path="./config.json"):
         disconnect_me = False
         if aergo is None:
             aergo = self.get_aergo(priv_key, network_name)
@@ -183,7 +184,7 @@ class Wallet:
         self._config_data[network_name]['tokens'][asset_name] = {}
         self._config_data[network_name]['tokens'][asset_name]['addr'] = sc_address
         self._config_data[network_name]['tokens'][asset_name]['pegs'] = {}
-        with open("./config.json", "w") as f:
+        with open(path, "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
         if disconnect_me:
             aergo.disconnect()
@@ -284,7 +285,8 @@ class Wallet:
                                to_chain,
                                asset_name,
                                receiver=None,
-                               priv_key=None):
+                               priv_key=None,
+                               path="./config.json"):
         # NOTE anybody can mint so sender is not necessary
         # amount to mint is the difference between total deposit and
         # already minted amount
@@ -338,7 +340,7 @@ class Wallet:
         # record mint address in file
         print("\n------ Store mint address in config.json -----------")
         self._config_data[from_chain]['tokens'][asset_name]['pegs'][to_chain] = token_pegged
-        with open("./config.json", "w") as f:
+        with open(path, "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
 
     def initiate_transfer_burn(self,
@@ -445,7 +447,7 @@ class Wallet:
 
 if __name__ == '__main__':
 
-    selection = 0
+    selection = 2
 
     with open("./config.json", "r") as f:
         config_data = json.load(f)
@@ -453,7 +455,7 @@ if __name__ == '__main__':
 
     if selection == 0:
         amount = 1*10**18
-        asset = 'token1'
+        asset = 'aergo'
         wallet.transfer_to_sidechain('mainnet',
                                      'sidechain2',
                                      asset,
@@ -470,7 +472,7 @@ if __name__ == '__main__':
     elif selection == 2:
         to = config_data['validators'][0]['addr']
         sender = config_data['wallet']['addr']
-        asset = 'token1'
+        asset = 'aergo'
         result = wallet.get_balance(to, asset_name=asset,
                                     network_name='mainnet')
         print('receiver balance before', result)

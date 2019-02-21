@@ -28,7 +28,7 @@ from bridge_operator.bridge_operator_pb2 import (
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 
-class ValidatorServer(BridgeOperatorServicer):
+class ValidatorService(BridgeOperatorServicer):
     """Validates anchors for the bridge proposer"""
 
     def __init__(self, config_data, aergo1, aergo2, validator_index=0):
@@ -136,23 +136,37 @@ class ValidatorServer(BridgeOperatorServicer):
         return True
 
 
-def serve(config_data, aergo1, aergo2, validator_index=0):
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    add_BridgeOperatorServicer_to_server(
-        ValidatorServer(config_data, aergo1, aergo2, validator_index), server)
-    server.add_insecure_port(config_data['validators'][validator_index]['ip'])
-    server.start()
-    print("server", validator_index, " started")
-    try:
-        while True:
-            time.sleep(_ONE_DAY_IN_SECONDS)
-    except KeyboardInterrupt:
-        server.stop(0)
+class ValidatorServer:
 
+    def __init__(self, config_data, aergo1, aergo2, validator_index=0):
+        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        add_BridgeOperatorServicer_to_server(
+            ValidatorService(config_data, aergo1, aergo2, validator_index),
+            self.server)
+        self.server.add_insecure_port(config_data['validators'][validator_index]['ip'])
+        self.validator_index = validator_index
+
+    def run(self):
+        self.server.start()
+        print("server", self.validator_index, " started")
+        try:
+            while True:
+                time.sleep(_ONE_DAY_IN_SECONDS)
+        except KeyboardInterrupt:
+            print("\nShutting down validator")
+            self.shutdown()
+
+    def shutdown(self):
+        self.server.stop(0)
+
+
+def _serve(servers, index):
+    servers[index].run()
 
 def serve_all(config_data, aergo1, aergo2):
     validator_indexes = [i for i in range(len(config_data['validators']))]
-    worker = partial(serve, config_data, aergo1, aergo2)
+    servers = [ValidatorServer(config_data, aergo1, aergo2, index) for index in validator_indexes]
+    worker = partial(_serve, servers)
     pool = Pool(len(validator_indexes))
     pool.map(worker, validator_indexes)
 
@@ -160,5 +174,6 @@ def serve_all(config_data, aergo1, aergo2):
 if __name__ == '__main__':
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    # serve(config_data, 'mainnet', 'sidechain2')
+    # validator = ValidatorServer(config_data, 'mainnet', 'sidechain2')
+    # validator.run()
     serve_all(config_data, 'mainnet', 'sidechain2')
