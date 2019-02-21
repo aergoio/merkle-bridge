@@ -7,6 +7,7 @@ Deprecated==1.2.4
 ecdsa==0.13
 googleapis-common-protos==1.5.8
 grpcio==1.18.0
+grpcio-tools==1.18.0
 protobuf==3.6.1
 pycparser==2.19
 six==1.12.0
