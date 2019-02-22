@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n%bridge_operator/bridge_operator.proto\"?\n\tProposals\x12\x18\n\x07\x61nchor1\x18\x01 \x01(\x0b\x32\x07.Anchor\x12\x18\n\x07\x61nchor2\x18\x02 \x01(\x0b\x32\x07.Anchor\"A\n\x06\x41nchor\x12\x0c\n\x04root\x18\x01 \x01(\t\x12\x0e\n\x06height\x18\x02 \x01(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\t\"8\n\tApprovals\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0c\n\x04sig1\x18\x02 \x01(\t\x12\x0c\n\x04sig2\x18\x03 \x01(\t2@\n\x0e\x42ridgeOperator\x12.\n\x12GetAnchorSignature\x12\n.Proposals\x1a\n.Approvals\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n%bridge_operator/bridge_operator.proto\"?\n\tProposals\x12\x18\n\x07\x61nchor1\x18\x01 \x01(\x0b\x32\x07.Anchor\x12\x18\n\x07\x61nchor2\x18\x02 \x01(\x0b\x32\x07.Anchor\"A\n\x06\x41nchor\x12\x0c\n\x04root\x18\x01 \x01(\t\x12\x0e\n\x06height\x18\x02 \x01(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\t\"8\n\tApprovals\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0c\n\x04sig1\x18\x02 \x01(\x0c\x12\x0c\n\x04sig2\x18\x03 \x01(\x0c\x32@\n\x0e\x42ridgeOperator\x12.\n\x12GetAnchorSignature\x12\n.Proposals\x1a\n.Approvals\"\x00\x62\x06proto3')
 )
 
 
@@ -124,15 +124,15 @@ _APPROVALS = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='sig1', full_name='Approvals.sig1', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=2, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='sig2', full_name='Approvals.sig2', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=3, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),

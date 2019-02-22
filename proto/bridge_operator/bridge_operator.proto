@@ -25,7 +25,7 @@ message Approvals {
     // address of the private key that produced sig1 and sig2
     string address = 1;
     // signature of anchor1
-    string sig1 = 2;
+    bytes sig1 = 2;
     // signature of anchor2
-    string sig2 = 3;
+    bytes sig2 = 3;
 }

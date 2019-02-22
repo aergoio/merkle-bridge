@@ -11,6 +11,10 @@ import time
 
 import aergo.herapy as herapy
 
+from aergo.herapy.utils.signature import (
+    verify_sig,
+)
+
 from bridge_operator.bridge_operator_pb2_grpc import (
     BridgeOperatorStub,
 )
@@ -77,6 +81,13 @@ class ProposerClient:
     def get_validators_signatures(self, anchor_msg1, anchor_msg2):
         root1, merge_height1, nonce2 = anchor_msg1
         root2, merge_height2, nonce1 = anchor_msg2
+
+        # messages to get signed
+        msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
+        msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
+        h1 = hashlib.sha256(msg1).digest()
+        h2 = hashlib.sha256(msg2).digest()
+
         anchor1 = Anchor(root=root1,
                          height=str(merge_height1),
                          destination_nonce=str(nonce2))
@@ -84,25 +95,28 @@ class ProposerClient:
                          height=str(merge_height2),
                          destination_nonce=str(nonce1))
         proposal = Proposals(anchor1=anchor1, anchor2=anchor2)
-        # get validator signatures
-        validator_indexes = [i for i in range(len(self._stubs))]
-        worker = partial(self.get_signature_worker, proposal)
-        approvals = self._pool.map(worker, validator_indexes)
-        sigs1, sigs2, validator_indexes = self.extract_signatures(approvals)
 
-        msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
-        msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
-        h1 = hashlib.sha256(msg1).digest()
-        h2 = hashlib.sha256(msg2).digest()
+        # get validator signatures and verify sig in worker
+        validator_indexes = [i for i in range(len(self._stubs))]
+        worker = partial(self.get_signature_worker, proposal, h1, h2)
+        approvals = self._pool.map(worker, validator_indexes)
+
+        sigs1, sigs2, validator_indexes = self.extract_signatures(approvals)
 
         return sigs1, sigs2, validator_indexes
 
-    def get_signature_worker(self, proposal, index):
+    def get_signature_worker(self, proposal, h1, h2, index):
         try:
             approval = self._stubs[index].GetAnchorSignature(proposal)
-            # TODO verify signatures: check approval.address ==
-            # validators[index] and check sig
-        except grpc.RpcError as e:
+        except grpc.RpcError:
+            return None
+        if approval.address != self._config_data['validators'][index]['addr']:
+            # check nothing is wrong with validator address
+            return None
+        # validate signature
+        if not verify_sig(h1, approval.sig1, approval.address):
+            return None
+        if not verify_sig(h2, approval.sig2, approval.address):
             return None
         return approval
 
@@ -110,8 +124,9 @@ class ProposerClient:
         sigs1, sigs2, validator_indexes = [], [], []
         for i, approval in enumerate(approvals):
             if approval is not None:
-                sigs1.append(approval.sig1)
-                sigs2.append(approval.sig2)
+                # convert to hex string for lua
+                sigs1.append('0x' + approval.sig1.hex())
+                sigs2.append('0x' + approval.sig2.hex())
                 validator_indexes.append(i+1)
         if 3 * len(sigs1) < 2 * len(self._config_data['validators']):
             raise ValidatorMajorityError()

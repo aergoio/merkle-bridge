@@ -50,7 +50,8 @@ class ValidatorService(BridgeOperatorServicer):
         print("------ Set Sender Account -----------")
         sender_priv_key1 = config_data["validators"][validator_index]['priv_key']
         sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
-        print("  > Sender Address: {}".format(sender_account.address))
+        self.address = sender_account.address.__str__()
+        print("  > Sender Address: {}".format(self.address))
 
     def GetAnchorSignature(self, request, context):
         """ Verifies the anchors are valid and signes them """
@@ -67,9 +68,9 @@ class ValidatorService(BridgeOperatorServicer):
                      + request.anchor2.destination_nonce, 'utf-8')
         h1 = hashlib.sha256(msg1).digest()
         h2 = hashlib.sha256(msg2).digest()
-        sig1 = "0x" + self._aergo1.account.private_key.sign_msg(h1).hex()
-        sig2 = "0x" + self._aergo1.account.private_key.sign_msg(h2).hex()
-        approvals = Approvals(address="address", sig1=sig1, sig2=sig2)
+        sig1 = self._aergo1.account.private_key.sign_msg(h1)
+        sig2 = self._aergo1.account.private_key.sign_msg(h2)
+        approvals = Approvals(address=self.address, sig1=sig1, sig2=sig2)
         print("Validator ", self._validator_index, "signed a new anchor")
         return approvals
 
