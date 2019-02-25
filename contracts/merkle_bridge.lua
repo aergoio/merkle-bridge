@@ -98,14 +98,14 @@ end
 -- signers is the index of signers in Validators
 function new_validators(addresses, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(join(addresses)..old_nonce)
+    message = crypto.sha256(join(addresses)..tostring(old_nonce))
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     old_size = Nb_Validators:get()
     if #addresses < old_size then
         diff = old_size - #addresses
         for i = 1, diff+1, 1 do
-            -- TODO delete validator slot
-            Validators[old_size + i] = ""
+            -- delete validator slot
+            Validators:delete(old_size + i)
         end
     end
     Nb_Validators:set(#addresses)

@@ -49,6 +49,7 @@ class ProposerClient:
         self._channels = []
         self._stubs = []
         for validator in self._config_data['validators']:
+            # TODO start proposer even if not all validators are online
             ip = validator['ip']
             channel = grpc.insecure_channel(ip)
             stub = BridgeOperatorStub(channel)
@@ -128,11 +129,12 @@ class ProposerClient:
                 sigs1.append('0x' + approval.sig1.hex())
                 sigs2.append('0x' + approval.sig2.hex())
                 validator_indexes.append(i+1)
-        if 3 * len(sigs1) < 2 * len(self._config_data['validators']):
+        total_validators = len(self._config_data['validators'])
+        if 3 * len(sigs1) < 2 * total_validators:
             raise ValidatorMajorityError()
-        # slice 2/3 of total validator
-        two_thirds = ((len(self._stubs) * 2) // 3
-                      + ((len(self._stubs) * 2) % 3 > 0))
+        # slice 2/3 of total validators
+        two_thirds = ((total_validators * 2) // 3
+                      + ((total_validators * 2) % 3 > 0))
         return sigs1[:two_thirds], sigs2[:two_thirds], validator_indexes[:two_thirds]
 
     def wait_for_next_anchor(self, merged_height1, merged_height2):
@@ -233,12 +235,12 @@ class ProposerClient:
                                                           validator_indexes,
                                                           sigs2])
                 if result2.status != herapy.CommitStatus.TX_OK:
-                    print("Deploy bridge aergo2 Tx commit failed : {}".format(result2))
+                    print("Anchor on aergo2 Tx commit failed : {}".format(result2))
                     self._aergo1.disconnect()
                     self._aergo2.disconnect()
                     return
                 if result1.status != herapy.CommitStatus.TX_OK:
-                    print("Deploy bridge aergo1 Tx commit failed : {}".format(result1))
+                    print("Anchor on aergo1 Tx commit failed : {}".format(result1))
                     self._aergo1.disconnect()
                     self._aergo2.disconnect()
                     return

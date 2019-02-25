@@ -1,4 +1,4 @@
-.PHONY: install compile_bridge compile_token deploy_bridge proposer validator protoc wallet deploy_token transfer_to_sidechain transfer_from_sidechain docker 
+.PHONY: install compile_bridge compile_token deploy_bridge proposer validator protoc wallet deploy_token transfer_to_sidechain transfer_from_sidechain update_validators docker 
 
 install:
 	pip install git+ssh://git@github.com/aergoio/herapy.git@60c44d9f22ce841f10e9a840b6073f6e3efba039
@@ -41,6 +41,9 @@ transfer_to_sidechain:
 
 transfer_from_sidechain:
 	python3 -m wallet.transfer_from_sidechain
+
+update_validators:
+	python3 -m bridge_operator.update_validators
 
 docker:
 	docker run --rm -d -p 7845:7845 aergo/node aergosvr --config /aergo/testmode.toml
