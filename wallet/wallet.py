@@ -65,6 +65,55 @@ class Wallet:
             aergo.disconnect()
         return int(balance), asset_addr
 
+    def get_minteable_balance(self, bridge_to, aergo_to, receiver,
+                              asset_address_origin, total_Locks=None,
+                              bridge_from=None, aergo_from=None):
+        return self._bridge_withdrawable_balance("_sv_Locks-", "_sv_Mints-",
+                                                 bridge_to, aergo_to, receiver,
+                                                 asset_address_origin, total_Deposit=total_Locks,
+                                                 bridge_from=bridge_from, aergo_from=aergo_from)
+
+    def get_unlockeable_balance(self, bridge_to, aergo_to, receiver,
+                                asset_address_origin, total_Burns=None,
+                                bridge_from=None, aergo_from=None):
+        return self._bridge_withdrawable_balance("_sv_Burns-", "_sv_Unlocks-",
+                                                 bridge_to, aergo_to, receiver,
+                                                 asset_address_origin, total_Deposit=total_Burns,
+                                                 bridge_from=bridge_from, aergo_from=aergo_from)
+
+    def _bridge_withdrawable_balance(self, deposit_key, withdraw_key,
+                                     bridge_to, aergo_to, receiver,
+                                     asset_address_origin, total_Deposit=None,
+                                     bridge_from=None, aergo_from=None):
+        total_withdrawn = 0
+        account_ref = receiver + asset_address_origin
+        if total_Deposit is None:
+            # get the lock proof for the last anchored block on aergo_to
+            withdraw_proof = aergo_to.query_sc_state(bridge_to,
+                                                     ["_sv_Height",
+                                                      withdraw_key + account_ref],
+                                                     compressed=False)
+            if withdraw_proof.var_proofs[0].inclusion:
+                total_withdrawn = int(withdraw_proof.var_proofs[1].value.decode('utf-8')[1:-1])
+            last_merged_height_to = int(withdraw_proof.var_proofs[0].value)
+            merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
+            deposit_proof = aergo_from.query_sc_state(bridge_from,
+                                                      [deposit_key + account_ref],
+                                                      root=merge_block_from.blocks_root_hash,
+                                                      compressed=False)
+            if deposit_proof.var_proofs[0].inclusion:
+                total_Deposit = int(deposit_proof.var_proofs[0].value.decode('utf-8')[1:-1])
+            else:
+                total_Deposit = 0
+        else:
+            withdraw_proof = aergo_to.query_sc_state(bridge_to,
+                                                   [withdraw_key + account_ref],
+                                                   compressed=False)
+            if withdraw_proof.var_proofs[0].inclusion:
+                total_withdrawn = int(withdraw_proof.var_proofs[0].value.decode('utf-8')[1:-1])
+        print("\nWithdrawable asset quantity: {} ".format(total_Deposit - total_withdrawn))
+        return total_Deposit - total_withdrawn
+
     def get_bridge_tempo(self, aergo, bridge_address):
         # Get bridge information
         bridge_info = aergo.query_sc_state(bridge_address,
@@ -330,6 +379,15 @@ class Wallet:
                                       bridge_from, bridge_to, lock_height,
                                       asset_address, t_anchor, t_final)
 
+        total_Locks = int(lock_proof.var_proofs[0].value.decode('utf-8')[1:-1])
+        if self.get_minteable_balance(bridge_to, aergo_to, receiver,
+                                      asset_address, total_Locks) == 0:
+            print("All {} already minted, lock assets on {} first"
+                  .format(asset_name, from_chain))
+            aergo_from.disconnect()
+            aergo_to.disconnect()
+            return
+
         print("\n\n------ Mint {} on destination blockchain -----------"
               .format(asset_name))
         try:
@@ -445,6 +503,15 @@ class Wallet:
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
                                       bridge_to, bridge_from, burn_height,
                                       asset_address, t_anchor, t_final)
+
+        total_Burns = int(burn_proof.var_proofs[0].value.decode('utf-8')[1:-1])
+        if self.get_unlockeable_balance(bridge_to, aergo_to, receiver,
+                                        asset_address, total_Burns) == 0:
+            print("All {} already minted, lock assets on {} first"
+                  .format(asset_name, from_chain))
+            aergo_from.disconnect()
+            aergo_to.disconnect()
+            return
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
