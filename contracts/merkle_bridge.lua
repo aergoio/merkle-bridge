@@ -233,6 +233,8 @@ function mint(receiver, balance, token_origin, merkle_proof)
 end
 
 -- burn a sidechain token
+-- mint_address is the token address on the sidechain
+-- the owner of tokens can use a broadcaster and pay fees in tokens instead of aer
 function burn(receiver, amount, mint_address, sender, nonce, fee, deadline, signature)
     local bamount = bignum.number(amount)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)

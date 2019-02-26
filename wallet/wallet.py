@@ -25,8 +25,6 @@ from wallet.exceptions import (
 
 COMMIT_TIME = 3
 
-# TODO remove make transfer_to_sidechain... from readme and replace with wallet
-
 
 class Wallet:
     """ A wallet loads it's private key from config.json and
@@ -117,7 +115,6 @@ class Wallet:
         time.sleep(COMMIT_TIME)
         # Check lock success
         result = aergo.get_tx_result(tx.tx_hash)
-        # TODO handle new result status for aer tx
         if result.status != herapy.TxResultStatus.SUCCESS:
             raise TxError("Transfer asset Tx execution failed : {}"
                           .format(result))
@@ -184,8 +181,7 @@ class Wallet:
         self._config_data[network_name]['tokens'][asset_name] = {}
         self._config_data[network_name]['tokens'][asset_name]['addr'] = sc_address
         self._config_data[network_name]['tokens'][asset_name]['pegs'] = {}
-        with open(path, "w") as f:
-            json.dump(self._config_data, f, indent=4, sort_keys=True)
+        self.save_config(path)
         if disconnect_me:
             aergo.disconnect()
         return True
@@ -197,14 +193,25 @@ class Wallet:
                               amount,
                               sender=None,
                               receiver=None,
-                              priv_key=None):
+                              priv_key=None,
+                              path="./config.json",
+                              t_anchor=None,
+                              t_final=None):
         if priv_key is None:
             priv_key = self._config_data["wallet"]['priv_key']
+        if t_anchor is None:
+            t_anchor = self._config_data["t_anchor"]
+        if t_final is None:
+            t_final = self._config_data["t_final"]
         lock_height = self.initiate_transfer_lock(from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
+        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
+        time.sleep(t_final)
+
         self.finalize_transfer_mint(lock_height, from_chain, to_chain,
-                                    asset_name, receiver, priv_key)
+                                    asset_name, receiver, priv_key,
+                                    path, t_anchor, t_final)
 
     def transfer_from_sidechain(self,
                                 from_chain,
@@ -213,14 +220,24 @@ class Wallet:
                                 amount,
                                 sender=None,
                                 receiver=None,
-                                priv_key=None):
+                                priv_key=None,
+                                t_anchor=None,
+                                t_final=None):
         if priv_key is None:
             priv_key = self._config_data["wallet"]['priv_key']
+        if t_anchor is None:
+            t_anchor = self._config_data["t_anchor"]
+        if t_final is None:
+            t_final = self._config_data["t_final"]
         burn_height = self.initiate_transfer_burn(from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
+        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
+        time.sleep(t_final)
+
         self.finalize_transfer_unlock(burn_height, from_chain, to_chain,
-                                      asset_name, receiver, priv_key)
+                                      asset_name, receiver, priv_key,
+                                      t_anchor, t_final)
 
     def initiate_transfer_lock(self,
                                from_chain,
@@ -286,7 +303,9 @@ class Wallet:
                                asset_name,
                                receiver=None,
                                priv_key=None,
-                               path="./config.json"):
+                               path="./config.json",
+                               t_anchor=None,
+                               t_final=None):
         # NOTE anybody can mint so sender is not necessary
         # amount to mint is the difference between total deposit and
         # already minted amount
@@ -302,13 +321,11 @@ class Wallet:
         bridge_from = self._config_data[from_chain]['bridges'][to_chain]
         bridge_to = self._config_data[to_chain]['bridges'][from_chain]
 
-        print("\n------ Wait finalisation and get lock proof -----------")
+        if t_anchor is None or t_final is None:
+            t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
+
+        print("\n------ Get lock proof -----------")
         asset_address = self._config_data[from_chain]['tokens'][asset_name]['addr']
-        t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
-        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-        time.sleep(t_final)
-        # TODO dont't make a mint transaction if the lock was rolled back.
-        # calculate difference between locked and minted
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
                                       asset_address, t_anchor, t_final)
@@ -340,6 +357,9 @@ class Wallet:
         # record mint address in file
         print("\n------ Store mint address in config.json -----------")
         self._config_data[from_chain]['tokens'][asset_name]['pegs'][to_chain] = token_pegged
+        self.save_config(path)
+
+    def save_config(self, path):
         with open(path, "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
 
@@ -395,7 +415,9 @@ class Wallet:
                                  to_chain,
                                  asset_name,
                                  receiver=None,
-                                 priv_key=None):
+                                 priv_key=None,
+                                 t_anchor=None,
+                                 t_final=None):
         # NOTE anybody can unlock so sender is not necessary
         # amount to unlock is the difference between total burn and
         # already unlocked amount
@@ -412,16 +434,14 @@ class Wallet:
         bridge_to = self._config_data[to_chain]['bridges'][from_chain]
         bridge_from = self._config_data[from_chain]['bridges'][to_chain]
 
-        # TODO store t_anchor and t_final for that bridge in config.json. if it
-        # doesnt exist, only then query to contract and store it for later
-        # store addr, t_anchor, t_final in bridge in confog.json
-        print("\n------ Wait finalisation and get burn proof -----------")
+        if t_anchor is None or t_final is None:
+            t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
+            # TODO store t_anchor and t_final for that bridge in config.json. if it
+            # doesnt exist, only then query to contract and store it for later
+            # store addr, t_anchor, t_final in bridge in confog.json
+
+        print("\n------ Get burn proof -----------")
         asset_address = self._config_data[to_chain]['tokens'][asset_name]['addr']
-        t_anchor, t_final = self.get_bridge_tempo(aergo_to, bridge_to)
-        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-        time.sleep(t_final)
-        # TODO dont't make unlock transaction if the burn was rolled back.
-        # calculate difference between burnt and unlocked
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
                                       bridge_to, bridge_from, burn_height,
                                       asset_address, t_anchor, t_final)
@@ -447,7 +467,7 @@ class Wallet:
 
 if __name__ == '__main__':
 
-    selection = 2
+    selection = 0
 
     with open("./config.json", "r") as f:
         config_data = json.load(f)
@@ -455,7 +475,7 @@ if __name__ == '__main__':
 
     if selection == 0:
         amount = 1*10**18
-        asset = 'aergo'
+        asset = 'token1'
         wallet.transfer_to_sidechain('mainnet',
                                      'sidechain2',
                                      asset,

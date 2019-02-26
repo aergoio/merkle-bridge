@@ -86,6 +86,7 @@ class ValidatorService(BridgeOperatorServicer):
         _, best_height1 = self._aergo1.get_blockchain_status()
         _, best_height2 = self._aergo2.get_blockchain_status()
 
+        # TODO use lib
         is_not_finalized1 = best_height1 < (int(request.anchor1.height)
                                             + self._t_final)
         is_not_finalized2 = best_height2 < (int(request.anchor2.height)

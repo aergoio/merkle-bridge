@@ -193,6 +193,7 @@ class ProposerClient:
                                                                            merged_height2)
 
                     # Calculate finalised block height and root to broadcast
+                    # TODO use lib
                     merge_height1 = best_height1 - self._t_final
                     merge_height2 = best_height2 - self._t_final
                     block1 = self._aergo1.get_block(block_height=merge_height1)
