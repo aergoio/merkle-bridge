@@ -53,8 +53,6 @@ state.var {
 }
 
 function constructor(addresses, t_anchor, t_final)
-    -- TODO deploy sidechain bridge first and register it's address here. so the validators can watch the right contract
-    -- TODO make a setter for T_anchor and T_final with 2/3 sig validation
     T_anchor:set(t_anchor)
     T_final:set(t_final)
     Root:set("constructor")
@@ -96,7 +94,7 @@ end
 
 -- new_validators replaces the list of validators
 -- signers is the index of signers in Validators
-function new_validators(addresses, signers, signatures)
+function update_validators(addresses, signers, signatures)
     old_nonce = Nonce:get()
     message = crypto.sha256(join(addresses)..tostring(old_nonce))
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
@@ -116,6 +114,22 @@ function new_validators(addresses, signers, signatures)
     Nonce:set(old_nonce + 1)
 end
 
+function update_t_anchor(t_anchor, signers, signatures)
+    old_nonce = Nonce:get()
+    message = crypto.sha256(tostring(t_anchor)..tostring(old_nonce))
+    assert(validate_signatures(message, signers, signatures), "Failed signature validation")
+    T_anchor:set(t_anchor)
+    Nonce:set(old_nonce + 1)
+end
+
+function update_t_final(t_final, signers, signatures)
+    old_nonce = Nonce:get()
+    message = crypto.sha256(tostring(t_final)..tostring(old_nonce))
+    assert(validate_signatures(message, signers, signatures), "Failed signature validation")
+    T_final:set(t_final)
+    Nonce:set(old_nonce + 1)
+end
+
 function join(array)
     str = ""
     for i, data in ipairs(array) do
@@ -126,6 +140,7 @@ end
 
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
 -- nonce and signature are used when making a token lockup
+-- the owner of tokens can use a broadcaster and pay fees in tokens instead of aer
 function lock(receiver, amount, token_address, nonce, signature, sender, fee, deadline)
     local bamount = bignum.number(amount)
     local b0 = bignum.number(0)
@@ -146,7 +161,7 @@ function lock(receiver, amount, token_address, nonce, signature, sender, fee, de
                 error("failed to receive token to lock")
             end
         else
-            -- TODO fix standard token, currently doesnt pay fee to tx signer but to caller contract instead
+            -- the owner of tokens doesn't pay aer fees, lock is called by a broadcaster
             if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, fee, deadline, signature) then
                 error("failed to receive token to lock")
             end
@@ -168,6 +183,9 @@ function lock(receiver, amount, token_address, nonce, signature, sender, fee, de
 end
 
 -- mint a foreign token. token_origin is the token address where it is transfered from.
+-- anybody can mint, the receiver is the account who's locked balance is recorded
+-- mint tx fees cannot be payed in tokens (let's the sidechain mint without user having to sign
+-- a delegated mint : better UX if minting handled by sidechain.)
 function mint(receiver, balance, token_origin, merkle_proof)
     local bbalance = bignum.number(balance)
     local b0 = bignum.number(0)
@@ -230,7 +248,7 @@ function burn(receiver, amount, mint_address, sender, nonce, fee, deadline, sign
             error("failed to burn token")
         end
     else
-        -- TODO fix minted token, currently doesnt pay fee to tx signer but to caller contract instead
+        -- the owner of tokens doesn't pay aer fees, burn is called by a broadcaster
         if not contract.call(mint_address, "signed_burn", sender, bignum.tostring(bamount), nonce, fee, deadline, signature) then
             error("failed to burn token")
         end
@@ -251,6 +269,9 @@ function burn(receiver, amount, mint_address, sender, nonce, fee, deadline, sign
 end
 
 -- unlock tokens returning from sidechain
+-- anybody can unlock, the receiver is the account who's burnt balance is recorded
+-- unlock tx fees cannot be payed in tokens (let's the sidechain unlock without user having to sign
+-- a delegated unlock : better UX if unlocking handled by sidechain, fees can still be payed at burn time)
 function unlock(receiver, balance, token_address, merkle_proof)
     local bbalance = bignum.number(balance)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
@@ -537,5 +558,5 @@ abi.register(transfer, signed_transfer, mint, burn, signed_burn)
     return addr, success
 end
 
-abi.register(set_root, new_validators, lock, unlock, mint, burn)
+abi.register(set_root, update_validators, update_t_anchor, update_t_final, lock, unlock, mint, burn)
 abi.payable(lock)
