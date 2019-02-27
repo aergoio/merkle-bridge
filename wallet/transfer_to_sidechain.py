@@ -43,12 +43,13 @@ def lock(aergo_from, bridge_from,
         raise TxError("Lock asset Tx commit failed : {}".format(result))
 
     time.sleep(COMMIT_TIME)
-    # Record lock height
-    _, lock_height = aergo_from.get_blockchain_status()
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Lock asset Tx execution failed : {}".format(result))
+    # get precise lock height
+    tx_detail = aergo_from.get_tx(tx.tx_hash)
+    lock_height = tx_detail.block.height
 
     print("Lock success : ", result.detail)
     return lock_height

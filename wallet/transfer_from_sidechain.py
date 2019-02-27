@@ -19,12 +19,13 @@ def burn(aergo_from, sender, receiver, value, token_pegged, bridge_from):
         raise TxError("Burn asset Tx commit failed : {}".format(result))
 
     time.sleep(COMMIT_TIME)
-    # Record burn height
-    _, burn_height = aergo_from.get_blockchain_status()
     # Check burn success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Burn asset Tx execution failed : {}".format(result))
+    # get precise burn height
+    tx_detail = aergo_from.get_tx(tx.tx_hash)
+    burn_height = tx_detail.block.height
 
     print("Burn success : ", result.detail)
     return burn_height

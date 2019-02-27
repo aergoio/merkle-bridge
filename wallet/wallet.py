@@ -256,7 +256,7 @@ class Wallet:
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-        time.sleep(t_final)
+        time.sleep(t_final-COMMIT_TIME)
 
         self.finalize_transfer_mint(lock_height, from_chain, to_chain,
                                     asset_name, receiver, priv_key,
@@ -282,7 +282,7 @@ class Wallet:
                                                   asset_name, amount, sender,
                                                   receiver, priv_key)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-        time.sleep(t_final)
+        time.sleep(t_final-COMMIT_TIME)
 
         self.finalize_transfer_unlock(burn_height, from_chain, to_chain,
                                       asset_name, receiver, priv_key,
