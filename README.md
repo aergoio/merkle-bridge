@@ -1,6 +1,30 @@
 # merkle-bridge
 POC implementation of the Aergo Merkle Bridge
 
+This repository contains :
+* Bridge contracts
+
+
+* Bridge operator:
+ * Proposer
+ * Validator
+ * Validator set update script
+ * Bridge deployer script
+
+
+* Wallet
+ * Transfer tokens and aergo on any Aergo network
+ * Transfer tokens and aergo **between** Aergo networks
+ * Query balances
+ * Query pending sidechain withdrawals
+ * Sign delegated token transfers to use with a tx broadcaster
+ * Deploy tokens
+
+
+* Transaction broadcaster (TODO) : allows users to make token transfers without paying aer fees.
+
+The operators and wallet both use a config.json file to operate. This file records, network names and ip, token addresses, pegged token addresses, bridge addresses, validators and proposer information (ip and address), wallet private key (TODO:change to encrypted keystore).
+
 ## Install
 ```sh
 $ cd merkle-bridge/
@@ -66,12 +90,16 @@ from wallet.wallet import Wallet
 with open("./config.json", "r") as f:
     c = json.load(f)
 
+# load the compiled bytecode
+with open("./contracts/token_bytecode.txt", "r") as f:
+    b = f.read()[:-1]
+
 # create a wallet
 wallet = Wallet(c)
 
 total_supply = 500*10**18
 # deploy the token and stored the address in config.json
-wallet.deploy_token(p, "token_name", total_supply)
+wallet.deploy_token(b, "token_name", total_supply)
 ```
 
 ### Transfer tokens from mainnet to sidechain and back again
@@ -111,7 +139,7 @@ with open("./config.json", "r") as f:
 # create a wallet
 wallet = Wallet(c)
 
-asset = 'token1' # token name or 'aergo' in config.json 
+asset = 'token1' # token name or 'aergo' in config.json
 balance = wallet.get_balance(account_address, asset_name=asset,
                             network_name='mainnet')
 
@@ -120,7 +148,10 @@ wallet.transfer(2*10**18, to_address, asset_name=asset, network_name='mainnet')
 ```
 
 ### Quick test from scratch
-**Setup node ip addresses in config.json**
+Start 2 test networks
+```sh
+$ make docker
+```
 
 Deploy bridge on mainnet and sidechain, deploy a new token on mainnet.
 ```sh
