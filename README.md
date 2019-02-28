@@ -141,7 +141,7 @@ wallet = Wallet(c)
 
 asset = 'token1' # token name or 'aergo' in config.json
 balance = wallet.get_balance(account_address, asset_name=asset,
-                            network_name='mainnet')
+                             network_name='mainnet')
 
 # transfer 2 assets, uses the 'wallet' priv_key by default
 wallet.transfer(2*10**18, to_address, asset_name=asset, network_name='mainnet')

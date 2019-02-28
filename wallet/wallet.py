@@ -41,6 +41,7 @@ class Wallet:
 
     def get_balance(self, account, asset_name=None, asset_addr=None,
                     aergo=None, priv_key=None, network_name=None):
+        # TODO if account is None, use default wallet address
         balance = 0
         disconnect_me = False
         if aergo is None:
@@ -258,8 +259,8 @@ class Wallet:
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
-        self.finalize_transfer_mint(lock_height, from_chain, to_chain,
-                                    asset_name, receiver, priv_key,
+        self.finalize_transfer_mint(from_chain, to_chain, asset_name,
+                                    receiver, lock_height, priv_key,
                                     path, t_anchor, t_final)
 
     def transfer_from_sidechain(self,
@@ -284,8 +285,8 @@ class Wallet:
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
-        self.finalize_transfer_unlock(burn_height, from_chain, to_chain,
-                                      asset_name, receiver, priv_key,
+        self.finalize_transfer_unlock(from_chain, to_chain, asset_name,
+                                      receiver, burn_height, priv_key,
                                       t_anchor, t_final)
 
     def initiate_transfer_lock(self,
@@ -346,11 +347,11 @@ class Wallet:
         return lock_height
 
     def finalize_transfer_mint(self,
-                               lock_height,
                                from_chain,
                                to_chain,
                                asset_name,
                                receiver=None,
+                               lock_height=0,
                                priv_key=None,
                                path="./config.json",
                                t_anchor=None,
@@ -468,11 +469,11 @@ class Wallet:
         return burn_height
 
     def finalize_transfer_unlock(self,
-                                 burn_height,
                                  from_chain,
                                  to_chain,
                                  asset_name,
                                  receiver=None,
+                                 burn_height=0,
                                  priv_key=None,
                                  t_anchor=None,
                                  t_final=None):
