@@ -33,12 +33,16 @@ class ValidatorService(BridgeOperatorServicer):
 
     def __init__(self, config_data, aergo1, aergo2, validator_index=0):
         self._validator_index = validator_index
-        self._addr1 = config_data[aergo1]['bridges'][aergo2]
-        self._addr2 = config_data[aergo2]['bridges'][aergo1]
-        self._t_anchor = config_data['t_anchor']
-        self._t_final = config_data['t_final']
-        print(" * anchoring periode : ", self._t_anchor, "s\n",
-              "* chain finality periode : ", self._t_final, "s\n")
+        self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
+        self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
+        self._t_anchor1 = config_data[aergo1]['bridges'][aergo2]['t_anchor']
+        self._t_final1 = config_data[aergo1]['bridges'][aergo2]['t_final']
+        self._t_anchor2 = config_data[aergo2]['bridges'][aergo1]['t_anchor']
+        self._t_final2 = config_data[aergo2]['bridges'][aergo1]['t_final']
+        print("{}              <- {} (t_final={}) : t_anchor={}"
+              .format(aergo1, aergo2, self._t_final2, self._t_anchor1))
+        print("{} (t_final={}) -> {}              : t_anchor={}"
+              .format(aergo1, self._t_final1, aergo2, self._t_anchor2))
 
         self._aergo1 = herapy.Aergo()
         self._aergo2 = herapy.Aergo()
@@ -88,9 +92,9 @@ class ValidatorService(BridgeOperatorServicer):
 
         # TODO use lib
         is_not_finalized1 = best_height1 < (int(request.anchor1.height)
-                                            + self._t_final)
+                                            + self._t_final2)
         is_not_finalized2 = best_height2 < (int(request.anchor2.height)
-                                            + self._t_final)
+                                            + self._t_final1)
         if is_not_finalized1 or is_not_finalized2:
             print("anchor not finalized", request)
             return False

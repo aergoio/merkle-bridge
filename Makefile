@@ -1,7 +1,7 @@
 .PHONY: install compile_bridge compile_token deploy_bridge proposer validator protoc wallet deploy_token transfer_to_sidechain transfer_from_sidechain update_validators docker 
 
 install:
-	pip install git+ssh://git@github.com/aergoio/herapy.git@d1cc62274a681b3c50deb5c883bb08b0a590cb1b
+	pip install git+ssh://git@github.com/aergoio/herapy.git@6848d28579e2a66be68352267b5430cdb00643c1
 	pip install deprecated
 
 compile_bridge:

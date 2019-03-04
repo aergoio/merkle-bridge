@@ -8,7 +8,10 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
-def run(config_data, payload_str, mainnet, sidechain, path="./config.json"):
+def run(config_data, payload_str,
+        t_anchor_mainnet, t_final_mainnet,
+        t_anchor_sidechain, t_final_sidechain,
+        mainnet, sidechain, path="./config.json"):
     payload = herapy.utils.decode_address(payload_str)
     print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")
     try:
@@ -30,8 +33,6 @@ def run(config_data, payload_str, mainnet, sidechain, path="./config.json"):
         print("  > Sender Address: {}".format(sender_account.address))
 
         print("------ Deploy SC -----------")
-        t_anchor = config_data['t_anchor']
-        t_final = config_data['t_final']
         # get validators from config file
         validators = []
         for validator in config_data['validators']:
@@ -40,13 +41,13 @@ def run(config_data, payload_str, mainnet, sidechain, path="./config.json"):
         tx1, result1 = aergo1.deploy_sc(amount=0,
                                         payload=payload,
                                         args=[validators,
-                                              t_anchor,
-                                              t_final])
+                                              t_anchor_mainnet,
+                                              t_final_mainnet])
         tx2, result2 = aergo2.deploy_sc(amount=0,
                                         payload=payload,
                                         args=[validators,
-                                              t_anchor,
-                                              t_final])
+                                              t_anchor_sidechain,
+                                              t_final_sidechain])
         if result1.status != herapy.CommitStatus.TX_OK:
             print("    > ERROR[{0}]: {1}"
                   .format(result1.status, result1.detail))
@@ -91,8 +92,14 @@ def run(config_data, payload_str, mainnet, sidechain, path="./config.json"):
         print("  > SC Address CHAIN2: {}".format(sc_address2))
 
         print("------ Store bridge addresses in config.json  -----------")
-        config_data[mainnet]['bridges'][sidechain] = sc_address1
-        config_data[sidechain]['bridges'][mainnet] = sc_address2
+        config_data[mainnet]['bridges'][sidechain] = {}
+        config_data[sidechain]['bridges'][mainnet] = {}
+        config_data[mainnet]['bridges'][sidechain]['addr'] = sc_address1
+        config_data[sidechain]['bridges'][mainnet]['addr'] = sc_address2
+        config_data[mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor_mainnet
+        config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final_mainnet
+        config_data[sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain
+        config_data[sidechain]['bridges'][mainnet]['t_final'] = t_final_sidechain
         with open(path, "w") as f:
             json.dump(config_data, f, indent=4, sort_keys=True)
 
@@ -109,4 +116,11 @@ if __name__ == '__main__':
         config_data = json.load(f)
     with open("./contracts/bridge_bytecode.txt", "r") as f:
         payload_str = f.read()[:-1]
-    run(config_data, payload_str, mainnet='mainnet', sidechain='sidechain2')
+    t_anchor_mainnet = 10 # sidechain anchoring periord on mainnet
+    t_final_mainnet = 10
+    t_anchor_sidechain = 10 # mainnet anchoring periord on sidechain
+    t_final_sidechain = 10
+    run(config_data, payload_str,
+        t_anchor_mainnet, t_final_mainnet,
+        t_anchor_sidechain, t_final_sidechain,
+        mainnet='mainnet', sidechain='sidechain2')

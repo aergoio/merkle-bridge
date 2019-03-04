@@ -42,8 +42,8 @@ class ProposerClient:
 
     def __init__(self, config_data, aergo1, aergo2):
         self._config_data = config_data
-        self._addr1 = config_data[aergo1]['bridges'][aergo2]
-        self._addr2 = config_data[aergo2]['bridges'][aergo1]
+        self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
+        self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
 
         # create all channels with validators
         self._channels = []
@@ -58,10 +58,18 @@ class ProposerClient:
 
         self._pool = Pool(len(self._stubs))
 
-        self._t_anchor = self._config_data['t_anchor']
-        self._t_final = self._config_data['t_final']
-        print(" * anchoring periode : ", self._t_anchor, "s\n",
-              "* chain finality periode : ", self._t_final, "s\n")
+        self._t_anchor1 = config_data[aergo1]['bridges'][aergo2]['t_anchor']
+        self._t_final1 = config_data[aergo1]['bridges'][aergo2]['t_final']
+        self._t_anchor2 = config_data[aergo2]['bridges'][aergo1]['t_anchor']
+        self._t_final2 = config_data[aergo2]['bridges'][aergo1]['t_final']
+        print("{}              <- {} (t_final={}) : t_anchor={}"
+              .format(aergo1, aergo2, self._t_final2, self._t_anchor1))
+        print("{} (t_final={}) -> {}              : t_anchor={}"
+              .format(aergo1, self._t_final1, aergo2, self._t_anchor2))
+        # TODO support proposer and validator with different tempo for both
+        # sides of bridge
+        self._t_anchor = self._t_anchor1
+        self._t_final = self._t_final1
 
         self._aergo1 = herapy.Aergo()
         self._aergo2 = herapy.Aergo()
@@ -138,6 +146,8 @@ class ProposerClient:
         return sigs1[:two_thirds], sigs2[:two_thirds], validator_indexes[:two_thirds]
 
     def wait_for_next_anchor(self, merged_height1, merged_height2):
+        # TODO make a single proposer to handle different anchoring and
+        # finalized periods for both chains
         while True:
             # Get origin and destination best height
             _, best_height1 = self._aergo1.get_blockchain_status()

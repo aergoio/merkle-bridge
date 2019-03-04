@@ -1,7 +1,11 @@
 {
     "mainnet": {
         "bridges": {
-            "": "bridge address to aergo2"
+            "": {
+                "addr": "bridge address to aergo2",
+                "t_anchor": "t_anchor integer",
+                "t_final": "t_final integer"
+            }
         },
         "ip": "localhost:7845",
         "tokens": {
@@ -19,12 +23,14 @@
     },
     "sidechain2": {
         "bridges": {
-            "": "bridge address to aergo1"
+            "": {
+                "addr": "bridge address to aergo1",
+                "t_anchor": "t_anchor integer",
+                "t_final": "t_final integer"
+            }
         },
         "ip": "localhost:8845"
     },
-    "t_anchor": 10,
-    "t_final": 10,
     "validators": [
         {
             "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
