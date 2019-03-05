@@ -57,14 +57,14 @@ class ValidatorsManager:
         aergo2 = herapy.Aergo()
         aergo1.connect(config_data[network1]['ip'])
         aergo2.connect(config_data[network2]['ip'])
-        bridge1 = self._config_data[network1]['bridges'][network2]
-        bridge2 = self._config_data[network2]['bridges'][network1]
+        bridge1 = self._config_data[network1]['bridges'][network2]['addr']
+        bridge2 = self._config_data[network2]['bridges'][network1]['addr']
         validators1 = self.query_validators(aergo1, bridge1)
         validators2 = self.query_validators(aergo2, bridge2)
         return validators1, validators2
 
-    @classmethod
-    def query_validators(cls, aergo, bridge):
+    @staticmethod
+    def query_validators(aergo, bridge):
         nb_validators_q = aergo.query_sc_state(bridge,
                                                ["_sv_Nb_Validators"])
         nb_validators = int(nb_validators_q.var_proofs[0].value)
@@ -84,14 +84,14 @@ class ValidatorsManager:
         aergo2 = herapy.Aergo()
         aergo1.connect(config_data[network1]['ip'])
         aergo2.connect(config_data[network2]['ip'])
-        bridge1 = self._config_data[network1]['bridges'][network2]
-        bridge2 = self._config_data[network2]['bridges'][network1]
+        bridge1 = self._config_data[network1]['bridges'][network2]['addr']
+        bridge2 = self._config_data[network2]['bridges'][network1]['addr']
         tempo1 = self.query_tempo(aergo1, bridge1, tempo)
         tempo2 = self.query_tempo(aergo2, bridge2, tempo)
         return tempo1, tempo2
 
-    @classmethod
-    def query_tempo(cls, aergo, bridge, tempo):
+    @staticmethod
+    def query_tempo(aergo, bridge, tempo):
         tempo_q = aergo.query_sc_state(bridge, ["_sv_" + tempo])
         tempo = int(tempo_q.var_proofs[0].value)
         return tempo
@@ -106,8 +106,8 @@ class ValidatorsManager:
         return self._sign_tempo(t_final, network1, network2,
                                 priv_key, validator_index)
 
-    @classmethod
-    def _tempo_digest(cls, tempo, bridge, aergo):
+    @staticmethod
+    def _tempo_digest(tempo, bridge, aergo):
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
@@ -120,8 +120,8 @@ class ValidatorsManager:
         if priv_key is None:
             priv_key = self._config_data['validators'][validator_index]['priv_key']
         aergo1, aergo2 = self.get_aergo_providers(network1, network2, priv_key)
-        bridge1 = self._config_data[network1]['bridges'][network2]
-        bridge2 = self._config_data[network2]['bridges'][network1]
+        bridge1 = self._config_data[network1]['bridges'][network2]['addr']
+        bridge2 = self._config_data[network2]['bridges'][network1]['addr']
         h1 = self._tempo_digest(t_anchor, bridge1, aergo1)
         h2 = self._tempo_digest(t_anchor, bridge2, aergo2)
         sig1 = aergo1.account.private_key.sign_msg(h1)
@@ -148,8 +148,8 @@ class ValidatorsManager:
         if priv_key is None:
             priv_key = self._config_data['validators'][validator_index]['priv_key']
         aergo1, aergo2 = self.get_aergo_providers(network1, network2, priv_key)
-        bridge1 = self._config_data[network1]['bridges'][network2]
-        bridge2 = self._config_data[network2]['bridges'][network1]
+        bridge1 = self._config_data[network1]['bridges'][network2]['addr']
+        bridge2 = self._config_data[network2]['bridges'][network1]['addr']
         h1 = self._tempo_digest(tempo, bridge1, aergo1)
         h2 = self._tempo_digest(tempo, bridge2, aergo2)
 
@@ -174,8 +174,8 @@ class ValidatorsManager:
         print("\nSuccess {} on {} and {}"
               .format(function, network1, network2))
 
-    @classmethod
-    def _update_tempo_tx(cls, aergo, bridge_address,
+    @staticmethod
+    def _update_tempo_tx(aergo, bridge_address,
                          function, tempo, signers, signatures):
         tx, result = aergo.call_sc(bridge_address, function,
                                    args=[tempo, signers, signatures])
@@ -190,8 +190,8 @@ class ValidatorsManager:
         if priv_key is None:
             priv_key = self._config_data['validators'][validator_index]['priv_key']
         aergo1, aergo2 = self.get_aergo_providers(network1, network2, priv_key)
-        bridge1 = self._config_data[network1]['bridges'][network2]
-        bridge2 = self._config_data[network2]['bridges'][network1]
+        bridge1 = self._config_data[network1]['bridges'][network2]['addr']
+        bridge2 = self._config_data[network2]['bridges'][network1]['addr']
 
         h1 = self._new_validators_digest(aergo1, bridge1, new_validators)
         h2 = self._new_validators_digest(aergo2, bridge2, new_validators)
@@ -199,8 +199,8 @@ class ValidatorsManager:
         sig2 = aergo2.account.private_key.sign_msg(h2)
         return sig1, sig2
 
-    @classmethod
-    def _new_validators_digest(cls, aergo, bridge, new_validators):
+    @staticmethod
+    def _new_validators_digest(aergo, bridge, new_validators):
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
@@ -219,8 +219,8 @@ class ValidatorsManager:
         if priv_key is None:
             priv_key = self._config_data["proposer"]['priv_key']
         aergo1, aergo2 = self.get_aergo_providers(network1, network2, priv_key)
-        bridge1 = self._config_data[network1]['bridges'][network2]
-        bridge2 = self._config_data[network2]['bridges'][network1]
+        bridge1 = self._config_data[network1]['bridges'][network2]['addr']
+        bridge2 = self._config_data[network2]['bridges'][network1]['addr']
         h1 = self._new_validators_digest(aergo1, bridge1, new_validators)
         h2 = self._new_validators_digest(aergo2, bridge2, new_validators)
 
@@ -250,8 +250,8 @@ class ValidatorsManager:
         print("\nDon't forget to use a new config file with the new " +
               "validators and their ip addresses when restarting the bridge\n")
 
-    @classmethod
-    def _update_validators_tx(cls, new_validators, signers, signatures,
+    @staticmethod
+    def _update_validators_tx(new_validators, signers, signatures,
                               bridge_address, aergo):
         tx, result = aergo.call_sc(bridge_address, "update_validators",
                                    args=[new_validators, signers, signatures])

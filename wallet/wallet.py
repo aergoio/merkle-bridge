@@ -66,13 +66,14 @@ class Wallet:
         else:
             if asset_addr is None:
                 if asset_name is None or network_name is None:
-                    raise InvalidArgumentsError("Provide asset address or name and origin")
+                    raise InvalidArgumentsError("Provide asset address "
+                                                "or name and origin")
                 if asset_origin is None:
                     # query a token issued on network_name
                     asset_addr = self._config_data[network_name]['tokens'][asset_name]['addr']
                 else:
-                    # query a pegged token (from asset_origin) balance on network_name sidechain
-                    # (token or aer)
+                    # query a pegged token (from asset_origin) balance
+                    # on network_name sidechain (token or aer)
                     asset_addr = self._config_data[asset_origin]['tokens'][asset_name]['pegs'][network_name]
             balance_q = aergo.query_sc_state(asset_addr,
                                              ["_sv_Balances-" +
@@ -89,16 +90,20 @@ class Wallet:
                               bridge_from=None, aergo_from=None):
         return self._bridge_withdrawable_balance("_sv_Locks-", "_sv_Mints-",
                                                  bridge_to, aergo_to, receiver,
-                                                 asset_address_origin, total_Deposit=total_Locks,
-                                                 bridge_from=bridge_from, aergo_from=aergo_from)
+                                                 asset_address_origin,
+                                                 total_Deposit=total_Locks,
+                                                 bridge_from=bridge_from,
+                                                 aergo_from=aergo_from)
 
     def get_unlockeable_balance(self, bridge_to, aergo_to, receiver,
                                 asset_address_origin, total_Burns=None,
                                 bridge_from=None, aergo_from=None):
         return self._bridge_withdrawable_balance("_sv_Burns-", "_sv_Unlocks-",
                                                  bridge_to, aergo_to, receiver,
-                                                 asset_address_origin, total_Deposit=total_Burns,
-                                                 bridge_from=bridge_from, aergo_from=aergo_from)
+                                                 asset_address_origin,
+                                                 total_Deposit=total_Burns,
+                                                 bridge_from=bridge_from,
+                                                 aergo_from=aergo_from)
 
     def _bridge_withdrawable_balance(self, deposit_key, withdraw_key,
                                      bridge_to, aergo_to, receiver,
@@ -113,7 +118,8 @@ class Wallet:
                                                       withdraw_key + account_ref],
                                                      compressed=False)
             if withdraw_proof.var_proofs[0].inclusion:
-                total_withdrawn = int(withdraw_proof.var_proofs[1].value.decode('utf-8')[1:-1])
+                total_withdrawn = int(withdraw_proof.var_proofs[1].value
+                                      .decode('utf-8')[1:-1])
             last_merged_height_to = int(withdraw_proof.var_proofs[0].value)
             merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
             deposit_proof = aergo_from.query_sc_state(bridge_from,
@@ -121,16 +127,19 @@ class Wallet:
                                                       root=merge_block_from.blocks_root_hash,
                                                       compressed=False)
             if deposit_proof.var_proofs[0].inclusion:
-                total_Deposit = int(deposit_proof.var_proofs[0].value.decode('utf-8')[1:-1])
+                total_Deposit = int(deposit_proof.var_proofs[0].value
+                                    .decode('utf-8')[1:-1])
             else:
                 total_Deposit = 0
         else:
             withdraw_proof = aergo_to.query_sc_state(bridge_to,
-                                                   [withdraw_key + account_ref],
-                                                   compressed=False)
+                                                     [withdraw_key + account_ref],
+                                                     compressed=False)
             if withdraw_proof.var_proofs[0].inclusion:
-                total_withdrawn = int(withdraw_proof.var_proofs[0].value.decode('utf-8')[1:-1])
-        print("\nWithdrawable asset quantity: {} ".format(total_Deposit - total_withdrawn))
+                total_withdrawn = int(withdraw_proof.var_proofs[0].value
+                                      .decode('utf-8')[1:-1])
+        print("\nWithdrawable asset quantity: {} "
+              .format(total_Deposit - total_withdrawn))
         return total_Deposit - total_withdrawn
 
     def get_bridge_tempo(self, from_chain, to_chain,
@@ -145,7 +154,8 @@ class Wallet:
                                            ["_sv_T_anchor",
                                             "_sv_T_final",
                                             ])
-        t_anchor, t_final = [int(item.value) for item in bridge_info.var_proofs]
+        t_anchor, t_final = [int(item.value)
+                             for item in bridge_info.var_proofs]
         if save_in_config is True:
             self._config_data[to_chain]['bridges'][from_chain]["t_anchor"] = t_anchor
             self._config_data[to_chain]['bridges'][from_chain]["t_final"] = t_final
@@ -229,7 +239,8 @@ class Wallet:
                                               "_sv_Nonces-" + sender,
                                               "_sv_ContractID"
                                               ])
-        balance_p, nonce_p, contractID_p = [item.value for item in initial_state.var_proofs]
+        balance_p, nonce_p, contractID_p = \
+            [item.value for item in initial_state.var_proofs]
         balance = int(json.loads(balance_p)["_bignum"])
 
         try:
@@ -595,13 +606,14 @@ if __name__ == '__main__':
 
     if selection == 0:
         amount = 1*10**18
-        asset = 'aergo'
+        asset = 'token1'
         wallet.transfer_to_sidechain('mainnet',
                                      'sidechain2',
                                      asset,
                                      amount)
-        balance, _ = wallet.get_balance(asset_name=asset, asset_origin='mainnet',
-                           network_name='sidechain2')
+        balance, _ = wallet.get_balance(asset_name=asset,
+                                        asset_origin='mainnet',
+                                        network_name='sidechain2')
         print("Get {} balance on sidechain2 : {}".format(asset, balance))
         wallet.transfer_from_sidechain('sidechain2',
                                        'mainnet',

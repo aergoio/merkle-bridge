@@ -2,30 +2,25 @@ syntax = "proto3";
 
 service BridgeOperator {
     // Get signatures of anchoring messages on aergo1 and aergo2
-    rpc GetAnchorSignature(Proposals) returns (Approvals) {}
-}
-
-message Proposals {
-    // anchor from aergo1
-    Anchor anchor1 = 1;
-    // anchor from aergo2
-    Anchor anchor2 = 2;
+    rpc GetAnchorSignature(Anchor) returns (Approval) {}
 }
 
 message Anchor {
+    // flag to know which chain this anchor is from
+    bool is_from_mainnet = 1;
     // root to be merged on sidechain
-    string root = 1;
+    string root = 2;
     // height to be merged on sidechain
-    string height = 2;
+    string height = 3;
     // sidechain update nonce
-    string destination_nonce = 3;
+    string destination_nonce = 4;
 }
 
-message Approvals {
+message Approval {
     // address of the private key that produced sig1 and sig2
     string address = 1;
-    // signature of anchor1
-    bytes sig1 = 2;
-    // signature of anchor2
-    bytes sig2 = 3;
+    // signature of anchor
+    bytes sig = 2;
+    // error message why the requested anchor is invalid
+    string error = 3;
 }

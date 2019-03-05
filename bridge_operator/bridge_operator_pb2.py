@@ -19,30 +19,44 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n%bridge_operator/bridge_operator.proto\"?\n\tProposals\x12\x18\n\x07\x61nchor1\x18\x01 \x01(\x0b\x32\x07.Anchor\x12\x18\n\x07\x61nchor2\x18\x02 \x01(\x0b\x32\x07.Anchor\"A\n\x06\x41nchor\x12\x0c\n\x04root\x18\x01 \x01(\t\x12\x0e\n\x06height\x18\x02 \x01(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\t\"8\n\tApprovals\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0c\n\x04sig1\x18\x02 \x01(\x0c\x12\x0c\n\x04sig2\x18\x03 \x01(\x0c\x32@\n\x0e\x42ridgeOperator\x12.\n\x12GetAnchorSignature\x12\n.Proposals\x1a\n.Approvals\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n%bridge_operator/bridge_operator.proto\"Z\n\x06\x41nchor\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\x0c\n\x04root\x18\x02 \x01(\t\x12\x0e\n\x06height\x18\x03 \x01(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x04 \x01(\t\"7\n\x08\x41pproval\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0b\n\x03sig\x18\x02 \x01(\x0c\x12\r\n\x05\x65rror\x18\x03 \x01(\t2<\n\x0e\x42ridgeOperator\x12*\n\x12GetAnchorSignature\x12\x07.Anchor\x1a\t.Approval\"\x00\x62\x06proto3')
 )
 
 
 
 
-_PROPOSALS = _descriptor.Descriptor(
-  name='Proposals',
-  full_name='Proposals',
+_ANCHOR = _descriptor.Descriptor(
+  name='Anchor',
+  full_name='Anchor',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='anchor1', full_name='Proposals.anchor1', index=0,
-      number=1, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='is_from_mainnet', full_name='Anchor.is_from_mainnet', index=0,
+      number=1, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='anchor2', full_name='Proposals.anchor2', index=1,
-      number=2, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='root', full_name='Anchor.root', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='height', full_name='Anchor.height', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='destination_nonce', full_name='Anchor.destination_nonce', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -59,33 +73,33 @@ _PROPOSALS = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=41,
-  serialized_end=104,
+  serialized_end=131,
 )
 
 
-_ANCHOR = _descriptor.Descriptor(
-  name='Anchor',
-  full_name='Anchor',
+_APPROVAL = _descriptor.Descriptor(
+  name='Approval',
+  full_name='Approval',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='root', full_name='Anchor.root', index=0,
+      name='address', full_name='Approval.address', index=0,
       number=1, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='height', full_name='Anchor.height', index=1,
-      number=2, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      name='sig', full_name='Approval.sig', index=1,
+      number=2, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='destination_nonce', full_name='Anchor.destination_nonce', index=2,
+      name='error', full_name='Approval.error', index=2,
       number=3, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=_b("").decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
@@ -103,68 +117,13 @@ _ANCHOR = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=106,
-  serialized_end=171,
+  serialized_start=133,
+  serialized_end=188,
 )
 
-
-_APPROVALS = _descriptor.Descriptor(
-  name='Approvals',
-  full_name='Approvals',
-  filename=None,
-  file=DESCRIPTOR,
-  containing_type=None,
-  fields=[
-    _descriptor.FieldDescriptor(
-      name='address', full_name='Approvals.address', index=0,
-      number=1, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='sig1', full_name='Approvals.sig1', index=1,
-      number=2, type=12, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b(""),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-    _descriptor.FieldDescriptor(
-      name='sig2', full_name='Approvals.sig2', index=2,
-      number=3, type=12, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b(""),
-      message_type=None, enum_type=None, containing_type=None,
-      is_extension=False, extension_scope=None,
-      serialized_options=None, file=DESCRIPTOR),
-  ],
-  extensions=[
-  ],
-  nested_types=[],
-  enum_types=[
-  ],
-  serialized_options=None,
-  is_extendable=False,
-  syntax='proto3',
-  extension_ranges=[],
-  oneofs=[
-  ],
-  serialized_start=173,
-  serialized_end=229,
-)
-
-_PROPOSALS.fields_by_name['anchor1'].message_type = _ANCHOR
-_PROPOSALS.fields_by_name['anchor2'].message_type = _ANCHOR
-DESCRIPTOR.message_types_by_name['Proposals'] = _PROPOSALS
 DESCRIPTOR.message_types_by_name['Anchor'] = _ANCHOR
-DESCRIPTOR.message_types_by_name['Approvals'] = _APPROVALS
+DESCRIPTOR.message_types_by_name['Approval'] = _APPROVAL
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
-
-Proposals = _reflection.GeneratedProtocolMessageType('Proposals', (_message.Message,), dict(
-  DESCRIPTOR = _PROPOSALS,
-  __module__ = 'bridge_operator.bridge_operator_pb2'
-  # @@protoc_insertion_point(class_scope:Proposals)
-  ))
-_sym_db.RegisterMessage(Proposals)
 
 Anchor = _reflection.GeneratedProtocolMessageType('Anchor', (_message.Message,), dict(
   DESCRIPTOR = _ANCHOR,
@@ -173,12 +132,12 @@ Anchor = _reflection.GeneratedProtocolMessageType('Anchor', (_message.Message,),
   ))
 _sym_db.RegisterMessage(Anchor)
 
-Approvals = _reflection.GeneratedProtocolMessageType('Approvals', (_message.Message,), dict(
-  DESCRIPTOR = _APPROVALS,
+Approval = _reflection.GeneratedProtocolMessageType('Approval', (_message.Message,), dict(
+  DESCRIPTOR = _APPROVAL,
   __module__ = 'bridge_operator.bridge_operator_pb2'
-  # @@protoc_insertion_point(class_scope:Approvals)
+  # @@protoc_insertion_point(class_scope:Approval)
   ))
-_sym_db.RegisterMessage(Approvals)
+_sym_db.RegisterMessage(Approval)
 
 
 
@@ -188,16 +147,16 @@ _BRIDGEOPERATOR = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=231,
-  serialized_end=295,
+  serialized_start=190,
+  serialized_end=250,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetAnchorSignature',
     full_name='BridgeOperator.GetAnchorSignature',
     index=0,
     containing_service=None,
-    input_type=_PROPOSALS,
-    output_type=_APPROVALS,
+    input_type=_ANCHOR,
+    output_type=_APPROVAL,
     serialized_options=None,
   ),
 ])

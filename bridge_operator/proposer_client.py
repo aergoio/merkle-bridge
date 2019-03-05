@@ -7,6 +7,7 @@ import json
 from multiprocessing.dummy import (
     Pool,
 )
+import threading
 import time
 
 import aergo.herapy as herapy
@@ -20,11 +21,11 @@ from bridge_operator.bridge_operator_pb2_grpc import (
 )
 from bridge_operator.bridge_operator_pb2 import (
     Anchor,
-    Proposals,
 )
 
 
 COMMIT_TIME = 3
+_ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 
 class ValidatorMajorityError(Exception):
@@ -45,11 +46,11 @@ class ProposerClient:
         self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
         self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
 
+        print("------ Connect to Validators -----------")
         # create all channels with validators
         self._channels = []
         self._stubs = []
         for validator in self._config_data['validators']:
-            # TODO start proposer even if not all validators are online
             ip = validator['ip']
             channel = grpc.insecure_channel(ip)
             stub = BridgeOperatorStub(channel)
@@ -63,13 +64,9 @@ class ProposerClient:
         self._t_anchor2 = config_data[aergo2]['bridges'][aergo1]['t_anchor']
         self._t_final2 = config_data[aergo2]['bridges'][aergo1]['t_final']
         print("{}              <- {} (t_final={}) : t_anchor={}"
-              .format(aergo1, aergo2, self._t_final2, self._t_anchor1))
+              .format(aergo1, aergo2, self._t_final1, self._t_anchor1))
         print("{} (t_final={}) -> {}              : t_anchor={}"
-              .format(aergo1, self._t_final1, aergo2, self._t_anchor2))
-        # TODO support proposer and validator with different tempo for both
-        # sides of bridge
-        self._t_anchor = self._t_anchor1
-        self._t_final = self._t_final1
+              .format(aergo1, self._t_final2, aergo2, self._t_anchor2))
 
         self._aergo1 = herapy.Aergo()
         self._aergo2 = herapy.Aergo()
@@ -78,212 +75,207 @@ class ProposerClient:
         self._aergo1.connect(self._config_data[aergo1]['ip'])
         self._aergo2.connect(self._config_data[aergo2]['ip'])
 
-        print("------ Set Sender Account -----------")
         sender_priv_key1 = self._config_data["proposer"]['priv_key']
         sender_priv_key2 = self._config_data["proposer"]['priv_key']
         sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
         self._aergo2.new_account(private_key=sender_priv_key2)
         self._aergo1.get_account()
         self._aergo2.get_account()
-        print("  > Sender Address: {}".format(sender_account.address))
+        print("  > Proposer Address: {}".format(sender_account.address))
 
-    def get_validators_signatures(self, anchor_msg1, anchor_msg2):
-        root1, merge_height1, nonce2 = anchor_msg1
-        root2, merge_height2, nonce1 = anchor_msg2
+        self.kill_proposer_threads = False
+
+    def get_validators_signatures(self, anchor_msg, tab):
+        is_from_mainnet, root, merge_height, nonce = anchor_msg
 
         # messages to get signed
-        msg1 = bytes(root1 + str(merge_height1) + str(nonce2), 'utf-8')
-        msg2 = bytes(root2 + str(merge_height2) + str(nonce1), 'utf-8')
-        h1 = hashlib.sha256(msg1).digest()
-        h2 = hashlib.sha256(msg2).digest()
+        msg = bytes(root + str(merge_height) + str(nonce), 'utf-8')
+        h = hashlib.sha256(msg).digest()
 
-        anchor1 = Anchor(root=root1,
-                         height=str(merge_height1),
-                         destination_nonce=str(nonce2))
-        anchor2 = Anchor(root=root2,
-                         height=str(merge_height2),
-                         destination_nonce=str(nonce1))
-        proposal = Proposals(anchor1=anchor1, anchor2=anchor2)
+        anchor = Anchor(is_from_mainnet=is_from_mainnet,
+                        root=root,
+                        height=str(merge_height),
+                        destination_nonce=str(nonce))
 
         # get validator signatures and verify sig in worker
         validator_indexes = [i for i in range(len(self._stubs))]
-        worker = partial(self.get_signature_worker, proposal, h1, h2)
+        worker = partial(self.get_signature_worker, tab, anchor, h)
         approvals = self._pool.map(worker, validator_indexes)
 
-        sigs1, sigs2, validator_indexes = self.extract_signatures(approvals)
+        sigs, validator_indexes = self.extract_signatures(approvals)
 
-        return sigs1, sigs2, validator_indexes
+        return sigs, validator_indexes
 
-    def get_signature_worker(self, proposal, h1, h2, index):
+    def get_signature_worker(self, tab, anchor, h, index):
         try:
-            approval = self._stubs[index].GetAnchorSignature(proposal)
+            approval = self._stubs[index].GetAnchorSignature(anchor)
         except grpc.RpcError:
+            return None
+        if approval.error:
+            print("{}{}".format(tab, approval.error))
             return None
         if approval.address != self._config_data['validators'][index]['addr']:
             # check nothing is wrong with validator address
+            print("{}Unexpected validato {} address : {}"
+                  .format(tab, index, approval.address))
             return None
         # validate signature
-        if not verify_sig(h1, approval.sig1, approval.address):
-            return None
-        if not verify_sig(h2, approval.sig2, approval.address):
+        if not verify_sig(h, approval.sig, approval.address):
+            print("{}Invalid signature from validator {}"
+                  .format(tab, index))
             return None
         return approval
 
     def extract_signatures(self, approvals):
-        sigs1, sigs2, validator_indexes = [], [], []
+        sigs, validator_indexes = [], []
         for i, approval in enumerate(approvals):
             if approval is not None:
                 # convert to hex string for lua
-                sigs1.append('0x' + approval.sig1.hex())
-                sigs2.append('0x' + approval.sig2.hex())
+                sigs.append('0x' + approval.sig.hex())
                 validator_indexes.append(i+1)
         total_validators = len(self._config_data['validators'])
-        if 3 * len(sigs1) < 2 * total_validators:
+        if 3 * len(sigs) < 2 * total_validators:
             raise ValidatorMajorityError()
         # slice 2/3 of total validators
         two_thirds = ((total_validators * 2) // 3
                       + ((total_validators * 2) % 3 > 0))
-        return sigs1[:two_thirds], sigs2[:two_thirds], validator_indexes[:two_thirds]
+        return sigs[:two_thirds], validator_indexes[:two_thirds]
 
-    def wait_for_next_anchor(self, merged_height1, merged_height2):
-        # TODO make a single proposer to handle different anchoring and
-        # finalized periods for both chains
-        while True:
+    @staticmethod
+    def wait_next_anchor(merged_height, aergo, t_final, t_anchor):
+        _, best_height = aergo.get_blockchain_status()
+        # TODO use real lib from rpc
+        lib = best_height - t_final
+        wait = (merged_height + t_anchor) - lib
+        while wait > 0:
+            print("waiting new anchor time :", wait, "s ...")
+            time.sleep(wait)
             # Get origin and destination best height
-            _, best_height1 = self._aergo1.get_blockchain_status()
-            _, best_height2 = self._aergo2.get_blockchain_status()
-
-            # Waite best height - t_final >= merge block height + t_anchor
-            wait1 = best_height1 - self._t_final - (merged_height1 + self._t_anchor)
-            wait2 = best_height2 - self._t_final - (merged_height2 + self._t_anchor)
-            if wait1 >= 0 and wait2 >= 0:
-                break
-            # choose the longest time to wait.
-            longest_wait = 0
-            if wait1 < longest_wait:
-                longest_wait = wait1
-            if wait2 < longest_wait:
-                longest_wait = wait2
-            print("waiting new anchor time :", -longest_wait, "s ...")
-            time.sleep(-longest_wait)
-        return best_height1, best_height2
+            _, best_height = aergo.get_blockchain_status()
+            # Wait best height - t_final >= merge block height + t_anchor
+            lib = best_height - t_final
+            wait = (merged_height + t_anchor) - lib
+        return lib
 
     def run(self):
+        self.kill_proposer_threads = False
+        print("------ START BRIDGE OPERATOR -----------\n")
+        print("{}MAINNET{}SIDECHAIN".format("\t", "\t"*4))
+        from_mainnet_args = (self._t_anchor2, self._t_final2,
+                             self._aergo1, self._aergo2,
+                             self._addr1, self._addr2, True, "\t"*5)
+        to_mainnet_args = (self._t_anchor1, self._t_final1,
+                           self._aergo2, self._aergo1,
+                           self._addr2, self._addr1, False)
+        t_mainnet = threading.Thread(target=self.bridge_worker,
+                                     args=from_mainnet_args)
+        t_sidechain = threading.Thread(target=self.bridge_worker,
+                                       args=to_mainnet_args)
+        t_mainnet.start()
+        t_sidechain.start()
         try:
-            print("------ START BRIDGE OPERATOR -----------")
             while True:
-
-                # Get last merge information
-                merge_info1 = self._aergo1.query_sc_state(self._addr1,
-                                                          ["_sv_Height",
-                                                           "_sv_Root",
-                                                           "_sv_Nonce"
-                                                           ])
-                merge_info2 = self._aergo2.query_sc_state(self._addr2,
-                                                          ["_sv_Height",
-                                                           "_sv_Root",
-                                                           "_sv_Nonce"
-                                                           ])
-                merged_height2, merged_root2, nonce1 = [proof.value for proof in merge_info1.var_proofs]
-                merged_height2 = int(merged_height2)
-                nonce1 = int(nonce1)
-
-                merged_height1, merged_root1, nonce2 = [proof.value for proof in merge_info2.var_proofs]
-                merged_height1 = int(merged_height1)
-                nonce2 = int(nonce2)
-                print(" __\n| last merged heights :",
-                      merged_height1, merged_height2)
-                print("| last merged contract trie roots: {}..., {}..."
-                      .format(merged_root1[:20], merged_root2[:20]))
-                print("| current update nonces:", nonce1, nonce2)
-
-                while True:
-                    # Wait for the next anchor time
-                    best_height1, best_height2 = self.wait_for_next_anchor(merged_height1,
-                                                                           merged_height2)
-
-                    # Calculate finalised block height and root to broadcast
-                    # TODO use lib
-                    merge_height1 = best_height1 - self._t_final
-                    merge_height2 = best_height2 - self._t_final
-                    block1 = self._aergo1.get_block(block_height=merge_height1)
-                    block2 = self._aergo2.get_block(block_height=merge_height2)
-                    contract1 = self._aergo1.get_account(address=self._addr1,
-                                                         proof=True,
-                                                         root=block1.blocks_root_hash)
-                    contract2 = self._aergo2.get_account(address=self._addr2,
-                                                         proof=True,
-                                                         root=block2.blocks_root_hash)
-                    root1 = contract1.state_proof.state.storageRoot.hex()
-                    root2 = contract2.state_proof.state.storageRoot.hex()
-                    if len(root1) == 0 or len(root2) == 0:
-                        print("waiting deployment finalization...")
-                        time.sleep(self._t_final/4)
-                        continue
-
-                    print("anchoring new roots :'0x{}...', '0x{}...'"
-                          .format(root1[:17], root2[:17]))
-                    print("Gathering signatures from validators ...")
-
-                    try:
-                        anchor_msg1 = root1, merge_height1, nonce2
-                        anchor_msg2 = root2, merge_height2, nonce1
-                        sigs1, sigs2, validator_indexes = self.get_validators_signatures(anchor_msg1,
-                                                                                         anchor_msg2)
-                    except ValidatorMajorityError:
-                        print("Failed to gather 2/3 validators signatures, waiting for next anchor...")
-                        time.sleep(self._t_anchor)
-                        continue
-                    break
-
-                # Broadcast finalised merge block
-                tx2, result2 = self._aergo2.call_sc(self._addr2, "set_root",
-                                                    args=[root1, merge_height1,
-                                                          validator_indexes,
-                                                          sigs1])
-                tx1, result1 = self._aergo1.call_sc(self._addr1, "set_root",
-                                                    args=[root2, merge_height2,
-                                                          validator_indexes,
-                                                          sigs2])
-                if result2.status != herapy.CommitStatus.TX_OK:
-                    print("Anchor on aergo2 Tx commit failed : {}".format(result2))
-                    self._aergo1.disconnect()
-                    self._aergo2.disconnect()
-                    return
-                if result1.status != herapy.CommitStatus.TX_OK:
-                    print("Anchor on aergo1 Tx commit failed : {}".format(result1))
-                    self._aergo1.disconnect()
-                    self._aergo2.disconnect()
-                    return
-
-                time.sleep(COMMIT_TIME)
-                result1 = self._aergo1.get_tx_result(tx1.tx_hash)
-                if result1.status != herapy.TxResultStatus.SUCCESS:
-                    print("  > ERROR[{0}]:{1}: {2}"
-                          .format(result1.contract_address, result1.status, result1.detail))
-                    self._aergo1.disconnect()
-                    self._aergo2.disconnect()
-                    return
-                result2 = self._aergo2.get_tx_result(tx2.tx_hash)
-                if result2.status != herapy.TxResultStatus.SUCCESS:
-                    print("  > ERROR[{0}]:{1}: {2}"
-                          .format(result2.contract_address, result2.status, result2.detail))
-                    self._aergo1.disconnect()
-                    self._aergo2.disconnect()
-                    return
-
-                # Wait t_anchor
-                print("anchor success, waiting new anchor time :", self._t_anchor-COMMIT_TIME, "s ...")
-                time.sleep(self._t_anchor-COMMIT_TIME)
-
+                time.sleep(_ONE_DAY_IN_SECONDS)
         except KeyboardInterrupt:
-            print("Shutting down proposer")
+            print("\nInitiating proposer shutdown")
+            self.kill_proposer_threads = True
+            t_mainnet.join()
+            t_sidechain.join()
             self.shutdown()
 
+    def bridge_worker(self, t_anchor_to, t_final_from,
+                      aergo_from, aergo_to, bridge_from, bridge_to,
+                      is_from_mainnet, tab=""):
+        while True:
+            # Get last merge information
+            merge_info_from = aergo_to.query_sc_state(bridge_to,
+                                                      ["_sv_Height",
+                                                       "_sv_Root",
+                                                       "_sv_Nonce"
+                                                       ])
+            merged_height_from, merged_root_from, nonce_to = \
+                [proof.value for proof in merge_info_from.var_proofs]
+            merged_height_from = int(merged_height_from)
+            nonce_to = int(nonce_to)
+
+            print("{0} __\n"
+                  "{0}| last merged height : {1}\n"
+                  "{0}| last merged contract trie root :{2}...\n"
+                  "{0}| current update nonce: {3}\n"
+                  .format(tab, merged_height_from,
+                          merged_root_from[:20], nonce_to))
+
+            while True:
+                # Wait for the next anchor time
+                next_anchor_height = self.wait_next_anchor(merged_height_from,
+                                                           aergo_from,
+                                                           t_final_from,
+                                                           t_anchor_to)
+                # Get root of next anchor to broadcast
+                block = aergo_from.get_block(block_height=next_anchor_height)
+                contract = aergo_from.get_account(address=bridge_from,
+                                                  proof=True,
+                                                  root=block.blocks_root_hash)
+                root = contract.state_proof.state.storageRoot.hex()
+                if len(root) == 0:
+                    print("{}waiting deployment finalization...".format(tab))
+                    time.sleep(t_final_from/4)
+                    continue
+
+                print("{}anchoring new root :'0x{}...'"
+                      .format(tab, root[:17]))
+                print("{}Gathering signatures from validators ..."
+                      .format(tab))
+
+                try:
+                    anchor_msg = is_from_mainnet, root, next_anchor_height, \
+                        nonce_to
+                    sigs, validator_indexes = \
+                        self.get_validators_signatures(anchor_msg, tab)
+                except ValidatorMajorityError:
+                    print("{0}Failed to gather 2/3 validators signatures,\n"
+                          "{0}waiting for next anchor..."
+                          .format(tab))
+                    if self.kill_proposer_threads:
+                        print("{}stopping thread".format(tab))
+                        return
+                    time.sleep(t_anchor_to)
+                    continue
+                break
+
+            # Broadcast finalised merge block
+            tx, result = aergo_to.call_sc(bridge_to, "set_root",
+                                          args=[root, next_anchor_height,
+                                                validator_indexes,
+                                                sigs])
+            if result.status != herapy.CommitStatus.TX_OK:
+                print("{}Anchor on aergo Tx commit failed : {}"
+                      .format(tab, result))
+                return
+
+            time.sleep(COMMIT_TIME)
+            result = aergo_to.get_tx_result(tx.tx_hash)
+            # TODO handle result not success for example somebody else already
+            # set_root
+            if result.status != herapy.TxResultStatus.SUCCESS:
+                print("  > ERROR[{0}]:{1}: {2}"
+                      .format(result.contract_address,
+                              result.status, result.detail))
+                return
+
+            # Wait t_anchor
+            print("{0}anchor success,\n{0}waiting new anchor time : {1}s ..."
+                  .format(tab, t_anchor_to-COMMIT_TIME))
+            if self.kill_proposer_threads:
+                print("{}stopping thread".format(tab))
+                return
+            time.sleep(t_anchor_to-COMMIT_TIME)
+
     def shutdown(self):
-        print("------ Disconnect AERGO -----------")
+        print("\nDisconnecting AERGO")
         self._aergo1.disconnect()
         self._aergo2.disconnect()
+        print("Closing channels")
         for channel in self._channels:
             channel.close()
 

@@ -16,8 +16,8 @@ class BridgeOperatorStub(object):
     """
     self.GetAnchorSignature = channel.unary_unary(
         '/BridgeOperator/GetAnchorSignature',
-        request_serializer=bridge__operator_dot_bridge__operator__pb2.Proposals.SerializeToString,
-        response_deserializer=bridge__operator_dot_bridge__operator__pb2.Approvals.FromString,
+        request_serializer=bridge__operator_dot_bridge__operator__pb2.Anchor.SerializeToString,
+        response_deserializer=bridge__operator_dot_bridge__operator__pb2.Approval.FromString,
         )
 
 
@@ -37,8 +37,8 @@ def add_BridgeOperatorServicer_to_server(servicer, server):
   rpc_method_handlers = {
       'GetAnchorSignature': grpc.unary_unary_rpc_method_handler(
           servicer.GetAnchorSignature,
-          request_deserializer=bridge__operator_dot_bridge__operator__pb2.Proposals.FromString,
-          response_serializer=bridge__operator_dot_bridge__operator__pb2.Approvals.SerializeToString,
+          request_deserializer=bridge__operator_dot_bridge__operator__pb2.Anchor.FromString,
+          response_serializer=bridge__operator_dot_bridge__operator__pb2.Approval.SerializeToString,
       ),
   }
   generic_handler = grpc.method_handlers_generic_handler(
