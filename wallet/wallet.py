@@ -564,16 +564,6 @@ class Wallet:
                                       asset_address, t_anchor, t_final)
 
         total_Locks = int(lock_proof.var_proofs[0].value.decode('utf-8')[1:-1])
-        # Don't waist a mint transaction if all is already minted.
-        # TODO remove this, minteable balance should be checked outside if
-        # finalize transfer mint is called without transfer_to_sidechain
-        if self.get_minteable_balance(bridge_to, aergo_to, receiver,
-                                      asset_address, total_Locks) == 0:
-            print("All {} already minted, lock assets on {} first"
-                  .format(asset_name, from_chain))
-            aergo_from.disconnect()
-            aergo_to.disconnect()
-            return
 
         print("\n\n------ Mint {} on destination blockchain -----------"
               .format(asset_name))
@@ -712,15 +702,6 @@ class Wallet:
                                       asset_address, t_anchor, t_final)
 
         total_Burns = int(burn_proof.var_proofs[0].value.decode('utf-8')[1:-1])
-        # TODO remove this, minteable balance should be checked outside if
-        # finalize transfer mint is called without transfer_to_sidechain
-        if self.get_unlockeable_balance(bridge_to, aergo_to, receiver,
-                                        asset_address, total_Burns) == 0:
-            print("All {} already minted, lock assets on {} first"
-                  .format(asset_name, from_chain))
-            aergo_from.disconnect()
-            aergo_to.disconnect()
-            return
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
@@ -751,7 +732,7 @@ if __name__ == '__main__':
 
     if selection == 0:
         amount = 1*10**18
-        asset = 'token1'
+        asset = 'aergo'
         wallet.transfer_to_sidechain('mainnet',
                                      'sidechain2',
                                      asset,
