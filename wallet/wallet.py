@@ -31,8 +31,11 @@ class Wallet:
     implements the functionality to transfer tokens to sidechains
     """
 
-    def __init__(self, config_data, aer=False):
+    def __init__(self, config_file_path):
+        with open(config_file_path, "r") as f:
+            config_data = json.load(f)
         self._config_data = config_data
+        self._config_path = config_file_path
 
     def config_data(self, *json_path, value=None):
         """ Get the value in nested dictionary at the end of
@@ -45,6 +48,12 @@ class Wallet:
         if value is not None:
             config_dict[json_path[-1]] = value
         return config_dict[json_path[-1]]
+
+    def save_config(self, path=None):
+        if path is None:
+            path = self._config_path
+        with open(path, "w") as f:
+            json.dump(self._config_data, f, indent=4, sort_keys=True)
 
     def _connect_aergo(self, network_name):
         aergo = herapy.Aergo()
@@ -224,12 +233,18 @@ class Wallet:
         to_chain,
         aergo=None,
         bridge_address=None,
-        save_in_config=False,
-        path=""
+        sync=False
     ):
         """ Return the anchoring periode of from_chain onto to_chain
         and minimum finality time of from_chain
         """
+        if not sync:
+            t_anchor = self.config_data(to_chain, 'bridges', from_chain,
+                                        "t_anchor")
+            t_final = self.config_data(to_chain, 'bridges', from_chain,
+                                       "t_final")
+            return t_anchor, t_final
+        print("\nGetting latest t_anchor and t_final from bridge contract...")
         if aergo is None:
             aergo = self._connect_aergo(to_chain)
         if bridge_address is None:
@@ -242,12 +257,11 @@ class Wallet:
                                             ])
         t_anchor, t_final = [int(item.value)
                              for item in bridge_info.var_proofs]
-        if save_in_config is True:
-            self.config_data(to_chain, 'bridges', from_chain, "t_anchor",
-                             value=t_anchor)
-            self.config_data(to_chain, 'bridges', from_chain, "t_final",
-                             value=t_final)
-            self.save_config(path)
+        self.config_data(to_chain, 'bridges', from_chain, "t_anchor",
+                         value=t_anchor)
+        self.config_data(to_chain, 'bridges', from_chain, "t_final",
+                         value=t_final)
+        self.save_config()
         return t_anchor, t_final
 
     def transfer(
@@ -367,10 +381,9 @@ class Wallet:
         aergo=None,
         receiver=None,
         priv_key=None,
-        path="./config.json"
     ):
         """ Deploy a new standard token, store the address in
-        config_data and with config file to path
+        config_data
         """
         disconnect_me = False
         if aergo is None:
@@ -391,7 +404,7 @@ class Wallet:
                          value=sc_address)
         self.config_data(network_name, 'tokens', asset_name, 'pegs',
                          value={})
-        self.save_config(path)
+        self.save_config()
         if disconnect_me:
             aergo.disconnect()
         return True
@@ -404,8 +417,7 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        priv_key=None,
-        path="./config.json",
+        priv_key=None
     ):
         """ Transfer assets from from_chain to to_chain.
         The asset being transfered to the to_chain sidechain
@@ -413,9 +425,7 @@ class Wallet:
         """
         if priv_key is None:
             priv_key = self.config_data("wallet", 'priv_key')
-        t_anchor = self.config_data(to_chain, 'bridges', from_chain,
-                                    "t_anchor")
-        t_final = self.config_data(to_chain, 'bridges', from_chain, "t_final")
+        _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
 
         lock_height = self.initiate_transfer_lock(from_chain, to_chain,
                                                   asset_name, amount, sender,
@@ -424,8 +434,7 @@ class Wallet:
         time.sleep(t_final-COMMIT_TIME)
 
         self.finalize_transfer_mint(from_chain, to_chain, asset_name,
-                                    receiver, lock_height, priv_key,
-                                    path, t_anchor, t_final)
+                                    receiver, lock_height, priv_key)
 
     def transfer_from_sidechain(
         self,
@@ -435,8 +444,7 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        priv_key=None,
-        path="./config.json",
+        priv_key=None
     ):
         """ Transfer assets from from_chain to to_chain
         The asset being transfered back to the to_chain native chain
@@ -444,9 +452,7 @@ class Wallet:
         """
         if priv_key is None:
             priv_key = self.config_data("wallet", 'priv_key')
-        t_anchor = self.config_data(to_chain, 'bridges', from_chain,
-                                    "t_anchor")
-        t_final = self.config_data(to_chain, 'bridges', from_chain, "t_final")
+        _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
 
         burn_height = self.initiate_transfer_burn(from_chain, to_chain,
                                                   asset_name, amount, sender,
@@ -455,8 +461,7 @@ class Wallet:
         time.sleep(t_final-COMMIT_TIME)
 
         self.finalize_transfer_unlock(from_chain, to_chain, asset_name,
-                                      receiver, burn_height, priv_key,
-                                      path, t_anchor, t_final)
+                                      receiver, burn_height, priv_key)
 
     def initiate_transfer_lock(
         self,
@@ -525,18 +530,14 @@ class Wallet:
         receiver=None,
         lock_height=0,
         priv_key=None,
-        path="./config.json",
-        t_anchor=None,
-        t_final=None
     ):
         """
         Finalize a transfer of assets to a sidechain by minting then
         after the lock is final and a new anchor was made.
-        NOTE anybody can mint so sender is not necessary
-        amount to mint is the difference between total deposit and
-        already minted amount
-        t_anchor and t_final can be know by caller if recorded in config.json,
-        if not they will be queried and stored in the config file.
+        NOTE anybody can mint so sender is not necessary.
+        The amount to mint is the difference between total deposit and
+        already minted amount.
+        Bridge tempo is taken from config_data
         """
         if priv_key is None:
             priv_key = self.config_data('wallet', 'priv_key')
@@ -550,11 +551,7 @@ class Wallet:
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
 
-        if t_anchor is None or t_final is None:
-            # is tempo not provided query bridge contract
-            t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain,
-                                                      aergo_to, bridge_to,
-                                                      True, path)
+        t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain)
 
         print("\n------ Get lock proof -----------")
         asset_address = self.config_data(from_chain, 'tokens',
@@ -562,8 +559,6 @@ class Wallet:
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
                                       asset_address, t_anchor, t_final)
-
-        total_Locks = int(lock_proof.var_proofs[0].value.decode('utf-8')[1:-1])
 
         print("\n\n------ Mint {} on destination blockchain -----------"
               .format(asset_name))
@@ -592,16 +587,11 @@ class Wallet:
         aergo_to.disconnect()
 
         # record mint address in file
-        print("\n------ Store mint address in config.json -----------")
         if save_pegged_token_address:
+            print("\n------ Store mint address in config.json -----------")
             self.config_data(from_chain, 'tokens', asset_name, 'pegs',
                              to_chain, value=token_pegged)
-            self.save_config(path)
-
-    def save_config(self, path):
-        # TODO store the config path at object creation and use that as default
-        with open(path, "w") as f:
-            json.dump(self._config_data, f, indent=4, sort_keys=True)
+            self.save_config()
 
     def initiate_transfer_burn(
         self,
@@ -662,18 +652,14 @@ class Wallet:
         receiver=None,
         burn_height=0,
         priv_key=None,
-        path="./config.json",
-        t_anchor=None,
-        t_final=None
     ):
         """
         Finalize a transfer of assets from a sidechain by unlocking then
         after the burn is final and a new anchor was made.
-        NOTE anybody can unlock so sender is not necessary
-        amount to unlock is the difference between total burn and
-        already unlocked amount
-        t_anchor and t_final can be know by caller if recorded in config.json,
-        if not they will be queried and stored in the config file.
+        NOTE anybody can unlock so sender is not necessary.
+        The amount to unlock is the difference between total burn and
+        already unlocked amount.
+        Bridge tempo is taken from config_data
         """
         if priv_key is None:
             priv_key = self.config_data('wallet', 'priv_key')
@@ -688,11 +674,7 @@ class Wallet:
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
 
-        if t_anchor is None or t_final is None:
-            # is tempo not provided query bridge contract
-            t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain,
-                                                      aergo_to, bridge_to,
-                                                      True, path)
+        t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain)
 
         print("\n------ Get burn proof -----------")
         asset_address = self.config_data(to_chain, 'tokens', asset_name,
@@ -700,8 +682,6 @@ class Wallet:
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
                                       bridge_to, bridge_from, burn_height,
                                       asset_address, t_anchor, t_final)
-
-        total_Burns = int(burn_proof.var_proofs[0].value.decode('utf-8')[1:-1])
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
@@ -726,9 +706,7 @@ if __name__ == '__main__':
 
     selection = 0
 
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
-    wallet = Wallet(config_data)
+    wallet = Wallet("./config.json")
 
     if selection == 0:
         amount = 1*10**18
@@ -751,8 +729,8 @@ if __name__ == '__main__':
         total_supply = 500*10**6*10**18
         wallet.deploy_token(payload_str, "token2", total_supply)
     elif selection == 2:
-        to = config_data['validators'][0]['addr']
-        sender = config_data['wallet']['addr']
+        to = wallet._config_data['validators'][0]['addr']
+        sender = wallet._config_data['wallet']['addr']
         asset = 'token1'
         amount = 2
         result = wallet.get_balance(to, asset_name=asset,
