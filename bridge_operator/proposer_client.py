@@ -243,6 +243,7 @@ class ProposerClient:
                     continue
                 break
 
+            # TODO don't broadcast if somebody else already did
             # Broadcast finalised merge block
             tx, result = aergo_to.call_sc(bridge_to, "set_root",
                                           args=[root, next_anchor_height,
