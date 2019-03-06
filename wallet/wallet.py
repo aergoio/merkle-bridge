@@ -55,6 +55,13 @@ class Wallet:
         with open(path, "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
 
+    def _load_priv_key(self, key_name='default'):
+        """ Load and prompt user password to decrypt priv_key."""
+        # TODO don't store priv_key in config.json, only it's name and path to
+        # file
+        priv_key = self.config_data('wallet', 'priv_key')
+        return priv_key
+
     def _connect_aergo(self, network_name):
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network_name, 'ip'))
@@ -62,15 +69,14 @@ class Wallet:
 
     def get_aergo(
         self,
-        priv_key,
+        privkey_name,
         network_name,
         skip_state=False
     ):
         """ Return aergo provider with new account created with
         priv_key
         """
-        if priv_key is None:
-            priv_key = self.config_data('wallet', 'priv_key')
+        priv_key = self._load_priv_key(privkey_name)
         if network_name is None:
             raise InvalidArgumentsError("Provide network_name")
         aergo = self._connect_aergo(network_name)
@@ -84,7 +90,6 @@ class Wallet:
         asset_origin=None,
         asset_addr=None,
         aergo=None,
-        priv_key=None,
         network_name=None
     ):
         """ Get an account or the default wallet balance of Aer
@@ -103,7 +108,7 @@ class Wallet:
         if account is None:
             account = self.config_data('wallet', 'addr')
         if aergo is None:
-            aergo = self.get_aergo(priv_key, network_name)
+            aergo = self._connect_aergo(network_name)
             disconnect_me = True
         if (asset_name == "aergo" and asset_origin is None) \
                 or asset_addr == "aergo":
@@ -272,7 +277,7 @@ class Wallet:
         asset_origin=None,
         asset_addr=None,
         aergo=None,
-        priv_key=None,
+        privkey_name=None,
         network_name=None
     ):
         """ usage:
@@ -288,7 +293,7 @@ class Wallet:
             raise InvalidArgumentsError("specify asset to transfer")
         disconnect_me = False
         if aergo is None:
-            aergo = self.get_aergo(priv_key, network_name)
+            aergo = self.get_aergo(privkey_name, network_name)
             disconnect_me = True
         else:
             aergo.get_account()  # get the latest nonce for making tx
@@ -334,13 +339,13 @@ class Wallet:
         fee=0,
         deadline=0,
         aergo=None,
-        priv_key=None,
+        privkey_name=None,
         network_name=None
     ):
         """Sign a standard token transfer to be broadcasted by a 3rd party"""
         disconnect_me = False
         if aergo is None:
-            aergo = self.get_aergo(priv_key, network_name,
+            aergo = self.get_aergo(privkey_name, network_name,
                                    skip_state=True)  # state not needed
             disconnect_me = True
         # get current balance and nonce
@@ -380,14 +385,14 @@ class Wallet:
         network_name='mainnet',
         aergo=None,
         receiver=None,
-        priv_key=None,
+        privkey_name=None,
     ):
         """ Deploy a new standard token, store the address in
         config_data
         """
         disconnect_me = False
         if aergo is None:
-            aergo = self.get_aergo(priv_key, network_name)
+            aergo = self.get_aergo(privkey_name, network_name)
             disconnect_me = True
         else:
             aergo.get_account()  # get latest nonce for tx
@@ -417,24 +422,22 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        priv_key=None
+        privkey_name=None
     ):
         """ Transfer assets from from_chain to to_chain.
         The asset being transfered to the to_chain sidechain
         should be native of from_chain
         """
-        if priv_key is None:
-            priv_key = self.config_data("wallet", 'priv_key')
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
 
         lock_height = self.initiate_transfer_lock(from_chain, to_chain,
                                                   asset_name, amount, sender,
-                                                  receiver, priv_key)
+                                                  receiver, privkey_name)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
         self.finalize_transfer_mint(from_chain, to_chain, asset_name,
-                                    receiver, lock_height, priv_key)
+                                    receiver, lock_height, privkey_name)
 
     def transfer_from_sidechain(
         self,
@@ -444,24 +447,22 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        priv_key=None
+        privkey_name=None
     ):
         """ Transfer assets from from_chain to to_chain
         The asset being transfered back to the to_chain native chain
         should be a minted asset on the sidechain.
         """
-        if priv_key is None:
-            priv_key = self.config_data("wallet", 'priv_key')
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
 
         burn_height = self.initiate_transfer_burn(from_chain, to_chain,
                                                   asset_name, amount, sender,
-                                                  receiver, priv_key)
+                                                  receiver, privkey_name)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
         self.finalize_transfer_unlock(from_chain, to_chain, asset_name,
-                                      receiver, burn_height, priv_key)
+                                      receiver, burn_height, privkey_name)
 
     def initiate_transfer_lock(
         self,
@@ -471,11 +472,10 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        priv_key=None
+        privkey_name=None
     ):
         """ Initiate a transfer to a sidechain by locking the asset."""
-        if priv_key is None:
-            priv_key = self.config_data('wallet', 'priv_key')
+        priv_key = self._load_priv_key(privkey_name)
 
         aergo_from = self._connect_aergo(from_chain)
 
@@ -529,7 +529,7 @@ class Wallet:
         asset_name,
         receiver=None,
         lock_height=0,
-        priv_key=None,
+        privkey_name=None
     ):
         """
         Finalize a transfer of assets to a sidechain by minting then
@@ -539,8 +539,7 @@ class Wallet:
         already minted amount.
         Bridge tempo is taken from config_data
         """
-        if priv_key is None:
-            priv_key = self.config_data('wallet', 'priv_key')
+        priv_key = self._load_priv_key(privkey_name)
 
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self._connect_aergo(to_chain)
@@ -601,11 +600,10 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        priv_key=None
+        privkey_name=None
     ):
         """ Initiate a transfer from a sidechain by burning the assets."""
-        if priv_key is None:
-            priv_key = self.config_data('wallet', 'priv_key')
+        priv_key = self._load_priv_key(privkey_name)
 
         aergo_from = self._connect_aergo(from_chain)
 
@@ -651,7 +649,7 @@ class Wallet:
         asset_name,
         receiver=None,
         burn_height=0,
-        priv_key=None,
+        privkey_name=None,
     ):
         """
         Finalize a transfer of assets from a sidechain by unlocking then
@@ -661,12 +659,10 @@ class Wallet:
         already unlocked amount.
         Bridge tempo is taken from config_data
         """
-        if priv_key is None:
-            priv_key = self.config_data('wallet', 'priv_key')
+        priv_key = self._load_priv_key(privkey_name)
 
         aergo_to = self._connect_aergo(to_chain)
         aergo_from = self._connect_aergo(from_chain)
-        aergo_to.new_account(private_key=priv_key)
         unlocker_account = aergo_to.new_account(private_key=priv_key)
         if receiver is None:
             receiver = unlocker_account.address.__str__()

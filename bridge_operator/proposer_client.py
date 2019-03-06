@@ -148,6 +148,7 @@ class ProposerClient:
         lib = best_height - t_final
         wait = (merged_height + t_anchor) - lib
         while wait > 0:
+            # TODO return if kill thread raise KillThread
             print("waiting new anchor time :", wait, "s ...")
             time.sleep(wait)
             # Get origin and destination best height
