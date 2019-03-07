@@ -62,6 +62,11 @@ class Wallet:
         priv_key = self.config_data('wallet', 'priv_key')
         return priv_key
 
+    def _get_wallet_address(self, account_name='default'):
+        # TODO store different account names for different keys in wallet
+        addr = self.config_data('wallet', 'addr')
+        return addr
+
     def _connect_aergo(self, network_name):
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network_name, 'ip'))
@@ -85,35 +90,36 @@ class Wallet:
 
     def get_balance(
         self,
-        account=None,
+        account_addr=None,
         asset_name=None,
-        asset_origin=None,
+        asset_origin_chain=None,
         asset_addr=None,
         aergo=None,
-        network_name=None
+        network_name=None,
+        account_name=None,
     ):
         """ Get an account or the default wallet balance of Aer
         or any token on a given network.
         usages:
-            get_balance(asset_name, asset_origin, network_name)
+            get_balance(asset_name, asset_origin_chain, network_name)
             get_balance(asset_name, network_name)
-                -> asset_name was issued on network_name :asset_origin defaults
-                to network name
+                -> asset_name was issued on network_name :asset_origin_chain
+                defaults to network name
             get_balance(asset_addr, network_name)
             get_balance(asset_addr, aergo_provider)
             ...
         """
         balance = 0
         disconnect_me = False
-        if account is None:
-            account = self.config_data('wallet', 'addr')
+        if account_addr is None:
+            account_addr = self._get_wallet_address(account_name)
         if aergo is None:
             aergo = self._connect_aergo(network_name)
             disconnect_me = True
-        if (asset_name == "aergo" and asset_origin is None) \
+        if (asset_name == "aergo" and asset_origin_chain is None) \
                 or asset_addr == "aergo":
             # query aergo bits on network_name
-            ret_account = aergo.get_account(address=account)
+            ret_account = aergo.get_account(address=account_addr)
             balance = ret_account.balance
             asset_addr = asset_name
         else:
@@ -121,19 +127,19 @@ class Wallet:
                 if asset_name is None or network_name is None:
                     raise InvalidArgumentsError("Provide asset address "
                                                 "or name and origin")
-                if asset_origin is None:
+                if asset_origin_chain is None:
                     # query a token issued on network_name
                     asset_addr = self.config_data(network_name, 'tokens',
                                                   asset_name, 'addr')
                 else:
-                    # query a pegged token (from asset_origin) balance
+                    # query a pegged token (from asset_origin_chain) balance
                     # on network_name sidechain (token or aer)
-                    asset_addr = self.config_data(asset_origin, 'tokens',
+                    asset_addr = self.config_data(asset_origin_chain, 'tokens',
                                                   asset_name, 'pegs',
                                                   network_name)
             balance_q = aergo.query_sc_state(asset_addr,
                                              ["_sv_Balances-" +
-                                              account
+                                              account_addr
                                               ])
             if balance_q.var_proofs[0].inclusion:
                 balance = json.loads(balance_q.var_proofs[0].value)['_bignum']
@@ -143,84 +149,104 @@ class Wallet:
 
     def get_minteable_balance(
         self,
-        bridge_to,
-        aergo_to,
-        receiver,
-        asset_address_origin,
-        total_Locks=None,
-        bridge_from=None,
-        aergo_from=None
+        from_chain,
+        to_chain,
+        asset_name,
+        asset_origin_chain,
+        **kwargs
     ):
         """ Get the balance that has been locked on one side of the
         bridge and not yet minted on the other side
         """
         return self._bridge_withdrawable_balance("_sv_Locks-", "_sv_Mints-",
-                                                 bridge_to, aergo_to, receiver,
-                                                 asset_address_origin,
-                                                 total_Deposit=total_Locks,
-                                                 bridge_from=bridge_from,
-                                                 aergo_from=aergo_from)
+                                                 from_chain, to_chain,
+                                                 asset_name,
+                                                 asset_origin_chain,
+                                                 **kwargs)
 
     def get_unlockeable_balance(
         self,
-        bridge_to,
-        aergo_to, receiver,
-        asset_address_origin,
-        total_Burns=None,
-        bridge_from=None,
-        aergo_from=None
+        from_chain,
+        to_chain,
+        asset_name,
+        asset_origin_chain,
+        **kwargs
     ):
         """ Get the balance that has been burnt on one side of the
         bridge and not yet unlocked on the other side
         """
         return self._bridge_withdrawable_balance("_sv_Burns-", "_sv_Unlocks-",
-                                                 bridge_to, aergo_to, receiver,
-                                                 asset_address_origin,
-                                                 total_Deposit=total_Burns,
-                                                 bridge_from=bridge_from,
-                                                 aergo_from=aergo_from)
+                                                 from_chain, to_chain,
+                                                 asset_name,
+                                                 asset_origin_chain,
+                                                 **kwargs)
 
     def _bridge_withdrawable_balance(
         self,
         deposit_key,
         withdraw_key,
-        bridge_to,
-        aergo_to,
-        receiver,
-        asset_address_origin,
-        total_Deposit=None,
-        bridge_from=None,
-        aergo_from=None
+        from_chain,
+        to_chain,
+        asset_name,
+        asset_origin_chain,
+        account_name=None,
+        account_addr=None,
+        total_deposit=None,
+        pending=False
     ):
         """ Get the balance that has been locked/burnt on one side of the
         bridge and not yet minted/unlocked on the other side.
         Calculates the difference between the total amount deposited and
         total amount withdrawn.
+        Set pending to true to include deposits than have not yet been anchored
         """
+        if account_addr is None:
+            account_addr = self._get_wallet_address(account_name)
+        asset_address_origin = self.config_data(asset_origin_chain, 'tokens',
+                                                asset_name, 'addr')
+        account_ref = account_addr + asset_address_origin
+        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
+        bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
+        aergo_from = self._connect_aergo(from_chain)
+        aergo_to = self._connect_aergo(to_chain)
+
         total_withdrawn = 0
-        account_ref = receiver + asset_address_origin
-        if total_Deposit is None:
-            # get the lock proof for the last anchored block on aergo_to
-            withdraw_proof = aergo_to.query_sc_state(
-                bridge_to, ["_sv_Height", withdraw_key + account_ref],
-                compressed=False
-            )
-            if withdraw_proof.var_proofs[0].inclusion:
-                total_withdrawn = int(withdraw_proof.var_proofs[1].value
-                                      .decode('utf-8')[1:-1])
-            last_merged_height_to = int(withdraw_proof.var_proofs[0].value)
-            merge_block_from = aergo_from.get_block(
-                block_height=last_merged_height_to
+        if total_deposit is None:
+            total_deposit = 0
+            block_height = 0
+            if pending:
+                # get the height of the latest aergo_from height (includes non
+                # finalized deposits).
+                _, block_height = aergo_from.get_blockchain_status()
+                withdraw_proof = aergo_to.query_sc_state(
+                    bridge_to, [withdraw_key + account_ref], compressed=False
+                )
+                if withdraw_proof.var_proofs[0].inclusion:
+                    total_withdrawn = int(withdraw_proof.var_proofs[0].value
+                                          .decode('utf-8')[1:-1])
+            else:
+                # get the height for the last anchored block on aergo_to (only
+                # finalized deposits
+                withdraw_proof = aergo_to.query_sc_state(
+                    bridge_to, ["_sv_Height", withdraw_key + account_ref],
+                    compressed=False
+                )
+                if withdraw_proof.var_proofs[1].inclusion:
+                    total_withdrawn = int(withdraw_proof.var_proofs[1].value
+                                          .decode('utf-8')[1:-1])
+                block_height = int(withdraw_proof.var_proofs[0].value)
+
+            # calculate total deposit at block_height
+            block_from = aergo_from.get_block(
+                block_height=block_height
             )
             deposit_proof = aergo_from.query_sc_state(
                 bridge_from, [deposit_key + account_ref],
-                root=merge_block_from.blocks_root_hash, compressed=False
+                root=block_from.blocks_root_hash, compressed=False
             )
             if deposit_proof.var_proofs[0].inclusion:
-                total_Deposit = int(deposit_proof.var_proofs[0].value
+                total_deposit = int(deposit_proof.var_proofs[0].value
                                     .decode('utf-8')[1:-1])
-            else:
-                total_Deposit = 0
         else:
             withdraw_proof = aergo_to.query_sc_state(
                 bridge_to, [withdraw_key + account_ref], compressed=False
@@ -228,9 +254,9 @@ class Wallet:
             if withdraw_proof.var_proofs[0].inclusion:
                 total_withdrawn = int(withdraw_proof.var_proofs[0].value
                                       .decode('utf-8')[1:-1])
-        print("\nWithdrawable asset quantity: {} "
-              .format(total_Deposit - total_withdrawn))
-        return total_Deposit - total_withdrawn
+        aergo_from.disconnect()
+        aergo_to.disconnect()
+        return total_deposit - total_withdrawn
 
     def get_bridge_tempo(
         self,
@@ -262,6 +288,7 @@ class Wallet:
                                             ])
         t_anchor, t_final = [int(item.value)
                              for item in bridge_info.var_proofs]
+        aergo.disconnect()
         self.config_data(to_chain, 'bridges', from_chain, "t_anchor",
                          value=t_anchor)
         self.config_data(to_chain, 'bridges', from_chain, "t_final",
@@ -274,17 +301,17 @@ class Wallet:
         value,
         to,
         asset_name=None,
-        asset_origin=None,
+        asset_origin_chain=None,
         asset_addr=None,
         aergo=None,
         privkey_name=None,
         network_name=None
     ):
         """ usage:
-            transfer(value, to, asset_name, asset_origin, network_name)
+            transfer(value, to, asset_name, asset_origin_chain, network_name)
             transfer(value, to, asset_name, network_name)
-                -> asset_name was issued on network_name :asset_origin defaults
-                to network name
+                -> asset_name was issued on network_name :asset_origin_chain
+                defaults to network name
             transfer(value, to, asset_addr, network_name)
             transfer(value, to, asset_addr, aergo_provider)
             ...
@@ -300,9 +327,9 @@ class Wallet:
         sender = aergo.account.address.__str__()
 
         balance, asset_addr = self.get_balance(sender,
-                                               asset_name, asset_origin,
+                                               asset_name, asset_origin_chain,
                                                asset_addr, aergo,
-                                               network_name=network_name)
+                                               network_name)
         if balance < value:
             raise InsufficientBalanceError("not enough balance")
 
@@ -433,6 +460,10 @@ class Wallet:
         lock_height = self.initiate_transfer_lock(from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, privkey_name)
+        minteable = self.get_minteable_balance(from_chain, to_chain,
+                                               asset_name, from_chain,
+                                               pending=True)
+        print("pending mint: ", minteable)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
@@ -458,6 +489,10 @@ class Wallet:
         burn_height = self.initiate_transfer_burn(from_chain, to_chain,
                                                   asset_name, amount, sender,
                                                   receiver, privkey_name)
+        unlockeable = self.get_unlockeable_balance(from_chain, to_chain,
+                                                   asset_name, to_chain,
+                                                   pending=True)
+        print("pending unlock: ", unlockeable)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
@@ -712,7 +747,7 @@ if __name__ == '__main__':
                                      asset,
                                      amount)
         balance, _ = wallet.get_balance(asset_name=asset,
-                                        asset_origin='mainnet',
+                                        asset_origin_chain='mainnet',
                                         network_name='sidechain2')
         print("Get {} balance on sidechain2 : {}".format(asset, balance))
         wallet.transfer_from_sidechain('sidechain2',
@@ -751,23 +786,23 @@ if __name__ == '__main__':
                                      asset,
                                      amount)
         result = wallet.get_balance(to, asset_name=asset,
-                                    asset_origin='mainnet',
+                                    asset_origin_chain='mainnet',
                                     network_name='sidechain2')
         print('receiver balance before', result)
         result = wallet.get_balance(sender, asset_name=asset,
-                                    asset_origin='mainnet',
+                                    asset_origin_chain='mainnet',
                                     network_name='sidechain2')
         print('sender balance before', result)
 
         wallet.transfer(amount, to, asset_name=asset,
-                        asset_origin='mainnet',
+                        asset_origin_chain='mainnet',
                         network_name='sidechain2')
 
         result = wallet.get_balance(to, asset_name=asset,
-                                    asset_origin='mainnet',
+                                    asset_origin_chain='mainnet',
                                     network_name='sidechain2')
         print('receiver balance after', result)
         result = wallet.get_balance(sender, asset_name=asset,
-                                    asset_origin='mainnet',
+                                    asset_origin_chain='mainnet',
                                     network_name='sidechain2')
         print('sender balance after', result)
