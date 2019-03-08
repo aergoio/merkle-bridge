@@ -55,16 +55,15 @@ class Wallet:
         with open(path, "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
 
-    def _load_priv_key(self, key_name='default'):
+    def _load_priv_key(self, account_name='default'):
         """ Load and prompt user password to decrypt priv_key."""
         # TODO don't store priv_key in config.json, only it's name and path to
         # file
-        priv_key = self.config_data('wallet', 'priv_key')
+        priv_key = self.config_data('wallet', account_name, 'priv_key')
         return priv_key
 
     def _get_wallet_address(self, account_name='default'):
-        # TODO store different account names for different keys in wallet
-        addr = self.config_data('wallet', 'addr')
+        addr = self.config_data('wallet', account_name, 'addr')
         return addr
 
     def _connect_aergo(self, network_name):
@@ -108,53 +107,40 @@ class Wallet:
 
     def get_balance(
         self,
-        account_addr=None,
-        asset_name=None,
+        asset_name,
+        network_name,
         asset_origin_chain=None,
-        asset_addr=None,
-        aergo=None,
-        network_name=None,
-        account_name=None,
+        account_name='default',
+    ):
+        account_addr = self._get_wallet_address(account_name)
+        aergo = self._connect_aergo(network_name)
+        asset_addr = self.get_asset_address(asset_name, network_name,
+                                            asset_origin_chain)
+        balance = self._get_balance(account_addr, asset_addr, aergo)
+        aergo.disconnect()
+        return balance, asset_addr
+
+    def _get_balance(
+        self,
+        account_addr,
+        asset_addr,
+        aergo,
     ):
         """ Get an account or the default wallet balance of Aer
         or any token on a given network.
-        usages:
-            get_balance(asset_name, asset_origin_chain, network_name)
-            get_balance(asset_name, network_name)
-                -> asset_name was issued on network_name :asset_origin_chain
-                defaults to network name
-            get_balance(asset_addr, network_name)
-            get_balance(asset_addr, aergo_provider)
-            ...
         """
         balance = 0
-        disconnect_me = False
-        if account_addr is None:
-            account_addr = self._get_wallet_address(account_name)
-        if aergo is None:
-            aergo = self._connect_aergo(network_name)
-            disconnect_me = True
-        if (asset_name == "aergo" and asset_origin_chain is None) \
-                or asset_addr == "aergo":
+        if asset_addr == "aergo":
             # query aergo bits on network_name
             ret_account = aergo.get_account(address=account_addr)
             balance = ret_account.balance
-            asset_addr = asset_name
         else:
-            if asset_addr is None:
-                if asset_name is None or network_name is None:
-                    raise InvalidArgumentsError("Provide asset address "
-                                                "or name and origin")
-                asset_addr = self.get_asset_address(asset_name, network_name,
-                                                    asset_origin_chain)
             balance_q = aergo.query_sc_state(asset_addr,
                                              ["_sv_Balances-" +
                                               account_addr
                                               ])
             if balance_q.var_proofs[0].inclusion:
                 balance = json.loads(balance_q.var_proofs[0].value)['_bignum']
-        if disconnect_me:
-            aergo.disconnect()
         return int(balance), asset_addr
 
     def get_minteable_balance(
@@ -199,7 +185,7 @@ class Wallet:
         to_chain,
         asset_name,
         asset_origin_chain,
-        account_name=None,
+        account_name='default',
         account_addr=None,
         total_deposit=None,
         pending=False
@@ -310,43 +296,43 @@ class Wallet:
         self,
         value,
         to,
-        asset_name=None,
+        asset_name,
+        network_name,
         asset_origin_chain=None,
-        asset_addr=None,
-        aergo=None,
-        privkey_name=None,
-        network_name=None,
+        privkey_name='default',
         sender=None,
         signed_transfer=None,
         delegate_data=None
     ):
-        """ usage:
-            transfer(value, to, asset_name, asset_origin_chain, network_name)
-            transfer(value, to, asset_name, network_name)
-                -> asset_name was issued on network_name :asset_origin_chain
-                defaults to network name
-            transfer(value, to, asset_addr, network_name)
-            transfer(value, to, asset_addr, aergo_provider)
-            ...
+        asset_addr = self.get_asset_address(asset_name, network_name,
+                                            asset_origin_chain)
+        aergo = self.get_aergo(privkey_name, network_name, skip_state=True)
+        if sender is None:
+            sender = aergo.account.address.__str__()
+        success = self._transfer(value, to, asset_addr, aergo, sender,
+                                 signed_transfer, delegate_data)
+        aergo.disconnect()
+        return success
+
+    def _transfer(
+        self,
+        value,
+        to,
+        asset_addr,
+        aergo,
+        sender,
+        signed_transfer=None,
+        delegate_data=None
+    ):
+        """
+        TODO https://github.com/Dexaran/ERC223-token-standard/blob/
+        16d350ec85d5b14b9dc857468c8e0eb4a10572d3/ERC223_Token.sol#L107
         """
         # TODO support signed transfer and test sending to a contract that
         # supports token_payable and to pubkey account
-        if asset_name is None and asset_addr is None:
-            raise InvalidArgumentsError("specify asset to transfer")
-        disconnect_me = False
-        if aergo is None:
-            aergo = self.get_aergo(privkey_name, network_name)
-            disconnect_me = True
-        else:
-            aergo.get_account()  # get the latest nonce for making tx
+        aergo.get_account()  # get the latest nonce for making tx
 
-        if sender is None:
-            sender = aergo.account.address.__str__()
-
-        balance, asset_addr = self.get_balance(sender,
-                                               asset_name, asset_origin_chain,
-                                               asset_addr, aergo,
-                                               network_name)
+        balance, asset_addr = self._get_balance(sender, asset_addr, aergo)
         if balance < value:
             raise InsufficientBalanceError("not enough balance")
 
@@ -386,34 +372,38 @@ class Wallet:
                           .format(result))
 
         print("Transfer success")
-        if disconnect_me:
-            aergo.disconnect()
         return True
 
     def get_signed_transfer(
         self,
         value,
         to,
-        asset_addr=None,
-        asset_name=None,
+        asset_name,
+        network_name,
         asset_origin_chain=None,
         fee=0,
         deadline=0,
-        aergo=None,
-        privkey_name=None,
-        network_name=None
+        privkey_name='default'
+    ):
+        asset_addr = self.get_asset_address(asset_name, network_name,
+                                            asset_origin_chain)
+        aergo = self.get_aergo(privkey_name, network_name,
+                               skip_state=True)  # state not needed
+        signed_transfer, delegate_data, balance = self._get_signed_transfer(
+            value, to, asset_addr, aergo, fee, deadline)
+        aergo.disconnect()
+        return signed_transfer, delegate_data, balance
+
+    def _get_signed_transfer(
+        self,
+        value,
+        to,
+        asset_addr,
+        aergo,
+        fee=0,
+        deadline=0,
     ):
         """Sign a standard token transfer to be broadcasted by a 3rd party"""
-        if asset_name is None and asset_addr is None:
-            raise InvalidArgumentsError("specify asset to transfer")
-        if asset_addr is None:
-            asset_addr = self.get_asset_address(asset_name, network_name,
-                                                asset_origin_chain)
-        disconnect_me = False
-        if aergo is None:
-            aergo = self.get_aergo(privkey_name, network_name,
-                                   skip_state=True)  # state not needed
-            disconnect_me = True
         # get current balance and nonce
         sender = aergo.account.address.__str__()
         initial_state = aergo.query_sc_state(asset_addr,
@@ -436,8 +426,6 @@ class Wallet:
         h = hashlib.sha256(msg).digest()
         sig = aergo.account.private_key.sign_msg(h).hex()
 
-        if disconnect_me:
-            aergo.disconnect()
         signed_transfer = [nonce, sig]
         if fee == 0 and deadline == 0:
             delegate_data = None
@@ -454,21 +442,30 @@ class Wallet:
         payload_str,
         asset_name,
         total_supply,
-        network_name='mainnet',
-        aergo=None,
+        network_name,
         receiver=None,
-        privkey_name=None,
+        privkey_name='default',
+    ):
+        aergo = self.get_aergo(privkey_name, network_name, skip_state=True)
+        success = self._deploy_token(payload_str, asset_name, total_supply,
+                                     aergo, network_name, receiver)
+        aergo.disconnect()
+        return success
+
+    def _deploy_token(
+        self,
+        payload_str,
+        asset_name,
+        total_supply,
+        aergo,
+        network_name,
+        receiver=None,
     ):
         """ Deploy a new standard token, store the address in
         config_data
         """
-        disconnect_me = False
-        if aergo is None:
-            aergo = self.get_aergo(privkey_name, network_name)
-            disconnect_me = True
-        else:
-            aergo.get_account()  # get latest nonce for tx
 
+        aergo.get_account()  # get latest nonce for tx
         if receiver is None:
             receiver = aergo.account.address.__str__()
         print("  > Sender Address: {}".format(receiver))
@@ -482,8 +479,6 @@ class Wallet:
         self.config_data(network_name, 'tokens', asset_name, 'pegs',
                          value={})
         self.save_config()
-        if disconnect_me:
-            aergo.disconnect()
         return True
 
     def transfer_to_sidechain(
@@ -494,7 +489,7 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        privkey_name=None
+        privkey_name='default'
     ):
         """ Transfer assets from from_chain to to_chain.
         The asset being transfered to the to_chain sidechain
@@ -523,7 +518,7 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        privkey_name=None
+        privkey_name='default'
     ):
         """ Transfer assets from from_chain to to_chain
         The asset being transfered back to the to_chain native chain
@@ -552,8 +547,9 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        privkey_name=None
+        privkey_name='default'
     ):
+        # TODO add delegated token lock
         """ Initiate a transfer to a sidechain by locking the asset."""
         priv_key = self._load_priv_key(privkey_name)
 
@@ -576,13 +572,12 @@ class Wallet:
         signed_transfer = None
         delegate_data = None
         if asset_name == "aergo":
-            balance, _ = self.get_balance(sender,
-                                          asset_addr=asset_address,
-                                          aergo=aergo_from)
+            balance, _ = self._get_balance(sender, asset_address, aergo_from)
         else:
-            signed_transfer, delegate_data, balance = self.get_signed_transfer(
-                amount, bridge_from, asset_address, aergo=aergo_from
-            )
+            signed_transfer, delegate_data, balance = \
+                self._get_signed_transfer(amount, bridge_from, asset_address,
+                                          aergo_from)
+
         print("{} balance on origin before transfer: {}"
               .format(asset_name, balance/10**18))
         if balance < amount:
@@ -593,9 +588,7 @@ class Wallet:
                            signed_transfer, delegate_data)
 
         # remaining balance on origin : aer or asset
-        balance, _ = self.get_balance(sender,
-                                      asset_addr=asset_address,
-                                      aergo=aergo_from)
+        balance, _ = self._get_balance(sender, asset_address, aergo_from)
         print("Remaining {} balance on origin after transfer: {}"
               .format(asset_name, balance/10**18))
 
@@ -609,7 +602,7 @@ class Wallet:
         asset_name,
         receiver=None,
         lock_height=0,
-        privkey_name=None
+        privkey_name='default'
     ):
         """
         Finalize a transfer of assets to a sidechain by minting then
@@ -645,8 +638,7 @@ class Wallet:
         try:
             token_pegged = self.config_data(from_chain, 'tokens', asset_name,
                                             'pegs', to_chain)
-            balance, _ = self.get_balance(receiver, asset_addr=token_pegged,
-                                          aergo=aergo_to)
+            balance, _ = self._get_balance(receiver, token_pegged, aergo_to)
             print("{} balance on destination before transfer : {}"
                   .format(asset_name, balance/10**18))
         except KeyError:
@@ -657,8 +649,7 @@ class Wallet:
                             bridge_to)
 
         # new balance on sidechain
-        balance, _ = self.get_balance(receiver, asset_addr=token_pegged,
-                                      aergo=aergo_to)
+        balance, _ = self._get_balance(receiver, token_pegged, aergo_to)
         print("{} balance on destination after transfer : {}"
               .format(asset_name, balance/10**18))
 
@@ -680,7 +671,7 @@ class Wallet:
         amount,
         sender=None,
         receiver=None,
-        privkey_name=None
+        privkey_name='default'
     ):
         """ Initiate a transfer from a sidechain by burning the assets."""
         priv_key = self._load_priv_key(privkey_name)
@@ -702,8 +693,7 @@ class Wallet:
         print("\n\n------ Burn {}-----------".format(asset_name))
         token_pegged = self.config_data(to_chain, 'tokens', asset_name, 'pegs',
                                         from_chain)
-        balance, _ = self.get_balance(sender, asset_addr=token_pegged,
-                                      aergo=aergo_from)
+        balance, _ = self._get_balance(sender, token_pegged, aergo_from)
         print("{} balance on sidechain before transfer: {}"
               .format(asset_name, balance/10**18))
         if balance < amount:
@@ -713,8 +703,7 @@ class Wallet:
                            token_pegged, bridge_from)
 
         # remaining balance on sidechain
-        balance, _ = self.get_balance(sender, asset_addr=token_pegged,
-                                      aergo=aergo_from)
+        balance, _ = self._get_balance(sender, token_pegged, aergo_from)
         print("Remaining {} balance on sidechain after transfer: {}"
               .format(asset_name, balance/10**18))
 
@@ -729,7 +718,7 @@ class Wallet:
         asset_name,
         receiver=None,
         burn_height=0,
-        privkey_name=None,
+        privkey_name='default'
     ):
         """
         Finalize a transfer of assets from a sidechain by unlocking then
@@ -761,16 +750,14 @@ class Wallet:
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
-        balance, _ = self.get_balance(receiver,
-                                      asset_addr=asset_address, aergo=aergo_to)
+        balance, _ = self._get_balance(receiver, asset_address, aergo_to)
         print("{} balance on destination before transfer: {}"
               .format(asset_name, balance/10**18))
 
         unlock(aergo_to, receiver, burn_proof, asset_address, bridge_to)
 
         # new balance on origin
-        balance, _ = self.get_balance(receiver,
-                                      asset_addr=asset_address, aergo=aergo_to)
+        balance, _ = self._get_balance(receiver, asset_address, aergo_to)
         print("{} balance on destination after transfer: {}"
               .format(asset_name, balance/10**18))
 
@@ -780,7 +767,7 @@ class Wallet:
 
 if __name__ == '__main__':
 
-    selection = 0
+    selection = 2
 
     wallet = Wallet("./config.json")
 
@@ -791,9 +778,9 @@ if __name__ == '__main__':
                                      'sidechain2',
                                      asset,
                                      amount)
-        balance, _ = wallet.get_balance(asset_name=asset,
-                                        asset_origin_chain='mainnet',
-                                        network_name='sidechain2')
+        balance, _ = wallet.get_balance(asset,
+                                        'sidechain2',
+                                        asset_origin_chain='mainnet')
         print("Get {} balance on sidechain2 : {}".format(asset, balance))
         wallet.transfer_from_sidechain('sidechain2',
                                        'mainnet',
@@ -803,27 +790,24 @@ if __name__ == '__main__':
         with open("./contracts/token_bytecode.txt", "r") as f:
             payload_str = f.read()[:-1]
         total_supply = 500*10**6*10**18
-        wallet.deploy_token(payload_str, "token2", total_supply)
+        wallet.deploy_token(payload_str, "token2", total_supply, 'mainnet')
     elif selection == 2:
         to = wallet._config_data['validators'][0]['addr']
-        sender = wallet._config_data['wallet']['addr']
+        sender = wallet._config_data['wallet']['default']['addr']
         asset = 'token1'
+        asset_addr = wallet.config_data('mainnet', 'tokens', asset, 'addr')
         amount = 2
-        """
-        result = wallet.get_balance(to, asset_name=asset,
-                                    network_name='mainnet')
+
+        result = wallet.get_balance(asset, 'mainnet', account_name='operator')
         print('receiver balance before', result)
-        result = wallet.get_balance(sender, asset_name=asset,
-                                    network_name='mainnet')
+        result = wallet.get_balance(asset, 'mainnet')
         print('sender balance before', result)
 
-        wallet.transfer(amount, to, asset_name=asset, network_name='mainnet')
+        wallet.transfer(amount, to, asset, 'mainnet')
 
-        result = wallet.get_balance(to, asset_name=asset,
-                                    network_name='mainnet')
+        result = wallet.get_balance(asset, 'mainnet', account_name='operator')
         print('receiver balance result', result)
-        result = wallet.get_balance(sender, asset_name=asset,
-                                    network_name='mainnet')
+        result = wallet.get_balance(asset, 'mainnet')
         print('sender balance after', result)
 
         # transfer a pegged token
@@ -831,46 +815,40 @@ if __name__ == '__main__':
                                      'sidechain2',
                                      asset,
                                      amount)
-        result = wallet.get_balance(to, asset_name=asset,
+        result = wallet.get_balance(asset, 'sidechain2',
                                     asset_origin_chain='mainnet',
-                                    network_name='sidechain2')
+                                    account_name='operator')
         print('receiver balance before', result)
-        result = wallet.get_balance(sender, asset_name=asset,
-                                    asset_origin_chain='mainnet',
-                                    network_name='sidechain2')
+        result = wallet.get_balance(asset, 'sidechain2',
+                                    asset_origin_chain='mainnet')
         print('sender balance before', result)
 
-        wallet.transfer(amount, to, asset_name=asset,
-                        asset_origin_chain='mainnet',
-                        network_name='sidechain2')
+        wallet.transfer(amount, to, asset, 'sidechain2',
+                        asset_origin_chain='mainnet')
 
-        result = wallet.get_balance(to, asset_name=asset,
+        result = wallet.get_balance(asset, 'sidechain2',
                                     asset_origin_chain='mainnet',
-                                    network_name='sidechain2')
+                                    account_name='operator')
         print('receiver balance after', result)
-        result = wallet.get_balance(sender, asset_name=asset,
-                                    asset_origin_chain='mainnet',
-                                    network_name='sidechain2')
+        result = wallet.get_balance(asset, 'sidechain2',
+                                    asset_origin_chain='mainnet')
         print('sender balance after', result)
-        """
 
         # Test delegated transfer
         asset = 'token1'
         # Random receiver of 2 tokens
         to = 'AmQLSEi7oeW9LztxGa8pXKQDrenzK2JdDrXsJoCAh6PXyzdBtnVJ'
         asset_addr = wallet.config_data('mainnet', 'tokens', asset, 'addr')
+        aergo = wallet._connect_aergo('mainnet')
 
-        result = wallet.get_balance(sender, asset_name=asset,
-                                    network_name='mainnet')
+        result = wallet._get_balance(sender, asset_addr, aergo)
         print('sender balance before', result)
-        result = wallet.get_balance(to, asset_name=asset,
-                                    network_name='mainnet')
+        result = wallet._get_balance(to, asset_addr, aergo)
         print('receiver balance before', result)
 
         # sign transfer with default wallet
         signed_transfer, delegate_data, balance = wallet.get_signed_transfer(
-            amount, to, asset_name='token1', fee=1, deadline=0,
-            network_name='mainnet')
+            amount, to, 'token1', 'mainnet', fee=1, deadline=0)
         print('-------------')
         print(signed_transfer)
         print(delegate_data)
@@ -881,15 +859,11 @@ if __name__ == '__main__':
         priv_key = wallet.config_data('proposer', 'priv_key')
         fee_receiver = wallet.config_data('proposer', 'addr')
         aergo.new_account(private_key=priv_key, skip_state=False)
-        wallet.transfer(amount, to, asset_name=asset, network_name='mainnet',
-                        aergo=aergo,
-                        sender=sender,
-                        signed_transfer=signed_transfer,
-                        delegate_data=delegate_data)
+        wallet._transfer(amount, to, asset_addr, aergo, sender,
+                         signed_transfer=signed_transfer,
+                         delegate_data=delegate_data)
 
-        result = wallet.get_balance(fee_receiver, asset_name=asset,
-                                    network_name='mainnet')
+        result = wallet._get_balance(fee_receiver, asset_addr, aergo)
         print('fee receiver balance after', result)
-        result = wallet.get_balance(to, asset_name=asset,
-                                    network_name='mainnet')
+        result = wallet._get_balance(to, asset_addr, aergo)
         print('receiver balance after', result)

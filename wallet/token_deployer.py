@@ -49,7 +49,7 @@ if __name__ == '__main__':
     aergo.connect(config_data['mainnet']['ip'])
 
     print("------ Set Sender Account -----------")
-    sender_priv_key = config_data["wallet"]['priv_key']
+    sender_priv_key = config_data["wallet"]['default']['priv_key']
     sender_account = aergo.new_account(private_key=sender_priv_key)
     aergo.get_account()
     receiver = sender_account.address.__str__()
