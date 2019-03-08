@@ -80,7 +80,7 @@ end
 -- @return          success
 -- This function is intended for feeless token transfers with a tx broadcaster. Make sure that 'from' is the system.getSender() of the caller contract.
 ---------------------------------------
-function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+function signed_transfer(from, to, value, nonce, signature, fee, deadline)
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
     local bfee = bignum.number(fee)

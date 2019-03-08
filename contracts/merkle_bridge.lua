@@ -141,7 +141,7 @@ end
 -- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
 -- nonce and signature are used when making a token lockup
 -- the owner of tokens can use a broadcaster and pay fees in tokens instead of aer
-function lock(receiver, amount, token_address, nonce, signature, sender, fee, deadline)
+function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
     local bamount = bignum.number(amount)
     local b0 = bignum.number(0)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
@@ -155,20 +155,18 @@ function lock(receiver, amount, token_address, nonce, signature, sender, fee, de
    else
         this_contract = system.getContractID()
         -- FIXME how can this be hacked with a reentrant call if the token_address is malicious ?
-        if sender == nil then
+        if fee == nil then
             sender = system.getSender()
-            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, "0", 0, signature) then
+            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, "0", 0) then
                 error("failed to receive token to lock")
             end
         else
             -- the owner of tokens doesn't pay aer fees, lock is called by a broadcaster
-            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, fee, deadline, signature) then
+            if not contract.call(token_address, "signed_transfer", receiver, this_contract, bignum.tostring(bamount), nonce, signature, fee, deadline) then
                 error("failed to receive token to lock")
             end
             -- hack : take the token signature from lock tx and create a new tx with a different receiver, include that tx before the first one. 
-            -- fix : the signer of signature should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted).
-            -- TODO remove sender variable, use receiver as they must be same in case of tx broadcast
-            assert(sender == receiver, "receiver on the sidechain must equal to the sender")
+            -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
         end
     end
 
@@ -239,7 +237,7 @@ end
 -- burn a sidechain token
 -- mint_address is the token address on the sidechain
 -- the owner of tokens can use a broadcaster and pay fees in tokens instead of aer
-function burn(receiver, amount, mint_address, sender, nonce, fee, deadline, signature)
+function burn(receiver, amount, mint_address, nonce, signature, fee, deadline)
     local bamount = bignum.number(amount)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(bamount > bignum.number(0), "amount must be positive")
@@ -248,20 +246,18 @@ function burn(receiver, amount, mint_address, sender, nonce, fee, deadline, sign
     -- Burn token
     local origin_address = MintedTokens[mint_address]
     assert(origin_address ~= nil, "cannot burn token : must have been minted by bridge")
-    if sender == nil then
+    if fee == nil then
         sender = system.getSender()
         if not contract.call(mint_address, "burn", sender, bignum.tostring(bamount)) then
             error("failed to burn token")
         end
     else
         -- the owner of tokens doesn't pay aer fees, burn is called by a broadcaster
-        if not contract.call(mint_address, "signed_burn", sender, bignum.tostring(bamount), nonce, fee, deadline, signature) then
+        if not contract.call(mint_address, "signed_burn", receiver, bignum.tostring(bamount), nonce, signature, fee, deadline) then
             error("failed to burn token")
         end
         -- hack : take the token signature from burn tx and create a new tx with a different receiver, include that tx before the first one.
-        -- fix : the signer of signature should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted).
-        -- TODO remove sender variable, use receiver as they must be same in case of tx broadcast
-        assert(sender == receiver, "receiver on the sidechain must equal to the sender")
+        -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
     end
 
     -- Add burnt amount to total
@@ -441,7 +437,7 @@ end
 -- @param signature signature proving sender's consent
 -- @return          success
 ---------------------------------------
-function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+function signed_transfer(from, to, value, nonce, signature, fee, deadline)
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
     local bfee = bignum.number(fee)
@@ -530,7 +526,7 @@ end
 -- @param signature signature proving sender's consent
 -- @return          success
 ---------------------------------------
-function signed_burn(from, value, nonce, fee, deadline, signature)
+function signed_burn(from, value, nonce, signature, fee, deadline)
     assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")

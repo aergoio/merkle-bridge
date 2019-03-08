@@ -330,6 +330,8 @@ class Wallet:
         """
         # TODO support signed transfer and test sending to a contract that
         # supports token_payable and to pubkey account
+        # TODO verify signature before sending tx in case of signed transfer
+        # -> by broadcaster
         aergo.get_account()  # get the latest nonce for making tx
 
         balance = self._get_balance(sender, asset_addr, aergo)
@@ -350,14 +352,11 @@ class Wallet:
                                            args=[to, str(value)],
                                            amount=0)
             else:
-                signer, fee, deadline = delegate_data
-                if sender != signer:
-                    raise InvalidArgumentsError(
-                        "delegate_data doesn't match sender")
+                fee, deadline = delegate_data
                 nonce, sig = signed_transfer
                 tx, result = aergo.call_sc(asset_addr, "signed_transfer",
                                            args=[sender, to, str(value),
-                                                 nonce, fee, deadline, sig],
+                                                 nonce, sig, fee, deadline],
                                            amount=0)
 
         if result.status != herapy.CommitStatus.TX_OK:
@@ -430,7 +429,7 @@ class Wallet:
         if fee == 0 and deadline == 0:
             delegate_data = None
         else:
-            delegate_data = [sender, str(fee), deadline]
+            delegate_data = [str(fee), deadline]
         return signed_transfer, delegate_data, balance
 
     # TODO create a tx broadcaster that calls signed transfer,
@@ -562,7 +561,6 @@ class Wallet:
         delegate_data=None
     ):
         """ Initiate a transfer to a sidechain by locking the asset."""
-        # locker_account is the account making the tx.
         aergo_from = self.get_aergo(privkey_name, from_chain)
 
         if sender is None:
@@ -585,7 +583,8 @@ class Wallet:
         asset_address = self.config_data(from_chain, 'tokens',
                                          asset_name, 'addr')
         balance = 0
-        if signed_transfer is None and delegate_data is None:
+        if signed_transfer is None and delegate_data is None \
+                and asset_name != 'aergo':
             # wallet is making his own token transfer, not using tx broadcaster
             # sign transfer to bridge can pull tokens to lock.
             signed_transfer, delegate_data, balance = \
@@ -723,7 +722,7 @@ class Wallet:
             raise InsufficientBalanceError("not enough balance")
 
         burn_height = burn(aergo_from, receiver, amount,
-                           token_pegged, bridge_from, sender,
+                           token_pegged, bridge_from,
                            signed_transfer, delegate_data)
 
         # remaining balance on sidechain
@@ -797,7 +796,7 @@ if __name__ == '__main__':
 
     if selection == 0:
         amount = 1*10**18
-        asset = 'token1'
+        asset = 'aergo'
         wallet.transfer_to_sidechain('mainnet',
                                      'sidechain2',
                                      asset,
@@ -810,9 +809,6 @@ if __name__ == '__main__':
                                        'mainnet',
                                        asset,
                                        amount)
-        # TODO nothing prevents the broadcaster or hacher from changing the
-        # receiver creating a new tx with same signed token transfer.
-        # receiver must be same as token signer
         print("SIGNED TRANSFER")
         asset = 'token1'
         owner = wallet._get_wallet_address('operator')

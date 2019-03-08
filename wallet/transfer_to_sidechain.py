@@ -20,7 +20,7 @@ def lock(aergo_from, bridge_from,
          signed_transfer=None, delegate_data=None):
     """ lock can be call to lock aergo aer or tokens.
         it supports delegated transfers when tx broadcaster is not
-        the same as the token owner : delegate_data = [sender, fee, deadline]
+        the same as the token owner : delegate_data = [fee, deadline]
     """
     if asset == "aergo":
         tx, result = aergo_from.call_sc(bridge_from, "lock",
@@ -32,14 +32,6 @@ def lock(aergo_from, bridge_from,
                                         and nonce for token transfers""")
         args = [receiver, str(value), asset] + signed_transfer
         if delegate_data is not None:
-            if delegate_data[0] == aergo_from.account.address.__str__():
-                raise InvalidArgumentsError("if delegated lock, sender should"
-                                            "be different from aergo account")
-            if delegate_data[0] != receiver:
-                raise InvalidArgumentsError("If using a broadcast service, the"
-                                            "receiver must be same as the token"
-                                            "sender")
-
             args = args + delegate_data
         tx, result = aergo_from.call_sc(bridge_from, "lock",
                                         args=args,

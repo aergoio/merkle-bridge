@@ -84,7 +84,7 @@ end
 -- @param signature signature proving sender's consent
 -- @return          success
 ---------------------------------------
-function signed_transfer(from, to, value, nonce, fee, deadline, signature)
+function signed_transfer(from, to, value, nonce, signature fee, deadline)
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
     local bfee = bignum.number(fee)
@@ -173,7 +173,7 @@ end
 -- @param signature signature proving sender's consent
 -- @return          success
 ---------------------------------------
-function signed_burn(from, value, nonce, fee, deadline, signature)
+function signed_burn(from, value, nonce, signature, fee, deadline)
     assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
