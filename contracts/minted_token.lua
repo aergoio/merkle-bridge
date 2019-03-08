@@ -129,11 +129,11 @@ end
 -- @return      success
 ---------------------------------------
 function mint(to, value)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     local bvalue = bignum.number(value)
     local b0 = bignum.number(0)
     assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
     local new_total = TotalSupply:get() + bvalue
     TotalSupply:set(new_total)
     Balances[to] = (Balances[to] or b0) + bvalue;
@@ -149,11 +149,11 @@ end
 -- @return      success
 ---------------------------------------
 function burn(from, value)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     local bvalue = bignum.number(value)
     local b0 = bignum.number(0)
     assert(type_check.isValidAddress(from), "invalid address format: " ..from)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(Balances[from] and bvalue <= Balances[from], "Not enough funds to burn")
     new_total = TotalSupply:get() - bvalue
     TotalSupply:set(new_total)
@@ -174,6 +174,7 @@ end
 -- @return          success
 ---------------------------------------
 function signed_burn(from, value, nonce, fee, deadline, signature)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
     local bfee = bignum.number(fee)
@@ -191,7 +192,7 @@ function signed_burn(from, value, nonce, fee, deadline, signature)
     if Nonces[from] == nil then Nonces[from] = 0 end
     assert(Nonces[from] == nonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
-    data = crypto.sha256(bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    data = crypto.sha256(system.getSender()..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute burn
     new_total = TotalSupply:get() - bvalue

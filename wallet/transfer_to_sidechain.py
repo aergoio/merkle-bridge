@@ -33,8 +33,13 @@ def lock(aergo_from, bridge_from,
         args = [receiver, str(value), asset] + signed_transfer
         if delegate_data is not None:
             if delegate_data[0] == aergo_from.account.address.__str__():
-                raise InvalidArgumentsError("""if delegated lock, sender should
-                                            be different from aergo account""")
+                raise InvalidArgumentsError("if delegated lock, sender should"
+                                            "be different from aergo account")
+            if delegate_data[0] != receiver:
+                raise InvalidArgumentsError("If using a broadcast service, the"
+                                            "receiver must be same as the token"
+                                            "sender")
+
             args = args + delegate_data
         tx, result = aergo_from.call_sc(bridge_from, "lock",
                                         args=args,

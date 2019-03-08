@@ -141,7 +141,7 @@ class Wallet:
                                               ])
             if balance_q.var_proofs[0].inclusion:
                 balance = json.loads(balance_q.var_proofs[0].value)['_bignum']
-        return int(balance), asset_addr
+        return int(balance)
 
     def get_minteable_balance(
         self,
@@ -332,7 +332,7 @@ class Wallet:
         # supports token_payable and to pubkey account
         aergo.get_account()  # get the latest nonce for making tx
 
-        balance, asset_addr = self._get_balance(sender, asset_addr, aergo)
+        balance = self._get_balance(sender, asset_addr, aergo)
         if balance < value:
             raise InsufficientBalanceError("not enough balance")
 
@@ -350,10 +350,10 @@ class Wallet:
                                            args=[to, str(value)],
                                            amount=0)
             else:
-                to_signed, fee, deadline = delegate_data
-                if not to == to_signed:
-                    raise InvalidArgumentsError("to receiver must be same "
-                                                "with delegate_data receiver")
+                signer, fee, deadline = delegate_data
+                if sender != signer:
+                    raise InvalidArgumentsError(
+                        "delegate_data doesn't match sender")
                 nonce, sig = signed_transfer
                 tx, result = aergo.call_sc(asset_addr, "signed_transfer",
                                            args=[sender, to, str(value),
@@ -430,7 +430,7 @@ class Wallet:
         if fee == 0 and deadline == 0:
             delegate_data = None
         else:
-            delegate_data = [to, str(fee), deadline]
+            delegate_data = [sender, str(fee), deadline]
         return signed_transfer, delegate_data, balance
 
     # TODO create a tx broadcaster that calls signed transfer,
@@ -487,9 +487,11 @@ class Wallet:
         to_chain,
         asset_name,
         amount,
-        sender=None,
         receiver=None,
-        privkey_name='default'
+        privkey_name='default',
+        sender=None,
+        signed_transfer=None,
+        delegate_data=None
     ):
         """ Transfer assets from from_chain to to_chain.
         The asset being transfered to the to_chain sidechain
@@ -497,11 +499,14 @@ class Wallet:
         """
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
 
-        lock_height = self.initiate_transfer_lock(from_chain, to_chain,
-                                                  asset_name, amount, sender,
-                                                  receiver, privkey_name)
+        lock_height = self.initiate_transfer_lock(
+            from_chain, to_chain, asset_name, amount, receiver, privkey_name,
+            sender, signed_transfer=signed_transfer,
+            delegate_data=delegate_data
+        )
         minteable = self.get_minteable_balance(from_chain, to_chain,
                                                asset_name, from_chain,
+                                               account_addr=receiver,
                                                pending=True)
         print("pending mint: ", minteable)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
@@ -516,9 +521,11 @@ class Wallet:
         to_chain,
         asset_name,
         amount,
-        sender=None,
         receiver=None,
-        privkey_name='default'
+        privkey_name='default',
+        sender=None,
+        signed_transfer=None,
+        delegate_data=None
     ):
         """ Transfer assets from from_chain to to_chain
         The asset being transfered back to the to_chain native chain
@@ -526,11 +533,14 @@ class Wallet:
         """
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
 
-        burn_height = self.initiate_transfer_burn(from_chain, to_chain,
-                                                  asset_name, amount, sender,
-                                                  receiver, privkey_name)
+        burn_height = self.initiate_transfer_burn(
+            from_chain, to_chain, asset_name, amount, receiver, privkey_name,
+            sender, signed_transfer=signed_transfer,
+            delegate_data=delegate_data)
+
         unlockeable = self.get_unlockeable_balance(from_chain, to_chain,
                                                    asset_name, to_chain,
+                                                   account_addr=receiver,
                                                    pending=True)
         print("pending unlock: ", unlockeable)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
@@ -545,21 +555,27 @@ class Wallet:
         to_chain,
         asset_name,
         amount,
-        sender=None,
         receiver=None,
-        privkey_name='default'
+        privkey_name='default',
+        sender=None,
+        signed_transfer=None,
+        delegate_data=None
     ):
-        # TODO add delegated token lock
         """ Initiate a transfer to a sidechain by locking the asset."""
-        priv_key = self._load_priv_key(privkey_name)
+        # locker_account is the account making the tx.
+        aergo_from = self.get_aergo(privkey_name, from_chain)
 
-        aergo_from = self._connect_aergo(from_chain)
-
-        # locker_account is the owner of tokens/aergo.
-        # merkle_bridge.lua.lock() supports delegated token locks.
-        locker_account = aergo_from.new_account(private_key=priv_key)
         if sender is None:
-            sender = locker_account.address.__str__()
+            # wallet privkey_name is locking his own assets
+            sender = aergo_from.account.address.__str__()
+        elif sender == aergo_from.account.address.__str__():
+            raise InvalidArgumentsError(
+                "Broadcaster is the same as token sender, in this case the "
+                "token owner can make tx himself")
+        elif signed_transfer is None or delegate_data is None:
+            raise InvalidArgumentsError(
+                "Provide signed_transfer and delegate_data to broadcaste a tx")
+
         if receiver is None:
             receiver = sender
 
@@ -569,14 +585,16 @@ class Wallet:
         asset_address = self.config_data(from_chain, 'tokens',
                                          asset_name, 'addr')
         balance = 0
-        signed_transfer = None
-        delegate_data = None
-        if asset_name == "aergo":
-            balance, _ = self._get_balance(sender, asset_address, aergo_from)
-        else:
+        if signed_transfer is None and delegate_data is None:
+            # wallet is making his own token transfer, not using tx broadcaster
+            # sign transfer to bridge can pull tokens to lock.
             signed_transfer, delegate_data, balance = \
                 self._get_signed_transfer(amount, bridge_from, asset_address,
                                           aergo_from)
+        else:
+            # wallet is making his own aer transfer or broadcasting a signed
+            # transfer
+            balance = self._get_balance(sender, asset_address, aergo_from)
 
         print("{} balance on origin before transfer: {}"
               .format(asset_name, balance/10**18))
@@ -588,7 +606,7 @@ class Wallet:
                            signed_transfer, delegate_data)
 
         # remaining balance on origin : aer or asset
-        balance, _ = self._get_balance(sender, asset_address, aergo_from)
+        balance = self._get_balance(sender, asset_address, aergo_from)
         print("Remaining {} balance on origin after transfer: {}"
               .format(asset_name, balance/10**18))
 
@@ -638,7 +656,7 @@ class Wallet:
         try:
             token_pegged = self.config_data(from_chain, 'tokens', asset_name,
                                             'pegs', to_chain)
-            balance, _ = self._get_balance(receiver, token_pegged, aergo_to)
+            balance = self._get_balance(receiver, token_pegged, aergo_to)
             print("{} balance on destination before transfer : {}"
                   .format(asset_name, balance/10**18))
         except KeyError:
@@ -649,7 +667,7 @@ class Wallet:
                             bridge_to)
 
         # new balance on sidechain
-        balance, _ = self._get_balance(receiver, token_pegged, aergo_to)
+        balance = self._get_balance(receiver, token_pegged, aergo_to)
         print("{} balance on destination after transfer : {}"
               .format(asset_name, balance/10**18))
 
@@ -669,20 +687,25 @@ class Wallet:
         to_chain,
         asset_name,
         amount,
-        sender=None,
         receiver=None,
-        privkey_name='default'
+        privkey_name='default',
+        sender=None,
+        signed_transfer=None,
+        delegate_data=None
     ):
         """ Initiate a transfer from a sidechain by burning the assets."""
-        priv_key = self._load_priv_key(privkey_name)
-
-        aergo_from = self._connect_aergo(from_chain)
-
-        burner_account = aergo_from.new_account(private_key=priv_key)
+        aergo_from = self.get_aergo(privkey_name, from_chain)
 
         if sender is None:
-            # minted token currently doesnt support delegated burn
-            sender = burner_account.address.__str__()
+            sender = aergo_from.account.address.__str__()
+        elif sender == aergo_from.account.address.__str__():
+            raise InvalidArgumentsError(
+                "Broadcaster is the same as token sender, in this case the "
+                "token owner can make tx himself")
+        elif signed_transfer is None or delegate_data is None:
+            raise InvalidArgumentsError(
+                "Provide signed_transfer and delegate_data to broadcaste a tx")
+
         if receiver is None:
             receiver = sender
 
@@ -693,17 +716,18 @@ class Wallet:
         print("\n\n------ Burn {}-----------".format(asset_name))
         token_pegged = self.config_data(to_chain, 'tokens', asset_name, 'pegs',
                                         from_chain)
-        balance, _ = self._get_balance(sender, token_pegged, aergo_from)
+        balance = self._get_balance(sender, token_pegged, aergo_from)
         print("{} balance on sidechain before transfer: {}"
               .format(asset_name, balance/10**18))
         if balance < amount:
             raise InsufficientBalanceError("not enough balance")
 
-        burn_height = burn(aergo_from, sender, receiver, amount,
-                           token_pegged, bridge_from)
+        burn_height = burn(aergo_from, receiver, amount,
+                           token_pegged, bridge_from, sender,
+                           signed_transfer, delegate_data)
 
         # remaining balance on sidechain
-        balance, _ = self._get_balance(sender, token_pegged, aergo_from)
+        balance = self._get_balance(sender, token_pegged, aergo_from)
         print("Remaining {} balance on sidechain after transfer: {}"
               .format(asset_name, balance/10**18))
 
@@ -750,14 +774,14 @@ class Wallet:
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
-        balance, _ = self._get_balance(receiver, asset_address, aergo_to)
+        balance = self._get_balance(receiver, asset_address, aergo_to)
         print("{} balance on destination before transfer: {}"
               .format(asset_name, balance/10**18))
 
         unlock(aergo_to, receiver, burn_proof, asset_address, bridge_to)
 
         # new balance on origin
-        balance, _ = self._get_balance(receiver, asset_address, aergo_to)
+        balance = self._get_balance(receiver, asset_address, aergo_to)
         print("{} balance on destination after transfer: {}"
               .format(asset_name, balance/10**18))
 
@@ -767,7 +791,7 @@ class Wallet:
 
 if __name__ == '__main__':
 
-    selection = 2
+    selection = 0
 
     wallet = Wallet("./config.json")
 
@@ -786,6 +810,44 @@ if __name__ == '__main__':
                                        'mainnet',
                                        asset,
                                        amount)
+        # TODO nothing prevents the broadcaster or hacher from changing the
+        # receiver creating a new tx with same signed token transfer.
+        # receiver must be same as token signer
+        print("SIGNED TRANSFER")
+        asset = 'token1'
+        owner = wallet._get_wallet_address('operator')
+        wallet.transfer(amount+1, owner, asset, 'mainnet')
+        to = wallet.config_data('mainnet', 'bridges', 'sidechain2', 'addr')
+
+        owner_wallet = Wallet("./config.json")
+        signed_transfer, delegate_data, balance = \
+            owner_wallet.get_signed_transfer(amount, to, 'token1', 'mainnet',
+                                             fee=1, deadline=0,
+                                             privkey_name='operator')
+
+        wallet.transfer_to_sidechain('mainnet', 'sidechain2',
+                                     asset, amount, owner,
+                                     sender=owner,
+                                     signed_transfer=signed_transfer,
+                                     delegate_data=delegate_data)
+        fee_received = wallet.get_balance(asset, 'mainnet')
+        print("Fee receiver balance = ", fee_received)
+
+        to = wallet.config_data('sidechain2', 'bridges', 'mainnet', 'addr')
+        owner_wallet = Wallet("./config.json")
+        signed_transfer, delegate_data, balance = \
+            owner_wallet.get_signed_transfer(amount-1, to, 'token1',
+                                             'sidechain2', 'mainnet',
+                                             fee=1, deadline=0,
+                                             privkey_name='operator')
+        wallet.transfer_from_sidechain('sidechain2', 'mainnet',
+                                       asset, amount-1, owner,
+                                       sender=owner,
+                                       signed_transfer=signed_transfer,
+                                       delegate_data=delegate_data)
+        fee_received = wallet.get_balance(asset, 'sidechain2', 'mainnet')
+        print("Fee receiver balance = ", fee_received)
+
     elif selection == 1:
         with open("./contracts/token_bytecode.txt", "r") as f:
             payload_str = f.read()[:-1]

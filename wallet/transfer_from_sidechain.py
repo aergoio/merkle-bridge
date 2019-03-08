@@ -7,14 +7,36 @@ import aergo.herapy as herapy
 from wallet.exceptions import (
     TxError,
     InvalidMerkleProofError,
+    InvalidArgumentsError,
 )
 
 COMMIT_TIME = 3
 
 
-def burn(aergo_from, sender, receiver, value, token_pegged, bridge_from):
-    tx, result = aergo_from.call_sc(bridge_from, "burn",
-                                    args=[receiver, str(value), token_pegged])
+def burn(
+    aergo_from,
+    receiver,
+    value,
+    token_pegged,
+    bridge_from,
+    sender=None,
+    signed_transfer=None,
+    delegate_data=None
+):
+    if signed_transfer is None and delegate_data is None:
+        tx, result = aergo_from.call_sc(bridge_from, "burn",
+                                        args=[receiver, str(value), token_pegged])
+    else:
+        nonce, sig = signed_transfer
+        sender, fee, deadline = delegate_data
+        args = [receiver, str(value), token_pegged,
+                sender, nonce, fee, deadline, sig]
+        if sender != receiver:
+            raise InvalidArgumentsError("If using a broadcast service, the"
+                                        "receiver must be same as the token"
+                                        "sender")
+        tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
+
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Burn asset Tx commit failed : {}".format(result))
 

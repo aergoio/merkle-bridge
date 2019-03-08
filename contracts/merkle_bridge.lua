@@ -165,6 +165,10 @@ function lock(receiver, amount, token_address, nonce, signature, sender, fee, de
             if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, fee, deadline, signature) then
                 error("failed to receive token to lock")
             end
+            -- hack : take the token signature from lock tx and create a new tx with a different receiver, include that tx before the first one. 
+            -- fix : the signer of signature should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted).
+            -- TODO remove sender variable, use receiver as they must be same in case of tx broadcast
+            assert(sender == receiver, "receiver on the sidechain must equal to the sender")
         end
     end
 
@@ -254,6 +258,10 @@ function burn(receiver, amount, mint_address, sender, nonce, fee, deadline, sign
         if not contract.call(mint_address, "signed_burn", sender, bignum.tostring(bamount), nonce, fee, deadline, signature) then
             error("failed to burn token")
         end
+        -- hack : take the token signature from burn tx and create a new tx with a different receiver, include that tx before the first one.
+        -- fix : the signer of signature should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted).
+        -- TODO remove sender variable, use receiver as they must be same in case of tx broadcast
+        assert(sender == receiver, "receiver on the sidechain must equal to the sender")
     end
 
     -- Add burnt amount to total
@@ -478,11 +486,11 @@ end
 -- @return      success
 ---------------------------------------
 function mint(to, value)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     local bvalue = bignum.number(value)
     local b0 = bignum.number(0)
     assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
     local new_total = TotalSupply:get() + bvalue
     TotalSupply:set(new_total)
     Balances[to] = (Balances[to] or b0) + bvalue;
@@ -498,11 +506,11 @@ end
 -- @return      success
 ---------------------------------------
 function burn(from, value)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     local bvalue = bignum.number(value)
     local b0 = bignum.number(0)
     assert(type_check.isValidAddress(from), "invalid address format: " ..from)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(Balances[from] and bvalue <= Balances[from], "Not enough funds to burn")
     new_total = TotalSupply:get() - bvalue
     TotalSupply:set(new_total)
@@ -523,6 +531,7 @@ end
 -- @return          success
 ---------------------------------------
 function signed_burn(from, value, nonce, fee, deadline, signature)
+    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
     assert(type_check.isValidNumber(value), "invalid value format (must be string)")
     assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
     local bfee = bignum.number(fee)
@@ -540,7 +549,7 @@ function signed_burn(from, value, nonce, fee, deadline, signature)
     if Nonces[from] == nil then Nonces[from] = 0 end
     assert(Nonces[from] == nonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
-    data = crypto.sha256(bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    data = crypto.sha256(system.getSender()..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute burn
     new_total = TotalSupply:get() - bvalue
