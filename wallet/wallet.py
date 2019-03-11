@@ -62,7 +62,7 @@ class Wallet:
         priv_key = self.config_data('wallet', account_name, 'priv_key')
         return priv_key
 
-    def _get_wallet_address(self, account_name='default'):
+    def get_wallet_address(self, account_name='default'):
         addr = self.config_data('wallet', account_name, 'addr')
         return addr
 
@@ -112,7 +112,7 @@ class Wallet:
         asset_origin_chain=None,
         account_name='default',
     ):
-        account_addr = self._get_wallet_address(account_name)
+        account_addr = self.get_wallet_address(account_name)
         aergo = self._connect_aergo(network_name)
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
@@ -197,7 +197,7 @@ class Wallet:
         Set pending to true to include deposits than have not yet been anchored
         """
         if account_addr is None:
-            account_addr = self._get_wallet_address(account_name)
+            account_addr = self.get_wallet_address(account_name)
         asset_address_origin = self.config_data(asset_origin_chain, 'tokens',
                                                 asset_name, 'addr')
         account_ref = account_addr + asset_address_origin
@@ -497,6 +497,12 @@ class Wallet:
         should be native of from_chain
         """
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
+        if sender is None:
+            # wallet privkey_name is locking his own assets
+            sender = self.get_wallet_address(privkey_name)
+
+        if receiver is None:
+            receiver = sender
 
         lock_height = self.initiate_transfer_lock(
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
@@ -531,6 +537,12 @@ class Wallet:
         should be a minted asset on the sidechain.
         """
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
+        if sender is None:
+            # wallet privkey_name is locking his own assets
+            sender = self.get_wallet_address(privkey_name)
+
+        if receiver is None:
+            receiver = sender
 
         burn_height = self.initiate_transfer_burn(
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
@@ -566,16 +578,22 @@ class Wallet:
         if sender is None:
             # wallet privkey_name is locking his own assets
             sender = aergo_from.account.address.__str__()
-        elif sender == aergo_from.account.address.__str__():
-            raise InvalidArgumentsError(
-                "Broadcaster is the same as token sender, in this case the "
-                "token owner can make tx himself")
-        elif signed_transfer is None or delegate_data is None:
-            raise InvalidArgumentsError(
-                "Provide signed_transfer and delegate_data to broadcaste a tx")
 
         if receiver is None:
             receiver = sender
+
+        if signed_transfer is not None and delegate_data is not None:
+            # broadcasting a tx
+            if sender != receiver:
+                raise InvalidArgumentsError(
+                    "When broadcasting a signed transfer, sender and "
+                    "receiver must be same"
+                )
+            if sender == aergo_from.account.address.__str__():
+                raise InvalidArgumentsError(
+                    "Broadcaster is the same as token sender, in this "
+                    "case the token owner can make tx himself"
+                )
 
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
 
@@ -697,16 +715,22 @@ class Wallet:
 
         if sender is None:
             sender = aergo_from.account.address.__str__()
-        elif sender == aergo_from.account.address.__str__():
-            raise InvalidArgumentsError(
-                "Broadcaster is the same as token sender, in this case the "
-                "token owner can make tx himself")
-        elif signed_transfer is None or delegate_data is None:
-            raise InvalidArgumentsError(
-                "Provide signed_transfer and delegate_data to broadcaste a tx")
 
         if receiver is None:
             receiver = sender
+
+        if signed_transfer is not None and delegate_data is not None:
+            #broadcasting tx
+            if sender != receiver:
+                raise InvalidArgumentsError(
+                    "When broadcasting a signed transfer, sender and "
+                    "receiver must be same"
+                )
+            if sender == aergo_from.account.address.__str__():
+                raise InvalidArgumentsError(
+                    "Broadcaster is the same as token sender, in this "
+                    "case the token owner can make tx himself"
+                )
 
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         token_pegged = self.config_data(to_chain, 'tokens', asset_name, 'pegs',
@@ -786,142 +810,3 @@ class Wallet:
 
         aergo_to.disconnect()
         aergo_from.disconnect()
-
-
-if __name__ == '__main__':
-
-    selection = 0
-
-    wallet = Wallet("./config.json")
-
-    if selection == 0:
-        amount = 1*10**18
-        asset = 'aergo'
-        wallet.transfer_to_sidechain('mainnet',
-                                     'sidechain2',
-                                     asset,
-                                     amount)
-        balance, _ = wallet.get_balance(asset,
-                                        'sidechain2',
-                                        asset_origin_chain='mainnet')
-        print("Get {} balance on sidechain2 : {}".format(asset, balance))
-        wallet.transfer_from_sidechain('sidechain2',
-                                       'mainnet',
-                                       asset,
-                                       amount)
-        print("SIGNED TRANSFER")
-        asset = 'token1'
-        owner = wallet._get_wallet_address('operator')
-        wallet.transfer(amount+1, owner, asset, 'mainnet')
-        to = wallet.config_data('mainnet', 'bridges', 'sidechain2', 'addr')
-
-        owner_wallet = Wallet("./config.json")
-        signed_transfer, delegate_data, balance = \
-            owner_wallet.get_signed_transfer(amount, to, 'token1', 'mainnet',
-                                             fee=1, deadline=0,
-                                             privkey_name='operator')
-
-        wallet.transfer_to_sidechain('mainnet', 'sidechain2',
-                                     asset, amount, owner,
-                                     sender=owner,
-                                     signed_transfer=signed_transfer,
-                                     delegate_data=delegate_data)
-        fee_received = wallet.get_balance(asset, 'mainnet')
-        print("Fee receiver balance = ", fee_received)
-
-        to = wallet.config_data('sidechain2', 'bridges', 'mainnet', 'addr')
-        owner_wallet = Wallet("./config.json")
-        signed_transfer, delegate_data, balance = \
-            owner_wallet.get_signed_transfer(amount-1, to, 'token1',
-                                             'sidechain2', 'mainnet',
-                                             fee=1, deadline=0,
-                                             privkey_name='operator')
-        wallet.transfer_from_sidechain('sidechain2', 'mainnet',
-                                       asset, amount-1, owner,
-                                       sender=owner,
-                                       signed_transfer=signed_transfer,
-                                       delegate_data=delegate_data)
-        fee_received = wallet.get_balance(asset, 'sidechain2', 'mainnet')
-        print("Fee receiver balance = ", fee_received)
-
-    elif selection == 1:
-        with open("./contracts/token_bytecode.txt", "r") as f:
-            payload_str = f.read()[:-1]
-        total_supply = 500*10**6*10**18
-        wallet.deploy_token(payload_str, "token2", total_supply, 'mainnet')
-    elif selection == 2:
-        to = wallet._config_data['validators'][0]['addr']
-        sender = wallet._config_data['wallet']['default']['addr']
-        asset = 'token1'
-        asset_addr = wallet.config_data('mainnet', 'tokens', asset, 'addr')
-        amount = 2
-
-        result = wallet.get_balance(asset, 'mainnet', account_name='operator')
-        print('receiver balance before', result)
-        result = wallet.get_balance(asset, 'mainnet')
-        print('sender balance before', result)
-
-        wallet.transfer(amount, to, asset, 'mainnet')
-
-        result = wallet.get_balance(asset, 'mainnet', account_name='operator')
-        print('receiver balance result', result)
-        result = wallet.get_balance(asset, 'mainnet')
-        print('sender balance after', result)
-
-        # transfer a pegged token
-        wallet.transfer_to_sidechain('mainnet',
-                                     'sidechain2',
-                                     asset,
-                                     amount)
-        result = wallet.get_balance(asset, 'sidechain2',
-                                    asset_origin_chain='mainnet',
-                                    account_name='operator')
-        print('receiver balance before', result)
-        result = wallet.get_balance(asset, 'sidechain2',
-                                    asset_origin_chain='mainnet')
-        print('sender balance before', result)
-
-        wallet.transfer(amount, to, asset, 'sidechain2',
-                        asset_origin_chain='mainnet')
-
-        result = wallet.get_balance(asset, 'sidechain2',
-                                    asset_origin_chain='mainnet',
-                                    account_name='operator')
-        print('receiver balance after', result)
-        result = wallet.get_balance(asset, 'sidechain2',
-                                    asset_origin_chain='mainnet')
-        print('sender balance after', result)
-
-        # Test delegated transfer
-        asset = 'token1'
-        # Random receiver of 2 tokens
-        to = 'AmQLSEi7oeW9LztxGa8pXKQDrenzK2JdDrXsJoCAh6PXyzdBtnVJ'
-        asset_addr = wallet.config_data('mainnet', 'tokens', asset, 'addr')
-        aergo = wallet._connect_aergo('mainnet')
-
-        result = wallet._get_balance(sender, asset_addr, aergo)
-        print('sender balance before', result)
-        result = wallet._get_balance(to, asset_addr, aergo)
-        print('receiver balance before', result)
-
-        # sign transfer with default wallet
-        signed_transfer, delegate_data, balance = wallet.get_signed_transfer(
-            amount, to, 'token1', 'mainnet', fee=1, deadline=0)
-        print('-------------')
-        print(signed_transfer)
-        print(delegate_data)
-
-        # broadcaster transaction with a different wallet and collect the fee
-        wallet = Wallet("./config.json")
-        aergo = wallet._connect_aergo('mainnet')
-        priv_key = wallet.config_data('proposer', 'priv_key')
-        fee_receiver = wallet.config_data('proposer', 'addr')
-        aergo.new_account(private_key=priv_key, skip_state=False)
-        wallet._transfer(amount, to, asset_addr, aergo, sender,
-                         signed_transfer=signed_transfer,
-                         delegate_data=delegate_data)
-
-        result = wallet._get_balance(fee_receiver, asset_addr, aergo)
-        print('fee receiver balance after', result)
-        result = wallet._get_balance(to, asset_addr, aergo)
-        print('receiver balance after', result)

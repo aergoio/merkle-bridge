@@ -156,7 +156,6 @@ $ make docker
 Deploy bridge on mainnet and sidechain, deploy a new token on mainnet.
 ```sh
 $ make deploy_bridge
-$ make deploy_token
 ```
 In a new terminal : start proposer
 ```sh
@@ -168,5 +167,9 @@ $ make validator
 ```
 In a new terminal : test wallet transfer to sidechain and back.
 ```sh
-$ make wallet
+$ python3 -m pytest -s
+```
+Run a specific test :
+```sh
+$ python3 -m pytest -s tests/test_bridge_transfers.py::test_token_transfer
 ```

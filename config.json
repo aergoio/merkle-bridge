@@ -53,9 +53,13 @@
             "addr": "AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs",
             "priv_key": "6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
         },
-        "operator": {
-            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        "default2": {
+            "addr": "AmP97qCMq2w1BecjmGJf9stdXH825gPVre7euFpWp98twevFfMeG",
+            "priv_key": "6jFGW2XhniWu3j8YMGY3GEuitgUwuYf6ohzErfZzPuff7c6bkVL"
+        },
+        "receiver": {
+            "addr": "AmM3PTX148ZSNAJYGEt1baEZpJPWc8ms7wuw9rqjUEfTCUWfwFuS",
+            "priv_key": "6hqpLV2b1uoaZf2Hvbe4Tjz5KNs8iS6QkaNwVFJVeMPzk8godzV"
         }
     }
 }

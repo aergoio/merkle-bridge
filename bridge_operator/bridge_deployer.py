@@ -100,6 +100,7 @@ def run(config_data, payload_str,
         config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final_mainnet
         config_data[sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain
         config_data[sidechain]['bridges'][mainnet]['t_final'] = t_final_sidechain
+        config_data[mainnet]['tokens']['aergo']['pegs'] = {}
         with open(path, "w") as f:
             json.dump(config_data, f, indent=4, sort_keys=True)
 
@@ -117,10 +118,10 @@ if __name__ == '__main__':
     with open("./contracts/bridge_bytecode.txt", "r") as f:
         payload_str = f.read()[:-1]
     # NOTE t_final is the minimum time to get lib
-    t_anchor_mainnet = 40 # sidechain anchoring periord on mainnet
+    t_anchor_mainnet = 25 # sidechain anchoring periord on mainnet
     t_final_mainnet = 5 # sidechain finalization time
     t_anchor_sidechain = 10 # mainnet anchoring periord on sidechain
-    t_final_sidechain = 50 # mainnet finalization time
+    t_final_sidechain = 10 # mainnet finalization time
     run(config_data, payload_str,
         t_anchor_mainnet, t_final_mainnet,
         t_anchor_sidechain, t_final_sidechain,
