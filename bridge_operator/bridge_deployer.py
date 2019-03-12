@@ -8,10 +8,17 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
-def run(config_data, payload_str,
-        t_anchor_mainnet, t_final_mainnet,
-        t_anchor_sidechain, t_final_sidechain,
-        mainnet, sidechain, path="./config.json"):
+def run(
+    config_data,
+    payload_str,
+    t_anchor_mainnet,
+    t_final_mainnet,
+    t_anchor_sidechain,
+    t_final_sidechain,
+    mainnet,
+    sidechain,
+    path="./config.json"
+):
     payload = herapy.utils.decode_address(payload_str)
     print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")
     try:
@@ -26,7 +33,6 @@ def run(config_data, payload_str,
         sender_priv_key1 = config_data["proposer"]['priv_key']
         sender_priv_key2 = config_data["proposer"]['priv_key']
         sender_account = aergo1.new_account(private_key=sender_priv_key1)
-        sender_address = sender_account.address.__str__()
         aergo2.new_account(private_key=sender_priv_key2)
         aergo1.get_account()
         aergo2.get_account()
@@ -118,10 +124,10 @@ if __name__ == '__main__':
     with open("./contracts/bridge_bytecode.txt", "r") as f:
         payload_str = f.read()[:-1]
     # NOTE t_final is the minimum time to get lib
-    t_anchor_mainnet = 25 # sidechain anchoring periord on mainnet
-    t_final_mainnet = 5 # sidechain finalization time
-    t_anchor_sidechain = 10 # mainnet anchoring periord on sidechain
-    t_final_sidechain = 10 # mainnet finalization time
+    t_anchor_mainnet = 25  # sidechain anchoring periord on mainnet
+    t_final_mainnet = 5  # sidechain finalization time
+    t_anchor_sidechain = 10  # mainnet anchoring periord on sidechain
+    t_final_sidechain = 10  # mainnet finalization time
     run(config_data, payload_str,
         t_anchor_mainnet, t_final_mainnet,
         t_anchor_sidechain, t_final_sidechain,

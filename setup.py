@@ -14,7 +14,6 @@ setuptools.setup(
     url="https://github.com/aergoio/merkle-bridge",
     packages=setuptools.find_packages(),
     install_requires=[
-        'Deprecated==1.2.4',
         'aergo-herapy==0.11.0'
                       ],
     classifiers=[

@@ -2,6 +2,7 @@
 
 install:
 	pip install git+ssh://git@github.com/aergoio/herapy.git@6848d28579e2a66be68352267b5430cdb00643c1
+	pip install pytest
 
 compile_bridge:
 	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/merkle_bridge.lua > contracts/bridge_bytecode.txt
