@@ -28,7 +28,13 @@ _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 class ValidatorService(BridgeOperatorServicer):
     """Validates anchors for the bridge proposer"""
 
-    def __init__(self, config_data, aergo1, aergo2, validator_index=0):
+    def __init__(
+        self,
+        config_data,
+        aergo1,
+        aergo2,
+        validator_index=0
+    ):
         """
         aergo1 is considered to be the mainnet side of the bridge.
         Proposers should set anchor.is_from_mainnet accordingly
@@ -93,8 +99,16 @@ class ValidatorService(BridgeOperatorServicer):
                       anchor.destination_nonce))
         return approval
 
-    def is_valid_anchor(self, anchor, aergo_from, bridge_from, finalized_from,
-                        aergo_to, bridge_to, t_anchor):
+    def is_valid_anchor(
+        self,
+        anchor,
+        aergo_from,
+        bridge_from,
+        finalized_from,
+        aergo_to,
+        bridge_to,
+        t_anchor
+    ):
         """ An anchor is valid if :
             1- it's height is finalized
             2- it's root for that height is correct.
@@ -139,7 +153,15 @@ class ValidatorService(BridgeOperatorServicer):
 
 
 class ValidatorServer:
-    def __init__(self, config_data, aergo1, aergo2, validator_index=0):
+    def __init__(
+        self,
+        config_file_path,
+        aergo1,
+        aergo2,
+        validator_index=0
+    ):
+        with open(config_file_path, "r") as f:
+            config_data = json.load(f)
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         add_BridgeOperatorServicer_to_server(
             ValidatorService(config_data, aergo1, aergo2, validator_index),
@@ -167,10 +189,12 @@ def _serve(servers, index):
     servers[index].run()
 
 
-def _serve_all(config_data, aergo1, aergo2):
+def _serve_all(config_file_path, aergo1, aergo2):
     """ For testing, run all validators in different threads """
+    with open(config_file_path, "r") as f:
+        config_data = json.load(f)
     validator_indexes = [i for i in range(len(config_data['validators']))]
-    servers = [ValidatorServer(config_data, aergo1, aergo2, index)
+    servers = [ValidatorServer(config_file_path, aergo1, aergo2, index)
                for index in validator_indexes]
     worker = partial(_serve, servers)
     pool = Pool(len(validator_indexes))
@@ -180,6 +204,6 @@ def _serve_all(config_data, aergo1, aergo2):
 if __name__ == '__main__':
     with open("./config.json", "r") as f:
         config_data = json.load(f)
-    # validator = ValidatorServer(config_data, 'mainnet', 'sidechain2')
+    # validator = ValidatorServer("./config.json", 'mainnet', 'sidechain2')
     # validator.run()
-    _serve_all(config_data, 'mainnet', 'sidechain2')
+    _serve_all("./config.json", 'mainnet', 'sidechain2')

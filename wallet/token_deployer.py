@@ -11,7 +11,15 @@ from wallet.exceptions import (
 COMMIT_TIME = 3
 
 
-def deploy_token(payload_str, aergo, receiver, total_supply):
+def deploy_token(
+    payload_str,
+    aergo,
+    receiver,
+    total_supply
+):
+    """ Deploy a token contract payload and give the
+    total supply to the deployer
+    """
     payload = herapy.utils.decode_address(payload_str)
     print("------ Deploy Token-----------")
     tx, result = aergo.deploy_sc(amount=0,

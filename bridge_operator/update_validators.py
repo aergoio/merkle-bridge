@@ -237,8 +237,7 @@ class ValidatorsManager:
         validator_index=0
     ):
         if priv_key is None:
-            priv_key = self.config_data('validators', validator_index,
-                                        'priv_key')
+            priv_key = self.config_data("proposer", 'priv_key')
         aergo = self.get_aergo(network_to, priv_key)
         bridge = self.config_data(network_to, 'bridges', network_from, 'addr')
         h = self._tempo_digest(tempo, bridge, aergo)

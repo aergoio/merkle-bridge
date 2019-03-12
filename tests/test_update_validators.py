@@ -4,6 +4,8 @@ import copy
 import json
 
 
+# TODO deploy test bridge otherwise the update nonce is already spent
+
 def test_update_validators():
     with open("./config.json", "r") as f:
         config_data = json.load(f)

@@ -86,16 +86,12 @@ validator.run()
 ```py
 from wallet.wallet import Wallet
 
-# load config file that stores network ip, asset addresses...
-with open("./config.json", "r") as f:
-    c = json.load(f)
-
 # load the compiled bytecode
 with open("./contracts/token_bytecode.txt", "r") as f:
     b = f.read()[:-1]
 
 # create a wallet
-wallet = Wallet(c)
+wallet = Wallet("./config.json")
 
 total_supply = 500*10**18
 # deploy the token and stored the address in config.json
@@ -106,12 +102,8 @@ wallet.deploy_token(b, "token_name", total_supply)
 ``` py
 from wallet.wallet import Wallet
 
-# load config file that stores network ip, asset addresses...
-with open("./config.json", "r") as f:
-    c = json.load(f)
-
 # create a wallet
-wallet = Wallet(c)
+wallet = Wallet("./config.json")
 
 amount = 1*10**18
 asset = 'aergo'
@@ -132,12 +124,8 @@ wallet.transfer_from_sidechain('sidechain2',
 ``` py
 from wallet.wallet import Wallet
 
-# load config file that stores network ip, asset addresses...
-with open("./config.json", "r") as f:
-    c = json.load(f)
-
 # create a wallet
-wallet = Wallet(c)
+wallet = Wallet("./config.json")
 
 asset = 'token1' # token name or 'aergo' in config.json
 balance = wallet.get_balance(account_address, asset_name=asset,

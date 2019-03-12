@@ -44,7 +44,14 @@ class ProposerClient:
     block (now - t_final). Start again after waiting t_anchor.
     """
 
-    def __init__(self, config_data, aergo1, aergo2):
+    def __init__(
+        self,
+        config_file_path,
+        aergo1,
+        aergo2
+    ):
+        with open(config_file_path, "r") as f:
+            config_data = json.load(f)
         self._config_data = config_data
         self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
         self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
@@ -62,6 +69,14 @@ class ProposerClient:
 
         self._pool = Pool(len(self._stubs))
 
+        self._aergo1 = herapy.Aergo()
+        self._aergo2 = herapy.Aergo()
+
+        print("------ Connect AERGO -----------")
+        self._aergo1.connect(self._config_data[aergo1]['ip'])
+        self._aergo2.connect(self._config_data[aergo2]['ip'])
+
+        # TODO restarting the bridge will get the latest bridge tempo
         self._t_anchor1 = config_data[aergo1]['bridges'][aergo2]['t_anchor']
         self._t_final1 = config_data[aergo1]['bridges'][aergo2]['t_final']
         self._t_anchor2 = config_data[aergo2]['bridges'][aergo1]['t_anchor']
@@ -70,13 +85,6 @@ class ProposerClient:
               .format(aergo1, aergo2, self._t_final1, self._t_anchor1))
         print("{} (t_final={}) -> {}              : t_anchor={}"
               .format(aergo1, self._t_final2, aergo2, self._t_anchor2))
-
-        self._aergo1 = herapy.Aergo()
-        self._aergo2 = herapy.Aergo()
-
-        print("------ Connect AERGO -----------")
-        self._aergo1.connect(self._config_data[aergo1]['ip'])
-        self._aergo2.connect(self._config_data[aergo2]['ip'])
 
         sender_priv_key1 = self._config_data["proposer"]['priv_key']
         sender_priv_key2 = self._config_data["proposer"]['priv_key']
@@ -88,7 +96,11 @@ class ProposerClient:
 
         self.kill_proposer_threads = False
 
-    def get_validators_signatures(self, anchor_msg, tab):
+    def get_validators_signatures(
+        self,
+        anchor_msg,
+        tab
+    ):
         is_from_mainnet, root, merge_height, nonce = anchor_msg
 
         # messages to get signed
@@ -109,7 +121,13 @@ class ProposerClient:
 
         return sigs, validator_indexes
 
-    def get_signature_worker(self, tab, anchor, h, index):
+    def get_signature_worker(
+        self,
+        tab,
+        anchor,
+        h,
+        index
+    ):
         try:
             approval = self._stubs[index].GetAnchorSignature(anchor)
         except grpc.RpcError:
@@ -145,7 +163,12 @@ class ProposerClient:
         return sigs[:two_thirds], validator_indexes[:two_thirds]
 
     @staticmethod
-    def wait_next_anchor(merged_height, aergo, t_final, t_anchor):
+    def wait_next_anchor(
+        merged_height,
+        aergo,
+        t_final,
+        t_anchor
+    ):
         _, best_height = aergo.get_blockchain_status()
         # TODO use real lib from rpc
         lib = best_height - t_final
@@ -186,9 +209,17 @@ class ProposerClient:
             t_sidechain.join()
             self.shutdown()
 
-    def bridge_worker(self, t_anchor_to, t_final_from,
-                      aergo_from, aergo_to, bridge_from, bridge_to,
-                      is_from_mainnet, tab=""):
+    def bridge_worker(
+        self,
+        t_anchor_to,
+        t_final_from,
+        aergo_from,
+        aergo_to,
+        bridge_from,
+        bridge_to,
+        is_from_mainnet,
+        tab=""
+    ):
         while True:  # anchor a new root
             # Get last merge information
             merge_info_from = aergo_to.query_sc_state(bridge_to,
@@ -266,8 +297,8 @@ class ProposerClient:
 
             time.sleep(COMMIT_TIME)
             try:
-                # don't crash server if another set_root tx from another proposer
-                # was commited just before this one.
+                # don't crash server if another set_root tx from another
+                # proposer was commited just before this one.
                 result = aergo_to.get_tx_result(tx.tx_hash)
             except CommunicationException:
                 print("{}Anchor failed: already anchored, or invalid signature"
@@ -282,7 +313,7 @@ class ProposerClient:
                 return
 
             # Wait t_anchor
-            print("{0}anchor success,\n{0}waiting until next anchor time : {1}s ..."
+            print("{0}anchor success,\n{0}wait until next anchor time: {1}s..."
                   .format(tab, t_anchor_to))
             if self.kill_proposer_threads:
                 print("{}stopping thread".format(tab))
@@ -301,7 +332,5 @@ class ProposerClient:
 
 
 if __name__ == '__main__':
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
-    proposer = ProposerClient(config_data, 'mainnet', 'sidechain2')
+    proposer = ProposerClient("./config.json", 'mainnet', 'sidechain2')
     proposer.run()

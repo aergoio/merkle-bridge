@@ -680,7 +680,6 @@ class Wallet:
             print("Pegged token unknow by wallet")
             save_pegged_token_address = True
 
-        # TODO check last anchor and if there is enough time for minting
         token_pegged = mint(aergo_to, receiver, lock_proof, asset_address,
                             bridge_to)
 
@@ -721,7 +720,7 @@ class Wallet:
             receiver = sender
 
         if signed_transfer is not None and delegate_data is not None:
-            #broadcasting tx
+            # broadcasting tx
             if sender != receiver:
                 raise InvalidArgumentsError(
                     "When broadcasting a signed transfer, sender and "
