@@ -23,13 +23,15 @@ class ValidatorsManager:
         self._config_data = old_config_data
 
     def get_aergo_providers(self, network1, network2, priv_key):
-        aergo1 = herapy.Aergo()
-        aergo2 = herapy.Aergo()
-        aergo1.connect(self._config_data[network1]['ip'])
-        aergo2.connect(self._config_data[network2]['ip'])
-        aergo1.new_account(private_key=priv_key)
-        aergo2.new_account(private_key=priv_key)
+        aergo1 = self._get_aergo(network1, priv_key)
+        aergo2 = self._get_aergo(network2, priv_key)
         return aergo1, aergo2
+
+    def _get_aergo(self, network, priv_key):
+        aergo = herapy.Aergo()
+        aergo.connect(self._config_data[network]['ip'])
+        aergo.new_account(private_key=priv_key)
+        return aergo
 
     def _verify_signatures(self, signers, signatures1, signatures2, h1, h2):
         verified_sigs1 = []
@@ -55,8 +57,8 @@ class ValidatorsManager:
     def get_validators(self, network1, network2):
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
-        aergo1.connect(config_data[network1]['ip'])
-        aergo2.connect(config_data[network2]['ip'])
+        aergo1.connect(self._config_data[network1]['ip'])
+        aergo2.connect(self._config_data[network2]['ip'])
         bridge1 = self._config_data[network1]['bridges'][network2]['addr']
         bridge2 = self._config_data[network2]['bridges'][network1]['addr']
         validators1 = self.query_validators(aergo1, bridge1)
@@ -82,8 +84,8 @@ class ValidatorsManager:
     def _get_tempo(self, tempo, network1, network2):
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
-        aergo1.connect(config_data[network1]['ip'])
-        aergo2.connect(config_data[network2]['ip'])
+        aergo1.connect(self._config_data[network1]['ip'])
+        aergo2.connect(self._config_data[network2]['ip'])
         bridge1 = self._config_data[network1]['bridges'][network2]['addr']
         bridge2 = self._config_data[network2]['bridges'][network1]['addr']
         tempo1 = self.query_tempo(aergo1, bridge1, tempo)
@@ -216,6 +218,9 @@ class ValidatorsManager:
     def update_validators(self, new_validators, signers,
                           signatures1, signatures2,
                           network1, network2, priv_key=None):
+        """ Validators should be the same on both sides of the bridge,
+        so update_validators updates both sides.
+        """
         if priv_key is None:
             priv_key = self._config_data["proposer"]['priv_key']
         aergo1, aergo2 = self.get_aergo_providers(network1, network2, priv_key)
@@ -259,60 +264,3 @@ class ValidatorsManager:
             raise TxError("Set new validators Tx commit failed : {}"
                           .format(result))
         return tx.tx_hash
-
-
-if __name__ == '__main__':
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
-
-    new_validators = ["AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"]
-    manager = ValidatorsManager(config_data)
-    sig1, sig2 = manager.sign_new_validators('mainnet', 'sidechain2',
-                                             new_validators)
-    manager.update_validators(new_validators,
-                              [1, 2],
-                              [sig1, sig1],
-                              [sig2, sig2],
-                              'mainnet', 'sidechain2')
-    validators = manager.get_validators('mainnet', 'sidechain2')
-    print("increased number of validators to : {}".format(len(validators[0])))
-    print(validators)
-
-    with open("./test_config.json", "r") as f:
-        test_config_data = json.load(f)
-    new_validators = ["AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"]
-    manager = ValidatorsManager(test_config_data)
-    sig1, sig2 = manager.sign_new_validators('mainnet', 'sidechain2',
-                                             new_validators)
-    manager.update_validators(new_validators,
-                              [1, 2, 3],
-                              [sig1, sig1, sig1],
-                              [sig2, sig2, sig2],
-                              'mainnet', 'sidechain2')
-    validators = manager.get_validators('mainnet', 'sidechain2')
-    print("decreased number of validators  to : {}".format(len(validators[0])))
-    print(validators)
-
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
-    manager = ValidatorsManager(config_data)
-    print(manager.get_t_final('mainnet', 'sidechain2'))
-    sig1, sig2 = manager.sign_t_final(11, 'mainnet', 'sidechain2')
-    manager.update_t_final(11,
-                            [1,2],
-                            [sig1, sig1],
-                            [sig2, sig2],
-                            'mainnet', 'sidechain2')
-    print(manager.get_t_final('mainnet', 'sidechain2'))
-    sig1, sig2 = manager.sign_t_final(10, 'mainnet', 'sidechain2')
-    manager.update_t_final(10,
-                            [1,2],
-                            [sig1, sig1],
-                            [sig2, sig2],
-                            'mainnet', 'sidechain2')
-    print(manager.get_t_final('mainnet', 'sidechain2'))
