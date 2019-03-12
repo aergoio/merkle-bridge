@@ -53,23 +53,57 @@ def test_update_validators():
     assert len(validators[0]) == 3
 
 
-def test_update_tempo():
-    # TODO update one side at a time
+def test_update_t_anchor():
     with open("./config.json", "r") as f:
         config_data = json.load(f)
+
     manager = ValidatorsManager(config_data)
-    print(manager.get_t_final('mainnet', 'sidechain2'))
-    sig1, sig2 = manager.sign_t_final(11, 'mainnet', 'sidechain2')
+    t_anchor_before = manager.get_t_anchor('mainnet', 'sidechain2')
+    print("t_anchor before: ", t_anchor_before)
+
+    sig = manager.sign_t_anchor(11, 'mainnet', 'sidechain2')
+    manager.update_t_anchor(11,
+                            [1, 2],
+                            [sig, sig],
+                            'mainnet', 'sidechain2')
+    t_anchor_after = manager.get_t_anchor('mainnet', 'sidechain2')
+    print("t_anchor after: ", t_anchor_after)
+    assert t_anchor_after == 11
+
+    sig = manager.sign_t_anchor(t_anchor_before, 'mainnet', 'sidechain2')
+    manager.update_t_anchor(t_anchor_before,
+                            [1, 2],
+                            [sig, sig],
+                            'mainnet', 'sidechain2')
+
+    t_anchor_after = manager.get_t_anchor('mainnet', 'sidechain2')
+    print("t_anchor after: ", t_anchor_after)
+    assert t_anchor_after == t_anchor_before
+
+
+def test_update_t_final():
+    with open("./config.json", "r") as f:
+        config_data = json.load(f)
+
+    manager = ValidatorsManager(config_data)
+    t_final_before = manager.get_t_final('mainnet', 'sidechain2')
+    print("t_final before: ", t_final_before)
+
+    sig = manager.sign_t_final(11, 'mainnet', 'sidechain2')
     manager.update_t_final(11,
                            [1, 2],
-                           [sig1, sig1],
-                           [sig2, sig2],
+                           [sig, sig],
                            'mainnet', 'sidechain2')
-    print(manager.get_t_final('mainnet', 'sidechain2'))
-    sig1, sig2 = manager.sign_t_final(10, 'mainnet', 'sidechain2')
-    manager.update_t_final(10,
+    t_final_after = manager.get_t_final('mainnet', 'sidechain2')
+    print("t_final after: ", t_final_after)
+    assert t_final_after == 11
+
+    sig = manager.sign_t_final(t_final_before, 'mainnet', 'sidechain2')
+    manager.update_t_final(t_final_before,
                            [1, 2],
-                           [sig1, sig1],
-                           [sig2, sig2],
+                           [sig, sig],
                            'mainnet', 'sidechain2')
-    print(manager.get_t_final('mainnet', 'sidechain2'))
+
+    t_final_after = manager.get_t_final('mainnet', 'sidechain2')
+    print("t_final after: ", t_final_after)
+    assert t_final_after == t_final_before
