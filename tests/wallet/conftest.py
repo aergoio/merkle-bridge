@@ -1,4 +1,3 @@
-
 from wallet.wallet import Wallet
 
 import pytest

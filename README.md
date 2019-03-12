@@ -153,11 +153,7 @@ In a new terminal : start validator
 ```sh
 $ make validator
 ```
-In a new terminal : test wallet transfer to sidechain and back.
+In a new terminal : test wallet transfers.
 ```sh
-$ python3 -m pytest -s
-```
-Run a specific test :
-```sh
-$ python3 -m pytest -s tests/test_bridge_transfers.py::test_token_transfer
+$ python3 -m pytest -s tests/wallet
 ```
