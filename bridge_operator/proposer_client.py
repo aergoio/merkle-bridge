@@ -11,6 +11,9 @@ import threading
 import time
 
 import aergo.herapy as herapy
+from aergo.herapy.errors.exception import (
+    CommunicationException,
+)
 
 from aergo.herapy.utils.signature import (
     verify_sig,
@@ -148,7 +151,6 @@ class ProposerClient:
         lib = best_height - t_final
         wait = (merged_height + t_anchor) - lib
         while wait > 0:
-            # TODO return if kill thread raise KillThread
             print("waiting new anchor time :", wait, "s ...")
             time.sleep(wait)
             # Get origin and destination best height
@@ -178,7 +180,7 @@ class ProposerClient:
             while True:
                 time.sleep(_ONE_DAY_IN_SECONDS)
         except KeyboardInterrupt:
-            print("\nInitiating proposer shutdown")
+            print("\nInitiating proposer shutdown, finalizing last anchors")
             self.kill_proposer_threads = True
             t_mainnet.join()
             t_sidechain.join()
@@ -187,7 +189,7 @@ class ProposerClient:
     def bridge_worker(self, t_anchor_to, t_final_from,
                       aergo_from, aergo_to, bridge_from, bridge_to,
                       is_from_mainnet, tab=""):
-        while True:
+        while True:  # anchor a new root
             # Get last merge information
             merge_info_from = aergo_to.query_sc_state(bridge_to,
                                                       ["_sv_Height",
@@ -206,7 +208,7 @@ class ProposerClient:
                   .format(tab, merged_height_from,
                           merged_root_from[:20], nonce_to))
 
-            while True:
+            while True:  # try to gather 2/3 validators
                 # Wait for the next anchor time
                 next_anchor_height = self.wait_next_anchor(merged_height_from,
                                                            aergo_from,
@@ -244,7 +246,14 @@ class ProposerClient:
                     continue
                 break
 
-            # TODO don't broadcast if somebody else already did
+            # don't broadcast if somebody else already did
+            last_merge = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+            merged_height = int(last_merge.var_proofs[0].value)
+            if merged_height + t_anchor_to >= next_anchor_height:
+                print("{}Another proposer already anchored".format(tab))
+                time.sleep(t_anchor_to)
+                continue
+
             # Broadcast finalised merge block
             tx, result = aergo_to.call_sc(bridge_to, "set_root",
                                           args=[root, next_anchor_height,
@@ -256,9 +265,16 @@ class ProposerClient:
                 return
 
             time.sleep(COMMIT_TIME)
-            result = aergo_to.get_tx_result(tx.tx_hash)
-            # TODO handle result not success for example somebody else already
-            # set_root
+            try:
+                # don't crash server if another set_root tx from another proposer
+                # was commited just before this one.
+                result = aergo_to.get_tx_result(tx.tx_hash)
+            except CommunicationException:
+                print("{}Anchor failed: already anchored, or invalid signature"
+                      .format(tab))
+                time.sleep(t_anchor_to)
+                continue
+
             if result.status != herapy.TxResultStatus.SUCCESS:
                 print("  > ERROR[{0}]:{1}: {2}"
                       .format(result.contract_address,
@@ -266,12 +282,14 @@ class ProposerClient:
                 return
 
             # Wait t_anchor
-            print("{0}anchor success,\n{0}waiting new anchor time : {1}s ..."
-                  .format(tab, t_anchor_to-COMMIT_TIME))
+            print("{0}anchor success,\n{0}waiting until next anchor time : {1}s ..."
+                  .format(tab, t_anchor_to))
             if self.kill_proposer_threads:
                 print("{}stopping thread".format(tab))
                 return
-            time.sleep(t_anchor_to-COMMIT_TIME)
+            # counting commit time in t_anchor often leads to 'Next anchor not
+            # reached exception.
+            time.sleep(t_anchor_to)
 
     def shutdown(self):
         print("\nDisconnecting AERGO")
