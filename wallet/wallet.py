@@ -2,6 +2,13 @@ import hashlib
 import json
 import time
 
+from typing import (
+    Any,
+    Union,
+    Tuple,
+    Optional
+)
+
 import aergo.herapy as herapy
 
 from wallet.transfer_to_sidechain import (
@@ -31,13 +38,13 @@ class Wallet:
     implements the functionality to transfer tokens to sidechains
     """
 
-    def __init__(self, config_file_path):
+    def __init__(self, config_file_path: str) -> None:
         with open(config_file_path, "r") as f:
             config_data = json.load(f)
         self._config_data = config_data
         self._config_path = config_file_path
 
-    def config_data(self, *json_path, value=None):
+    def config_data(self, *json_path: Union[str, int], value: Any = None):
         """ Get the value in nested dictionary at the end of
         json path if value is None, or set value at the end of
         the path.
@@ -49,34 +56,34 @@ class Wallet:
             config_dict[json_path[-1]] = value
         return config_dict[json_path[-1]]
 
-    def save_config(self, path=None):
+    def save_config(self, path: str = None) -> None:
         if path is None:
             path = self._config_path
         with open(path, "w") as f:
             json.dump(self._config_data, f, indent=4, sort_keys=True)
 
-    def _load_priv_key(self, account_name='default'):
+    def _load_priv_key(self, account_name: str = 'default') -> str:
         """ Load and prompt user password to decrypt priv_key."""
         # TODO don't store priv_key in config.json, only it's name and path to
         # file
         priv_key = self.config_data('wallet', account_name, 'priv_key')
         return priv_key
 
-    def get_wallet_address(self, account_name='default'):
+    def get_wallet_address(self, account_name: str = 'default') -> str:
         addr = self.config_data('wallet', account_name, 'addr')
         return addr
 
-    def _connect_aergo(self, network_name):
+    def _connect_aergo(self, network_name: str) -> herapy.Aergo:
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network_name, 'ip'))
         return aergo
 
     def get_aergo(
         self,
-        privkey_name,
-        network_name,
-        skip_state=False
-    ):
+        privkey_name: str,
+        network_name: str,
+        skip_state: bool = False
+    ) -> herapy.Aergo:
         """ Return aergo provider with new account created with
         priv_key
         """
@@ -87,11 +94,12 @@ class Wallet:
         aergo.new_account(private_key=priv_key, skip_state=skip_state)
         return aergo
 
-    def get_asset_address(self,
-                          asset_name,
-                          network_name,
-                          asset_origin_chain=None
-                          ):
+    def get_asset_address(
+        self,
+        asset_name: str,
+        network_name: str,
+        asset_origin_chain: str = None
+    ) -> str:
         """ Get the address of a time in config_data given it's name"""
         if asset_origin_chain is None:
             # query a token issued on network_name
@@ -107,12 +115,15 @@ class Wallet:
 
     def get_balance(
         self,
-        asset_name,
-        network_name,
-        asset_origin_chain=None,
-        account_name='default',
-    ):
-        account_addr = self.get_wallet_address(account_name)
+        asset_name: str,
+        network_name: str,
+        asset_origin_chain: str = None,
+        account_name: str = 'default',
+        account_addr: str = None
+    ) -> Tuple[int, str]:
+        """ Get account name balance of asset_name on network_name."""
+        if account_addr is None:
+            account_addr = self.get_wallet_address(account_name)
         aergo = self._connect_aergo(network_name)
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
@@ -122,10 +133,10 @@ class Wallet:
 
     def _get_balance(
         self,
-        account_addr,
-        asset_addr,
-        aergo,
-    ):
+        account_addr: str,
+        asset_addr: str,
+        aergo: herapy.Aergo,
+    ) -> int:
         """ Get an account or the default wallet balance of Aer
         or any token on a given network.
         """
@@ -145,12 +156,12 @@ class Wallet:
 
     def get_minteable_balance(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        asset_origin_chain,
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        asset_origin_chain: str,
         **kwargs
-    ):
+    ) -> int:
         """ Get the balance that has been locked on one side of the
         bridge and not yet minted on the other side
         """
@@ -162,12 +173,12 @@ class Wallet:
 
     def get_unlockeable_balance(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        asset_origin_chain,
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        asset_origin_chain: str,
         **kwargs
-    ):
+    ) -> int:
         """ Get the balance that has been burnt on one side of the
         bridge and not yet unlocked on the other side
         """
@@ -179,17 +190,17 @@ class Wallet:
 
     def _bridge_withdrawable_balance(
         self,
-        deposit_key,
-        withdraw_key,
-        from_chain,
-        to_chain,
-        asset_name,
-        asset_origin_chain,
-        account_name='default',
-        account_addr=None,
-        total_deposit=None,
-        pending=False
-    ):
+        deposit_key: str,
+        withdraw_key: str,
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        asset_origin_chain: str,
+        account_name: str = 'default',
+        account_addr: str = None,
+        total_deposit: int = None,
+        pending: bool = False
+    ) -> int:
         """ Get the balance that has been locked/burnt on one side of the
         bridge and not yet minted/unlocked on the other side.
         Calculates the difference between the total amount deposited and
@@ -256,12 +267,12 @@ class Wallet:
 
     def get_bridge_tempo(
         self,
-        from_chain,
-        to_chain,
-        aergo=None,
-        bridge_address=None,
-        sync=False
-    ):
+        from_chain: str,
+        to_chain: str,
+        aergo: herapy.Aergo = None,
+        bridge_address: str = None,
+        sync: bool = False
+    ) -> Tuple[int, int]:
         """ Return the anchoring periode of from_chain onto to_chain
         and minimum finality time of from_chain
         """
@@ -294,16 +305,16 @@ class Wallet:
 
     def transfer(
         self,
-        value,
-        to,
-        asset_name,
-        network_name,
-        asset_origin_chain=None,
-        privkey_name='default',
-        sender=None,
-        signed_transfer=None,
-        delegate_data=None
-    ):
+        value: int,
+        to: str,
+        asset_name: str,
+        network_name: str,
+        asset_origin_chain: str = None,
+        privkey_name: str = 'default',
+        sender: str = None,
+        signed_transfer: Tuple[int, str] = None,
+        delegate_data: Tuple[str, int] = None
+    ) -> bool:
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
         aergo = self.get_aergo(privkey_name, network_name, skip_state=True)
@@ -316,14 +327,14 @@ class Wallet:
 
     def _transfer(
         self,
-        value,
-        to,
-        asset_addr,
-        aergo,
-        sender,
-        signed_transfer=None,
-        delegate_data=None
-    ):
+        value: int,
+        to: str,
+        asset_addr: str,
+        aergo: herapy.Aergo,
+        sender: str,
+        signed_transfer: Tuple[int, str] = None,
+        delegate_data: Tuple[str, int] = None
+    ) -> bool:
         """
         TODO https://github.com/Dexaran/ERC223-token-standard/blob/
         16d350ec85d5b14b9dc857468c8e0eb4a10572d3/ERC223_Token.sol#L107
@@ -347,16 +358,16 @@ class Wallet:
                                             amount=value, payload=None)
         else:
             # transfer token (issued or pegged) on network_name
-            if signed_transfer is None:
-                tx, result = aergo.call_sc(asset_addr, "transfer",
-                                           args=[to, str(value)],
-                                           amount=0)
-            else:
+            if signed_transfer is not None and delegate_data is not None:
                 fee, deadline = delegate_data
                 nonce, sig = signed_transfer
                 tx, result = aergo.call_sc(asset_addr, "signed_transfer",
                                            args=[sender, to, str(value),
                                                  nonce, sig, fee, deadline],
+                                           amount=0)
+            else:
+                tx, result = aergo.call_sc(asset_addr, "transfer",
+                                           args=[to, str(value)],
                                            amount=0)
 
         if result.status != herapy.CommitStatus.TX_OK:
@@ -375,15 +386,15 @@ class Wallet:
 
     def get_signed_transfer(
         self,
-        value,
-        to,
-        asset_name,
-        network_name,
-        asset_origin_chain=None,
-        fee=0,
-        deadline=0,
-        privkey_name='default'
-    ):
+        value: int,
+        to: str,
+        asset_name: str,
+        network_name: str,
+        asset_origin_chain: str = None,
+        fee: int = 0,
+        deadline: int = 0,
+        privkey_name: str = 'default'
+    ) -> Tuple[Tuple[int, str], Optional[Tuple[str, int]], int]:
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
         aergo = self.get_aergo(privkey_name, network_name,
@@ -395,13 +406,13 @@ class Wallet:
 
     def _get_signed_transfer(
         self,
-        value,
-        to,
-        asset_addr,
-        aergo,
-        fee=0,
-        deadline=0,
-    ):
+        value: int,
+        to: str,
+        asset_addr: str,
+        aergo: herapy.Aergo,
+        fee: int = 0,
+        deadline: int = 0,
+    ) -> Tuple[Tuple[int, str], Optional[Tuple[str, int]], int]:
         """Sign a standard token transfer to be broadcasted by a 3rd party"""
         # get current balance and nonce
         sender = aergo.account.address.__str__()
@@ -425,11 +436,11 @@ class Wallet:
         h = hashlib.sha256(msg).digest()
         sig = aergo.account.private_key.sign_msg(h).hex()
 
-        signed_transfer = [nonce, sig]
+        signed_transfer = (nonce, sig)
         if fee == 0 and deadline == 0:
             delegate_data = None
         else:
-            delegate_data = [str(fee), deadline]
+            delegate_data = (str(fee), deadline)
         return signed_transfer, delegate_data, balance
 
     # TODO create a tx broadcaster that calls signed transfer,
@@ -438,13 +449,13 @@ class Wallet:
 
     def deploy_token(
         self,
-        payload_str,
-        asset_name,
-        total_supply,
-        network_name,
-        receiver=None,
-        privkey_name='default',
-    ):
+        payload_str: str,
+        asset_name: str,
+        total_supply: int,
+        network_name: str,
+        receiver: str = None,
+        privkey_name: str = 'default',
+    ) -> bool:
         aergo = self.get_aergo(privkey_name, network_name, skip_state=True)
         success = self._deploy_token(payload_str, asset_name, total_supply,
                                      aergo, network_name, receiver)
@@ -453,13 +464,13 @@ class Wallet:
 
     def _deploy_token(
         self,
-        payload_str,
-        asset_name,
-        total_supply,
-        aergo,
-        network_name,
-        receiver=None,
-    ):
+        payload_str: str,
+        asset_name: str,
+        total_supply: int,
+        aergo: herapy.Aergo,
+        network_name: str,
+        receiver: str = None,
+    ) -> bool:
         """ Deploy a new standard token, store the address in
         config_data
         """
@@ -482,16 +493,16 @@ class Wallet:
 
     def transfer_to_sidechain(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        amount,
-        receiver=None,
-        privkey_name='default',
-        sender=None,
-        signed_transfer=None,
-        delegate_data=None
-    ):
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        amount: int,
+        receiver: str = None,
+        privkey_name: str = 'default',
+        sender: str = None,
+        signed_transfer: Tuple[int, str] = None,
+        delegate_data: Tuple[str, int] = None
+    ) -> None:
         """ Transfer assets from from_chain to to_chain.
         The asset being transfered to the to_chain sidechain
         should be native of from_chain
@@ -522,16 +533,16 @@ class Wallet:
 
     def transfer_from_sidechain(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        amount,
-        receiver=None,
-        privkey_name='default',
-        sender=None,
-        signed_transfer=None,
-        delegate_data=None
-    ):
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        amount: int,
+        receiver: str = None,
+        privkey_name: str = 'default',
+        sender: str = None,
+        signed_transfer: Tuple[int, str] = None,
+        delegate_data: Tuple[str, int] = None
+    ) -> None:
         """ Transfer assets from from_chain to to_chain
         The asset being transfered back to the to_chain native chain
         should be a minted asset on the sidechain.
@@ -562,16 +573,16 @@ class Wallet:
 
     def initiate_transfer_lock(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        amount,
-        receiver=None,
-        privkey_name='default',
-        sender=None,
-        signed_transfer=None,
-        delegate_data=None
-    ):
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        amount: int,
+        receiver: str = None,
+        privkey_name: str = 'default',
+        sender: str = None,
+        signed_transfer: Tuple[int, str] = None,
+        delegate_data: Tuple[str, int] = None
+    ) -> int:
         """ Initiate a transfer to a sidechain by locking the asset."""
         aergo_from = self.get_aergo(privkey_name, from_chain)
 
@@ -632,13 +643,13 @@ class Wallet:
 
     def finalize_transfer_mint(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        receiver=None,
-        lock_height=0,
-        privkey_name='default'
-    ):
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        receiver: str = None,
+        lock_height: int = 0,
+        privkey_name: str = 'default'
+    ) -> None:
         """
         Finalize a transfer of assets to a sidechain by minting then
         after the lock is final and a new anchor was made.
@@ -700,16 +711,16 @@ class Wallet:
 
     def initiate_transfer_burn(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        amount,
-        receiver=None,
-        privkey_name='default',
-        sender=None,
-        signed_transfer=None,
-        delegate_data=None
-    ):
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        amount: int,
+        receiver: str = None,
+        privkey_name: str = 'default',
+        sender: str = None,
+        signed_transfer: Tuple[int, str] = None,
+        delegate_data: Tuple[str, int] = None
+    ) -> int:
         """ Initiate a transfer from a sidechain by burning the assets."""
         aergo_from = self.get_aergo(privkey_name, from_chain)
 
@@ -760,13 +771,13 @@ class Wallet:
 
     def finalize_transfer_unlock(
         self,
-        from_chain,
-        to_chain,
-        asset_name,
-        receiver=None,
-        burn_height=0,
-        privkey_name='default'
-    ):
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        receiver: str = None,
+        burn_height: int = 0,
+        privkey_name: str = 'default'
+    ) -> None:
         """
         Finalize a transfer of assets from a sidechain by unlocking then
         after the burn is final and a new anchor was made.

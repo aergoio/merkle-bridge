@@ -2,6 +2,10 @@ import json
 import sys
 import time
 
+from typing import (
+    Tuple,
+)
+
 import aergo.herapy as herapy
 
 from wallet.exceptions import (
@@ -14,14 +18,14 @@ COMMIT_TIME = 3
 
 
 def lock(
-    aergo_from,
-    bridge_from,
-    receiver,
-    value,
-    asset,
-    signed_transfer=None,
-    delegate_data=None
-):
+    aergo_from: herapy.Aergo,
+    bridge_from: str,
+    receiver: str,
+    value: int,
+    asset: str,
+    signed_transfer: Tuple[int, str] = None,
+    delegate_data: Tuple[str, int] = None
+) -> int:
     """ Lock can be called to lock aer or tokens.
         it supports delegated transfers when tx broadcaster is not
         the same as the token owner
@@ -34,7 +38,7 @@ def lock(
         if signed_transfer is None:
             raise InvalidArgumentsError("""provide signature
                                         and nonce for token transfers""")
-        args = [receiver, str(value), asset] + signed_transfer
+        args = (receiver, str(value), asset) + signed_transfer
         if delegate_data is not None:
             args = args + delegate_data
         tx, result = aergo_from.call_sc(bridge_from, "lock",
@@ -57,16 +61,16 @@ def lock(
 
 
 def build_lock_proof(
-    aergo_from,
-    aergo_to,
-    receiver,
-    bridge_from,
-    bridge_to,
-    lock_height,
-    token_origin,
-    t_anchor,
-    t_final
-):
+    aergo_from: herapy.Aergo,
+    aergo_to: herapy.Aergo,
+    receiver: str,
+    bridge_from: str,
+    bridge_to: str,
+    lock_height: int,
+    token_origin: str,
+    t_anchor: int,
+    t_final: int
+) -> herapy.obj.sc_state.SCState:
     """ Check the last anchored root includes the lock and build
     a lock proof for that root
     """
@@ -96,12 +100,12 @@ def build_lock_proof(
 
 
 def mint(
-    aergo_to,
-    receiver,
-    lock_proof,
-    token_origin,
-    bridge_to
-):
+    aergo_to: herapy.Aergo,
+    receiver: str,
+    lock_proof: herapy.obj.sc_state.SCState,
+    token_origin: str,
+    bridge_to: str
+) -> str:
     """ Mint the receiver's deposit balance on aergo_to. """
     balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = lock_proof.var_proofs[0].auditPath

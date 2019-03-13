@@ -12,11 +12,11 @@ COMMIT_TIME = 3
 
 
 def deploy_token(
-    payload_str,
-    aergo,
-    receiver,
-    total_supply
-):
+    payload_str: str,
+    aergo: herapy.Aergo,
+    receiver: str,
+    total_supply: int
+) -> str:
     """ Deploy a token contract payload and give the
     total supply to the deployer
     """

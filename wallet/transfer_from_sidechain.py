@@ -1,6 +1,10 @@
 import sys
 import time
 
+from typing import (
+    Tuple,
+)
+
 import aergo.herapy as herapy
 
 from wallet.exceptions import (
@@ -12,24 +16,24 @@ COMMIT_TIME = 3
 
 
 def burn(
-    aergo_from,
-    receiver,
-    value,
-    token_pegged,
-    bridge_from,
-    signed_transfer=None,
-    delegate_data=None
-):
+    aergo_from: herapy.Aergo,
+    receiver: str,
+    value: int,
+    token_pegged: str,
+    bridge_from: str,
+    signed_transfer: Tuple[int, str] = None,
+    delegate_data: Tuple[str, int] = None
+) -> int:
     """ Burn a minted token on a sidechain. """
-    if signed_transfer is None and delegate_data is None:
-        tx, result = aergo_from.call_sc(bridge_from, "burn",
-                                        args=[receiver, str(value),
-                                              token_pegged])
-    else:
+    if signed_transfer is not None and delegate_data is not None:
         nonce, sig = signed_transfer
         fee, deadline = delegate_data
         args = [receiver, str(value), token_pegged, nonce, sig, fee, deadline]
         tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
+    else:
+        tx, result = aergo_from.call_sc(bridge_from, "burn",
+                                        args=[receiver, str(value),
+                                              token_pegged])
 
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Burn asset Tx commit failed : {}".format(result))
@@ -48,16 +52,16 @@ def burn(
 
 
 def build_burn_proof(
-    aergo_to,
-    aergo_from,
-    receiver,
-    bridge_to,
-    bridge_from,
-    burn_height,
-    token_origin,
-    t_anchor,
-    t_final
-):
+    aergo_to: herapy.Aergo,
+    aergo_from: herapy.Aergo,
+    receiver: str,
+    bridge_to: str,
+    bridge_from: str,
+    burn_height: int,
+    token_origin: str,
+    t_anchor: int,
+    t_final: int
+) -> herapy.obj.sc_state.SCState:
     """ Check the last anchored root includes the burn and build
     a burn proof for that root
     """
@@ -86,12 +90,12 @@ def build_burn_proof(
 
 
 def unlock(
-    aergo_to,
-    receiver,
-    burn_proof,
-    token_origin,
-    bridge_to
-):
+    aergo_to: herapy.Aergo,
+    receiver: str,
+    burn_proof: herapy.obj.sc_state.SCState,
+    token_origin: str,
+    bridge_to: str
+) -> None:
     """ Unlock the receiver's deposit balance on aergo_to. """
     balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = burn_proof.var_proofs[0].auditPath
