@@ -108,6 +108,7 @@ class ProposerClient:
         anchor_msg: Tuple[bool, str, int, int],
         tab: str
     ) -> Tuple[List[str], List[int]]:
+        """ Query all validators and gather 2/3 of their signatures. """
         is_from_mainnet, root, merge_height, nonce = anchor_msg
 
         # messages to get signed
@@ -135,6 +136,7 @@ class ProposerClient:
         h: bytes,
         index: int
     ) -> Optional[Any]:
+        """ Get a validator's (index) signature and verify it"""
         try:
             approval = self._stubs[index].GetAnchorSignature(anchor)
         except grpc.RpcError:
@@ -158,6 +160,7 @@ class ProposerClient:
         self,
         approvals: List[Any]
     ) -> Tuple[List[str], List[int]]:
+        """ Convert signatures to hex string and keep 2/3 of them."""
         sigs, validator_indexes = [], []
         for i, approval in enumerate(approvals):
             if approval is not None:
@@ -179,6 +182,9 @@ class ProposerClient:
         t_final: int,
         t_anchor: int
     ) -> int:
+        """ Wait until t_anchor has passed after merged height.
+        Return the next finalized block after t_anchor to be the next anchor
+        """
         _, best_height = aergo.get_blockchain_status()
         # TODO use real lib from rpc
         lib = best_height - t_final
@@ -230,6 +236,10 @@ class ProposerClient:
         is_from_mainnet: bool,
         tab: str = ""
     ) -> None:
+        """ Thread that anchors in one direction given t_final and t_anchor.
+        Gathers signatures from validators, verifies them, and if 2/3 majority
+        is acquired, set the new anchored root in bridge_to.
+        """
         while True:  # anchor a new root
             # Get last merge information
             merge_info_from = aergo_to.query_sc_state(bridge_to,

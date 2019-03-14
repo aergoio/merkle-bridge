@@ -112,6 +112,9 @@ class ValidatorsManager:
         network1: str,
         network2: str
     ) -> Tuple[List[str], List[str]]:
+        """ Query the validators on both sides of the bridge : both lists should
+        be the same.
+        """
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
         aergo1.connect(self.config_data(network1, 'ip'))
@@ -137,6 +140,7 @@ class ValidatorsManager:
         network_from: str,
         network_to: str
     ) -> int:
+        """ Query the anchoring periode of network_from onto network_to."""
         return self._get_tempo("T_anchor", network_from, network_to)
 
     def get_t_final(
@@ -144,6 +148,9 @@ class ValidatorsManager:
         network_from: str,
         network_to: str
     ) -> int:
+        """ Query when network_from should be considered final by validators
+        before it can be anchored on network_to
+        """
         return self._get_tempo("T_final", network_from, network_to)
 
     def _get_tempo(
@@ -152,6 +159,7 @@ class ValidatorsManager:
         network_from: str,
         network_to: str
     ) -> int:
+        """ Query t_final or t_achor depending on the tempo argument."""
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network_to, 'ip'))
         bridge = self.config_data(network_to, 'bridges', network_from, 'addr')
@@ -172,6 +180,7 @@ class ValidatorsManager:
         priv_key: str = None,
         validator_index: int = 0
     ) -> bytes:
+        """Sign a new anchor periode for network_from -> network_to bridge"""
         return self._sign_tempo(t_anchor, network_from, network_to,
                                 priv_key, validator_index)
 
@@ -183,11 +192,17 @@ class ValidatorsManager:
         priv_key: str = None,
         validator_index: int = 0
     ) -> bytes:
+        """ Sign a new finality of network_from for
+        network_from -> network_to bridge.
+        """
         return self._sign_tempo(t_final, network_from, network_to,
                                 priv_key, validator_index)
 
     @staticmethod
     def _tempo_digest(tempo: int, bridge: str, aergo: herapy.Aergo) -> bytes:
+        """ Construct the digest message with the bridge update nonce to be
+        signed by the validator for a t_anchor or t_final update.
+        """
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
@@ -203,6 +218,7 @@ class ValidatorsManager:
         priv_key: str = None,
         validator_index: int = 0
     ) -> bytes:
+        """ Sign an update of t_final or t_anchor."""
         if priv_key is None:
             priv_key = self.config_data('validators', validator_index,
                                         'priv_key')
@@ -223,6 +239,7 @@ class ValidatorsManager:
         priv_key: str = None,
         validator_index: int = 0
     ) -> None:
+        """Update the anchoring periode of network_from -> network_to bridge"""
         return self._update_tempo("update_t_anchor", t_anchor, signers,
                                   sigs, network_from, network_to,
                                   priv_key, validator_index)
@@ -237,6 +254,9 @@ class ValidatorsManager:
         priv_key: str = None,
         validator_index: int = 0
     ) -> None:
+        """Update the finality of network_from for the 
+        network_from -> network_to bridge
+        """
         return self._update_tempo("update_t_final", t_final, signers,
                                   sigs, network_from, network_to,
                                   priv_key, validator_index)
@@ -252,6 +272,9 @@ class ValidatorsManager:
         priv_key: str = None,
         validator_index: int = 0
     ) -> None:
+        """ Verify the validator signatures before updating the t_anchor or
+        t_final of the bridge.
+        """
         if priv_key is None:
             priv_key = self.config_data("proposer", 'priv_key')
         aergo = self.get_aergo(network_to, priv_key)
@@ -317,6 +340,9 @@ class ValidatorsManager:
         bridge: str,
         new_validators: List[str]
     ) -> bytes:
+        """ Construct the digest message with the bridge update nonce to be
+        signed by the validator for a validator set update.
+        """
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)

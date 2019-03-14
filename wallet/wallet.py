@@ -46,8 +46,8 @@ class Wallet:
         self._config_path = config_file_path
 
     def config_data(
-        self, 
-        *json_path: Union[str, int], 
+        self,
+        *json_path: Union[str, int],
         value: Union[str, int, List, Dict] = None
     ):
         """ Get the value in nested dictionary at the end of
@@ -126,7 +126,9 @@ class Wallet:
         account_name: str = 'default',
         account_addr: str = None
     ) -> Tuple[int, str]:
-        """ Get account name balance of asset_name on network_name."""
+        """ Get account name balance of asset_name on network_name,
+        and specify asset_origin_chain for a pegged asset query,
+        """
         if account_addr is None:
             account_addr = self.get_wallet_address(account_name)
         aergo = self._connect_aergo(network_name)
@@ -320,6 +322,9 @@ class Wallet:
         signed_transfer: Tuple[int, str] = None,
         delegate_data: Tuple[str, int] = None
     ) -> bool:
+        """ Transfer aer or tokens on network_name and specify 
+        asset_origin_chain for transfers of pegged assets.
+        """
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
         aergo = self.get_aergo(privkey_name, network_name, skip_state=True)
@@ -400,6 +405,7 @@ class Wallet:
         deadline: int = 0,
         privkey_name: str = 'default'
     ) -> Tuple[Tuple[int, str], Optional[Tuple[str, int]], int]:
+        """Sign a standard token transfer to be broadcasted by a 3rd party"""
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
         aergo = self.get_aergo(privkey_name, network_name,
@@ -461,6 +467,9 @@ class Wallet:
         receiver: str = None,
         privkey_name: str = 'default',
     ) -> bool:
+        """ Deploy a new standard token, store the address in
+        config_data
+        """
         aergo = self.get_aergo(privkey_name, network_name, skip_state=True)
         success = self._deploy_token(payload_str, asset_name, total_supply,
                                      aergo, network_name, receiver)
