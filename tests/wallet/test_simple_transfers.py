@@ -1,7 +1,6 @@
 import pytest
-from aergo.herapy.errors.exception import (
-    CommunicationException,
-)
+
+from wallet.exceptions import TxError
 
 
 def _test_transfer(wallet, asset, fee=0):
@@ -90,7 +89,7 @@ def test_delegated_transfer(wallet):
 
     # sign transfer with default wallet
 
-    with pytest.raises(CommunicationException):
+    with pytest.raises(TxError):
         # test deadline passed
         signed_transfer, delegate_data, balance = wallet.get_signed_transfer(
             amount, to, 'token1', 'mainnet', fee=1, deadline=1)
@@ -111,10 +110,10 @@ def test_delegated_transfer(wallet):
                                                       account_name='default2')
     print('broadcaster balance after', broadcaster_balance_after)
     to_balance_after, _ = wallet.get_balance(asset, 'mainnet',
-                                            account_name='receiver')
+                                             account_name='receiver')
     print('receiver balance after', to_balance_after)
     from_balance_after, _ = wallet.get_balance(asset, 'mainnet',
-                                              account_name='default')
+                                               account_name='default')
     print('sender balance after', from_balance_after)
 
     assert from_balance_after == from_balance - amount - fee

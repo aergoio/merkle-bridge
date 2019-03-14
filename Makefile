@@ -1,7 +1,7 @@
 .PHONY: install compile_bridge compile_token deploy_bridge proposer validator protoc wallet deploy_token docker 
 
 install:
-	pip install git+ssh://git@github.com/aergoio/herapy.git@6848d28579e2a66be68352267b5430cdb00643c1
+	pip install git+ssh://git@github.com/aergoio/herapy.git@5a7a87b5e177a4122bb80e54b1250664544c807f
 	pip install pytest
 
 compile_bridge:
