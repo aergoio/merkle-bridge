@@ -3,10 +3,11 @@ import json
 import time
 
 from typing import (
-    Any,
     Union,
     Tuple,
-    Optional
+    Optional,
+    List,
+    Dict,
 )
 
 import aergo.herapy as herapy
@@ -44,7 +45,11 @@ class Wallet:
         self._config_data = config_data
         self._config_path = config_file_path
 
-    def config_data(self, *json_path: Union[str, int], value: Any = None):
+    def config_data(
+        self, 
+        *json_path: Union[str, int], 
+        value: Union[str, int, List, Dict] = None
+    ):
         """ Get the value in nested dictionary at the end of
         json path if value is None, or set value at the end of
         the path.

@@ -1,6 +1,13 @@
 import hashlib
 import time
 
+from typing import (
+    Tuple,
+    List,
+    Union,
+    Dict,
+)
+
 import aergo.herapy as herapy
 from aergo.herapy.utils.signature import (
     verify_sig,
@@ -18,10 +25,14 @@ class TxError(Exception):
 
 
 class ValidatorsManager:
-    def __init__(self, old_config_data):
+    def __init__(self, old_config_data: Dict):
         self._config_data = old_config_data
 
-    def config_data(self, *json_path, value=None):
+    def config_data(
+        self,
+        *json_path: Union[str, int],
+        value: Union[str, int, List, Dict] = None
+    ):
         """ Get the value in nested dictionary at the end of
         json path if value is None, or set value at the end of
         the path.
@@ -33,7 +44,7 @@ class ValidatorsManager:
             config_dict[json_path[-1]] = value
         return config_dict[json_path[-1]]
 
-    def get_aergo(self, network, priv_key):
+    def get_aergo(self, network: str, priv_key: str) -> herapy.Aergo:
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network, 'ip'))
         aergo.new_account(private_key=priv_key)
@@ -41,10 +52,10 @@ class ValidatorsManager:
 
     def _verify_signatures_single(
         self,
-        signers,
-        signatures,
-        h
-    ):
+        signers: List[int],
+        signatures: List[bytes],
+        h: bytes
+    ) -> Tuple[List[str], List[int]]:
         """ Verify a single list of signatures for updating one side of
         the bridge
         """
@@ -65,12 +76,12 @@ class ValidatorsManager:
 
     def _verify_signatures_double(
         self,
-        signers,
-        signatures1,
-        signatures2,
-        h1,
-        h2
-    ):
+        signers: List[int],
+        signatures1: List[bytes],
+        signatures2: List[bytes],
+        h1: bytes,
+        h2: bytes
+    ) -> Tuple[List[str], List[str], List[int]]:
         """ Verify 2 lists of signatures for updating both sides
         of the bridge.
         """
@@ -96,7 +107,11 @@ class ValidatorsManager:
                 verified_sigs2[:two_thirds],
                 verified_signers[:two_thirds])
 
-    def get_validators(self, network1, network2):
+    def get_validators(
+        self,
+        network1: str,
+        network2: str
+    ) -> Tuple[List[str], List[str]]:
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
         aergo1.connect(self.config_data(network1, 'ip'))
@@ -108,7 +123,7 @@ class ValidatorsManager:
         return validators1, validators2
 
     @staticmethod
-    def query_validators(aergo, bridge):
+    def query_validators(aergo: herapy.Aergo, bridge: str) -> List[str]:
         nb_validators_q = aergo.query_sc_state(bridge,
                                                ["_sv_Nb_Validators"])
         nb_validators = int(nb_validators_q.var_proofs[0].value)
@@ -119,60 +134,60 @@ class ValidatorsManager:
 
     def get_t_anchor(
         self,
-        network_from,
-        network_to
-    ):
+        network_from: str,
+        network_to: str
+    ) -> int:
         return self._get_tempo("T_anchor", network_from, network_to)
 
     def get_t_final(
         self,
-        network_from,
-        network_to
-    ):
+        network_from: str,
+        network_to: str
+    ) -> int:
         return self._get_tempo("T_final", network_from, network_to)
 
     def _get_tempo(
         self,
-        tempo,
-        network_from,
-        network_to
-    ):
+        tempo: str,
+        network_from: str,
+        network_to: str
+    ) -> int:
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network_to, 'ip'))
         bridge = self.config_data(network_to, 'bridges', network_from, 'addr')
-        tempo = self.query_tempo(aergo, bridge, tempo)
-        return tempo
+        result = self.query_tempo(aergo, bridge, tempo)
+        return result
 
     @staticmethod
-    def query_tempo(aergo, bridge, tempo):
-        tempo_q = aergo.query_sc_state(bridge, ["_sv_" + tempo])
-        tempo = int(tempo_q.var_proofs[0].value)
-        return tempo
+    def query_tempo(aergo: herapy.Aergo, bridge: str, tempo: str) -> int:
+        result_q = aergo.query_sc_state(bridge, ["_sv_" + tempo])
+        result = int(result_q.var_proofs[0].value)
+        return result
 
     def sign_t_anchor(
         self,
-        t_anchor,
-        network_from,
-        network_to,
-        priv_key=None,
-        validator_index=0
-    ):
+        t_anchor: int,
+        network_from: str,
+        network_to: str,
+        priv_key: str = None,
+        validator_index: int = 0
+    ) -> bytes:
         return self._sign_tempo(t_anchor, network_from, network_to,
                                 priv_key, validator_index)
 
     def sign_t_final(
         self,
-        t_final,
-        network_from,
-        network_to,
-        priv_key=None,
-        validator_index=0
-    ):
+        t_final: int,
+        network_from: str,
+        network_to: str,
+        priv_key: str = None,
+        validator_index: int = 0
+    ) -> bytes:
         return self._sign_tempo(t_final, network_from, network_to,
                                 priv_key, validator_index)
 
     @staticmethod
-    def _tempo_digest(tempo, bridge, aergo):
+    def _tempo_digest(tempo: int, bridge: str, aergo: herapy.Aergo) -> bytes:
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
@@ -182,12 +197,12 @@ class ValidatorsManager:
 
     def _sign_tempo(
         self,
-        t_anchor,
-        network_from,
-        network_to,
-        priv_key=None,
-        validator_index=0
-    ):
+        t_anchor: int,
+        network_from: str,
+        network_to: str,
+        priv_key: str = None,
+        validator_index: int = 0
+    ) -> bytes:
         if priv_key is None:
             priv_key = self.config_data('validators', validator_index,
                                         'priv_key')
@@ -200,42 +215,43 @@ class ValidatorsManager:
 
     def update_t_anchor(
         self,
-        t_anchor,
-        signers, sigs,
-        network_from,
-        network_to,
-        priv_key=None,
-        validator_index=0
-    ):
+        t_anchor: int,
+        signers: List[int],
+        sigs: List[bytes],
+        network_from: str,
+        network_to: str,
+        priv_key: str = None,
+        validator_index: int = 0
+    ) -> None:
         return self._update_tempo("update_t_anchor", t_anchor, signers,
                                   sigs, network_from, network_to,
                                   priv_key, validator_index)
 
     def update_t_final(
         self,
-        t_final,
-        signers,
-        sigs,
-        network_from,
-        network_to,
-        priv_key=None,
-        validator_index=0
-    ):
+        t_final: int,
+        signers: List[int],
+        sigs: List[bytes],
+        network_from: str,
+        network_to: str,
+        priv_key: str = None,
+        validator_index: int = 0
+    ) -> None:
         return self._update_tempo("update_t_final", t_final, signers,
                                   sigs, network_from, network_to,
                                   priv_key, validator_index)
 
     def _update_tempo(
         self,
-        function,
-        tempo,
-        signers,
-        sigs,
-        network_from,
-        network_to,
-        priv_key=None,
-        validator_index=0
-    ):
+        function: str,
+        tempo: int,
+        signers: List[int],
+        sigs: List[bytes],
+        network_from: str,
+        network_to: str,
+        priv_key: str = None,
+        validator_index: int = 0
+    ) -> None:
         if priv_key is None:
             priv_key = self.config_data("proposer", 'priv_key')
         aergo = self.get_aergo(network_to, priv_key)
@@ -259,13 +275,13 @@ class ValidatorsManager:
 
     @staticmethod
     def _update_tempo_tx(
-        aergo,
-        bridge_address,
-        function,
-        tempo,
-        signers,
-        signatures
-    ):
+        aergo: herapy.Aergo,
+        bridge_address: str,
+        function: str,
+        tempo: int,
+        signers: List[int],
+        signatures: List[str]
+    ) -> herapy.obj.tx_hash.TxHash:
         tx, result = aergo.call_sc(bridge_address, function,
                                    args=[tempo, signers, signatures])
         if result.status != herapy.CommitStatus.TX_OK:
@@ -275,12 +291,12 @@ class ValidatorsManager:
 
     def sign_new_validators(
         self,
-        network1,
-        network2,
-        new_validators,
-        priv_key=None,
-        validator_index=0
-    ):
+        network1: str,
+        network2: str,
+        new_validators: List[str],
+        priv_key: str = None,
+        validator_index: int = 0
+    ) -> Tuple[bytes, bytes]:
         if priv_key is None:
             priv_key = self.config_data('validators', validator_index,
                                         'priv_key')
@@ -296,7 +312,11 @@ class ValidatorsManager:
         return sig1, sig2
 
     @staticmethod
-    def _new_validators_digest(aergo, bridge, new_validators):
+    def _new_validators_digest(
+        aergo: herapy.Aergo,
+        bridge: str,
+        new_validators: List[str]
+    ) -> bytes:
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
@@ -310,14 +330,14 @@ class ValidatorsManager:
 
     def update_validators(
         self,
-        new_validators,
-        signers,
-        signatures1,
-        signatures2,
-        network1,
-        network2,
-        priv_key=None
-    ):
+        new_validators: List[str],
+        signers: List[int],
+        signatures1: List[bytes],
+        signatures2: List[bytes],
+        network1: str,
+        network2: str,
+        priv_key: str = None
+    ) -> None:
         """ Validators should be the same on both sides of the bridge,
         so update_validators updates both sides.
         """
@@ -357,12 +377,12 @@ class ValidatorsManager:
 
     @staticmethod
     def _update_validators_tx(
-        new_validators,
-        signers,
-        signatures,
-        bridge_address,
-        aergo
-    ):
+        new_validators: List[str],
+        signers: List[int],
+        signatures: List[str],
+        bridge_address: str,
+        aergo: herapy.Aergo
+    ) -> herapy.obj.tx_hash.TxHash:
         tx, result = aergo.call_sc(bridge_address, "update_validators",
                                    args=[new_validators, signers, signatures])
         if result.status != herapy.CommitStatus.TX_OK:

@@ -10,6 +10,13 @@ from multiprocessing.dummy import (
 import threading
 import time
 
+from typing import (
+    Tuple,
+    Optional,
+    List,
+    Any,
+)
+
 import aergo.herapy as herapy
 from aergo.herapy.errors.exception import (
     CommunicationException,
@@ -46,10 +53,10 @@ class ProposerClient:
 
     def __init__(
         self,
-        config_file_path,
-        aergo1,
-        aergo2
-    ):
+        config_file_path: str,
+        aergo1: str,
+        aergo2: str
+    ) -> None:
         with open(config_file_path, "r") as f:
             config_data = json.load(f)
         self._config_data = config_data
@@ -98,9 +105,9 @@ class ProposerClient:
 
     def get_validators_signatures(
         self,
-        anchor_msg,
-        tab
-    ):
+        anchor_msg: Tuple[bool, str, int, int],
+        tab: str
+    ) -> Tuple[List[str], List[int]]:
         is_from_mainnet, root, merge_height, nonce = anchor_msg
 
         # messages to get signed
@@ -123,11 +130,11 @@ class ProposerClient:
 
     def get_signature_worker(
         self,
-        tab,
+        tab: str,
         anchor,
-        h,
-        index
-    ):
+        h: bytes,
+        index: int
+    ) -> Optional[Any]:
         try:
             approval = self._stubs[index].GetAnchorSignature(anchor)
         except grpc.RpcError:
@@ -147,7 +154,10 @@ class ProposerClient:
             return None
         return approval
 
-    def extract_signatures(self, approvals):
+    def extract_signatures(
+        self,
+        approvals: List[Any]
+    ) -> Tuple[List[str], List[int]]:
         sigs, validator_indexes = [], []
         for i, approval in enumerate(approvals):
             if approval is not None:
@@ -164,11 +174,11 @@ class ProposerClient:
 
     @staticmethod
     def wait_next_anchor(
-        merged_height,
-        aergo,
-        t_final,
-        t_anchor
-    ):
+        merged_height: int,
+        aergo: herapy.Aergo,
+        t_final: int,
+        t_anchor: int
+    ) -> int:
         _, best_height = aergo.get_blockchain_status()
         # TODO use real lib from rpc
         lib = best_height - t_final
@@ -211,15 +221,15 @@ class ProposerClient:
 
     def bridge_worker(
         self,
-        t_anchor_to,
-        t_final_from,
-        aergo_from,
-        aergo_to,
-        bridge_from,
-        bridge_to,
-        is_from_mainnet,
-        tab=""
-    ):
+        t_anchor_to: int,
+        t_final_from: int,
+        aergo_from: herapy.Aergo,
+        aergo_to: herapy.Aergo,
+        bridge_from: str,
+        bridge_to: str,
+        is_from_mainnet: bool,
+        tab: str = ""
+    ) -> None:
         while True:  # anchor a new root
             # Get last merge information
             merge_info_from = aergo_to.query_sc_state(bridge_to,

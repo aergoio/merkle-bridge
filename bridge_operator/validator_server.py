@@ -12,6 +12,11 @@ from multiprocessing.dummy import (
 )
 import time
 
+from typing import (
+    Optional,
+    Dict,
+)
+
 import aergo.herapy as herapy
 
 from bridge_operator.bridge_operator_pb2_grpc import (
@@ -30,11 +35,11 @@ class ValidatorService(BridgeOperatorServicer):
 
     def __init__(
         self,
-        config_data,
-        aergo1,
-        aergo2,
-        validator_index=0
-    ):
+        config_data: Dict,
+        aergo1: str,
+        aergo2: str,
+        validator_index: int = 0
+    ) -> None:
         """
         aergo1 is considered to be the mainnet side of the bridge.
         Proposers should set anchor.is_from_mainnet accordingly
@@ -59,7 +64,8 @@ class ValidatorService(BridgeOperatorServicer):
         self._aergo2.connect(config_data[aergo2]['ip'])
 
         print("------ Set Sender Account -----------")
-        sender_priv_key1 = config_data["validators"][validator_index]['priv_key']
+        sender_priv_key1 = \
+            config_data["validators"][validator_index]['priv_key']
         sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
         self.address = sender_account.address.__str__()
         print("  > Sender Address: {}".format(self.address))
@@ -102,13 +108,13 @@ class ValidatorService(BridgeOperatorServicer):
     def is_valid_anchor(
         self,
         anchor,
-        aergo_from,
-        bridge_from,
-        finalized_from,
-        aergo_to,
-        bridge_to,
-        t_anchor
-    ):
+        aergo_from: herapy.Aergo,
+        bridge_from: str,
+        finalized_from: int,
+        aergo_to: herapy.Aergo,
+        bridge_to: str,
+        t_anchor: int
+    ) -> Optional[str]:
         """ An anchor is valid if :
             1- it's height is finalized
             2- it's root for that height is correct.
@@ -155,11 +161,11 @@ class ValidatorService(BridgeOperatorServicer):
 class ValidatorServer:
     def __init__(
         self,
-        config_file_path,
-        aergo1,
-        aergo2,
-        validator_index=0
-    ):
+        config_file_path: str,
+        aergo1: str,
+        aergo2: str,
+        validator_index: int = 0
+    ) -> None:
         with open(config_file_path, "r") as f:
             config_data = json.load(f)
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
