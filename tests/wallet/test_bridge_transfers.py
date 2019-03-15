@@ -36,7 +36,7 @@ def test_delegated_bridge_transfer(wallet):
     owner = wallet.get_wallet_address('default')
     to = wallet.config_data('mainnet', 'bridges', 'sidechain2', 'addr')
 
-    signed_transfer, delegate_data, balance = \
+    signed_transfer, delegate_data, _ = \
         wallet.get_signed_transfer(amount, to, 'token1', 'mainnet',
                                    fee=1, deadline=0)
 
@@ -52,7 +52,7 @@ def test_delegated_bridge_transfer(wallet):
 
     to = wallet.config_data('sidechain2', 'bridges', 'mainnet', 'addr')
 
-    signed_transfer, delegate_data, balance = \
+    signed_transfer, delegate_data, _ = \
         wallet.get_signed_transfer(amount-1, to, 'token1',
                                    'sidechain2', 'mainnet',
                                    fee=1, deadline=0)

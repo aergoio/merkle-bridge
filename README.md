@@ -135,7 +135,7 @@ balance = wallet.get_balance(account_address, asset_name=asset,
 wallet.transfer(2*10**18, to_address, asset_name=asset, network_name='mainnet')
 ```
 
-### Quick test from scratch
+### Running tests
 Start 2 test networks
 ```sh
 $ make docker
@@ -153,7 +153,7 @@ In a new terminal : start validator
 ```sh
 $ make validator
 ```
-In a new terminal : test wallet transfers.
+In a new terminal : test wallet transfers and bridge multisig
 ```sh
-$ python3 -m pytest -s tests/wallet
+$ python3 -m pytest -s tests/
 ```

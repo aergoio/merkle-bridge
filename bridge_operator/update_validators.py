@@ -254,7 +254,7 @@ class ValidatorsManager:
         priv_key: str = None,
         validator_index: int = 0
     ) -> None:
-        """Update the finality of network_from for the 
+        """Update the finality of network_from for the
         network_from -> network_to bridge
         """
         return self._update_tempo("update_t_final", t_final, signers,

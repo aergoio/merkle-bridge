@@ -1,0 +1,85 @@
+{
+    "mainnet": {
+        "bridges": {
+            "": {
+                "addr": "bridge address on mainnet",
+                "t_anchor": "t_anchor of sidechain on mainnet",
+                "t_final": "t_final of sidechain"
+            },
+            "sidechain2": {
+                "addr": "AmgffTE8wDGzssziZfboDA9HJLNUp8WaKFiAmaVerqEm4Dbsfdf6",
+                "t_anchor": 10,
+                "t_final": 10
+            }
+        },
+        "ip": "localhost:7845",
+        "tokens": {
+            "aergo": {
+                "addr": "aergo",
+                "pegs": {
+                    "sidechain2": "AmgC9rtBgZfWQnDgpeDh35o4cmCecZBYRpUmKBpYhDutk9xtVGaM"
+                }
+            },
+            "token1": {
+                "addr": "AmhD5AjG9DGYUNsZymbKGaoiT4CccodyQfzwgi4AmpzhYtFXad4Z",
+                "pegs": {
+                    "sidechain2": "AmhqLNK2M4MUHbtgsjW5yVVuVcCQQyA7S8fPwwPeupS3T1bL5aBf"
+                }
+            },
+            "token2": {
+                "addr": "AmgNW29Q8yGSyw3aUJaaTaLaGjVYLDNuuTMWcsq6vyQgubefs5Hw",
+                "pegs": {}
+            }
+        }
+    },
+    "proposer": {
+        "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+        "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+    },
+    "sidechain2": {
+        "bridges": {
+            "": {
+                "addr": "bridge address on sidechain",
+                "t_anchor": "t_anchor of mainnet on sidechain",
+                "t_final": "t_final of mainnet"
+            },
+            "mainnet": {
+                "addr": "AmgeZEXgjSmpmX3Yu9TE3pCELDQarfLK4LJqtJhD3U7UCYdgjFqi",
+                "t_anchor": 10,
+                "t_final": 10
+            }
+        },
+        "ip": "localhost:8845"
+    },
+    "validators": [
+        {
+            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+            "ip": "localhost:9841",
+            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        },
+        {
+            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+            "ip": "localhost:9842",
+            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        },
+        {
+            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
+            "ip": "localhost:9843",
+            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+        }
+    ],
+    "wallet": {
+        "default": {
+            "addr": "AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs",
+            "priv_key": "6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
+        },
+        "default2": {
+            "addr": "AmP97qCMq2w1BecjmGJf9stdXH825gPVre7euFpWp98twevFfMeG",
+            "priv_key": "6jFGW2XhniWu3j8YMGY3GEuitgUwuYf6ohzErfZzPuff7c6bkVL"
+        },
+        "receiver": {
+            "addr": "AmM3PTX148ZSNAJYGEt1baEZpJPWc8ms7wuw9rqjUEfTCUWfwFuS",
+            "priv_key": "6hqpLV2b1uoaZf2Hvbe4Tjz5KNs8iS6QkaNwVFJVeMPzk8godzV"
+        }
+    }
+}
