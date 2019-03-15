@@ -18,10 +18,6 @@ from typing import (
 )
 
 import aergo.herapy as herapy
-from aergo.herapy.errors.exception import (
-    CommunicationException,
-)
-
 from aergo.herapy.utils.signature import (
     verify_sig,
 )
@@ -199,31 +195,30 @@ class ProposerClient:
             wait = (merged_height + t_anchor) - lib
         return lib
 
-    def run(self):
-        self.kill_proposer_threads = False
-        print("------ START BRIDGE OPERATOR -----------\n")
-        print("{}MAINNET{}SIDECHAIN".format("\t", "\t"*4))
-        from_mainnet_args = (self._t_anchor2, self._t_final2,
-                             self._aergo1, self._aergo2,
-                             self._addr1, self._addr2, True, "\t"*5)
-        to_mainnet_args = (self._t_anchor1, self._t_final1,
-                           self._aergo2, self._aergo1,
-                           self._addr2, self._addr1, False)
-        t_mainnet = threading.Thread(target=self.bridge_worker,
-                                     args=from_mainnet_args)
-        t_sidechain = threading.Thread(target=self.bridge_worker,
-                                       args=to_mainnet_args)
-        t_mainnet.start()
-        t_sidechain.start()
-        try:
-            while True:
-                time.sleep(_ONE_DAY_IN_SECONDS)
-        except KeyboardInterrupt:
-            print("\nInitiating proposer shutdown, finalizing last anchors")
-            self.kill_proposer_threads = True
-            t_mainnet.join()
-            t_sidechain.join()
-            self.shutdown()
+    def set_root(
+        self,
+        aergo_to: herapy.Aergo,
+        bridge_to: str,
+        args: Tuple[str, int, List[int], List[str]],
+        t_anchor_to: int,
+        tab: str
+    ) -> None:
+        """Anchor a new root on chain"""
+        tx, result = aergo_to.call_sc(bridge_to, "set_root",
+                                      args=args)
+        if result.status != herapy.CommitStatus.TX_OK:
+            print("{}Anchor on aergo Tx commit failed : {}"
+                  .format(tab, result))
+            return
+
+        time.sleep(COMMIT_TIME)
+        result = aergo_to.get_tx_result(tx.tx_hash)
+        if result.status != herapy.TxResultStatus.SUCCESS:
+            print("{}Anchor failed: already anchored, or invalid "
+                  "signature: {}".format(tab, result))
+        else:
+            print("{0}Anchor success,\n{0}wait until next anchor "
+                  "time: {1}s...".format(tab, t_anchor_to))
 
     def bridge_worker(
         self,
@@ -306,41 +301,43 @@ class ProposerClient:
                 continue
 
             # Broadcast finalised merge block
-            tx, result = aergo_to.call_sc(bridge_to, "set_root",
-                                          args=[root, next_anchor_height,
-                                                validator_indexes,
-                                                sigs])
-            if result.status != herapy.CommitStatus.TX_OK:
-                print("{}Anchor on aergo Tx commit failed : {}"
-                      .format(tab, result))
-                return
+            args = (root, next_anchor_height, validator_indexes, sigs)
+            self.set_root(aergo_to, bridge_to, args, t_anchor_to, tab)
 
-            time.sleep(COMMIT_TIME)
-            try:
-                # don't crash server if another set_root tx from another
-                # proposer was commited just before this one.
-                result = aergo_to.get_tx_result(tx.tx_hash)
-            except CommunicationException:
-                print("{}Anchor failed: already anchored, or invalid signature"
-                      .format(tab))
-                time.sleep(t_anchor_to)
-                continue
-
-            if result.status != herapy.TxResultStatus.SUCCESS:
-                print("  > ERROR[{0}]:{1}: {2}"
-                      .format(result.contract_address,
-                              result.status, result.detail))
-                return
-
-            # Wait t_anchor
-            print("{0}anchor success,\n{0}wait until next anchor time: {1}s..."
-                  .format(tab, t_anchor_to))
             if self.kill_proposer_threads:
                 print("{}stopping thread".format(tab))
                 return
+
+            # Wait t_anchor
             # counting commit time in t_anchor often leads to 'Next anchor not
             # reached exception.
             time.sleep(t_anchor_to)
+
+    def run(self):
+        self.kill_proposer_threads = False
+        print("------ START BRIDGE OPERATOR -----------\n")
+        print("{}MAINNET{}SIDECHAIN".format("\t", "\t"*4))
+        from_mainnet_args = (self._t_anchor2, self._t_final2,
+                             self._aergo1, self._aergo2,
+                             self._addr1, self._addr2, True, "\t"*5)
+        to_mainnet_args = (self._t_anchor1, self._t_final1,
+                           self._aergo2, self._aergo1,
+                           self._addr2, self._addr1, False)
+        t_mainnet = threading.Thread(target=self.bridge_worker,
+                                     args=from_mainnet_args)
+        t_sidechain = threading.Thread(target=self.bridge_worker,
+                                       args=to_mainnet_args)
+        t_mainnet.start()
+        t_sidechain.start()
+        try:
+            while True:
+                time.sleep(_ONE_DAY_IN_SECONDS)
+        except KeyboardInterrupt:
+            print("\nInitiating proposer shutdown, finalizing last anchors")
+            self.kill_proposer_threads = True
+            t_mainnet.join()
+            t_sidechain.join()
+            self.shutdown()
 
     def shutdown(self):
         print("\nDisconnecting AERGO")
