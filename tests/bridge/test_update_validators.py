@@ -1,4 +1,4 @@
-from bridge_operator.update_validators import ValidatorsManager
+from bridge_operator.bridge_settings import BridgeSettingsManager
 
 import aergo.herapy as herapy
 import pytest
@@ -90,7 +90,7 @@ def test_update_validators():
                       "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
                       "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
                       "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"]
-    manager = ValidatorsManager(config_data)
+    manager = BridgeSettingsManager(config_data)
     # 2/3 of the current validators must sign the new validators
     # atm gathering signatures is a manual voting process.
     sig1, sig2 = manager.sign_new_validators('mainnet', 'sidechain2',
@@ -111,12 +111,12 @@ def test_update_validators():
     new_config_data = copy.deepcopy(config_data)
     new_config_data['validators'].append(new_config_data['validators'][0])
 
-    manager = ValidatorsManager(new_config_data)
+    manager = BridgeSettingsManager(new_config_data)
     # test_config.json is the new config containing the updated 'validators'
     new_validators = ["AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
                       "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
                       "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"]
-    manager = ValidatorsManager(new_config_data)
+    manager = BridgeSettingsManager(new_config_data)
     sig1, sig2 = manager.sign_new_validators('mainnet', 'sidechain2',
                                              new_validators)
     manager.update_validators(new_validators,
@@ -138,7 +138,7 @@ def test_update_t_anchor():
     # is running
     sender_priv_key = config_data["wallet"]['default2']['priv_key']
 
-    manager = ValidatorsManager(config_data)
+    manager = BridgeSettingsManager(config_data)
     t_anchor_before = manager.get_t_anchor('mainnet', 'sidechain2')
     print("t_anchor before: ", t_anchor_before)
 
@@ -171,7 +171,7 @@ def test_update_t_final():
     # is running
     sender_priv_key = config_data["wallet"]['default2']['priv_key']
 
-    manager = ValidatorsManager(config_data)
+    manager = BridgeSettingsManager(config_data)
     t_final_before = manager.get_t_final('mainnet', 'sidechain2')
     print("t_final before: ", t_final_before)
 

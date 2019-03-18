@@ -29,7 +29,7 @@ class TxError(Exception):
     pass
 
 
-class ValidatorsManager:
+class BridgeSettingsManager:
     def __init__(self, old_config_data: Dict):
         self._config_data = old_config_data
 
