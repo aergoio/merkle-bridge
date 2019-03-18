@@ -28,6 +28,10 @@ from bridge_operator.bridge_operator_pb2_grpc import (
 from bridge_operator.bridge_operator_pb2 import (
     Anchor,
 )
+from bridge_operator.op_utils import (
+    query_tempo,
+    query_validators,
+)
 
 
 COMMIT_TIME = 3
@@ -59,11 +63,25 @@ class ProposerClient:
         self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
         self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
 
+        print("------ Connect AERGO -----------")
+        self._aergo1 = herapy.Aergo()
+        self._aergo2 = herapy.Aergo()
+
+        self._aergo1.connect(self._config_data[aergo1]['ip'])
+        self._aergo2.connect(self._config_data[aergo2]['ip'])
+
         print("------ Connect to Validators -----------")
+        validators1 = query_validators(self._aergo1, self._addr1)
+        validators2 = query_validators(self._aergo2, self._addr2)
+        assert validators1 == validators2, \
+            "Validators should be the same on both sides of bridge"
         # create all channels with validators
         self._channels = []
         self._stubs = []
-        for validator in self._config_data['validators']:
+        for i, validator in enumerate(self._config_data['validators']):
+            assert validators1[i] == validator['addr'], \
+                "Validators in config file do not match bridge validators"\
+                "Expected validators: {}".format(validators1)
             ip = validator['ip']
             channel = grpc.insecure_channel(ip)
             stub = BridgeOperatorStub(channel)
@@ -72,18 +90,13 @@ class ProposerClient:
 
         self._pool = Pool(len(self._stubs))
 
-        self._aergo1 = herapy.Aergo()
-        self._aergo2 = herapy.Aergo()
-
-        print("------ Connect AERGO -----------")
-        self._aergo1.connect(self._config_data[aergo1]['ip'])
-        self._aergo2.connect(self._config_data[aergo2]['ip'])
-
-        # TODO restarting the bridge will get the latest bridge tempo
-        self._t_anchor1 = config_data[aergo1]['bridges'][aergo2]['t_anchor']
-        self._t_final1 = config_data[aergo1]['bridges'][aergo2]['t_final']
-        self._t_anchor2 = config_data[aergo2]['bridges'][aergo1]['t_anchor']
-        self._t_final2 = config_data[aergo2]['bridges'][aergo1]['t_final']
+        # get the current t_anchor and t_final for both sides of bridge
+        self._t_anchor1, self._t_final1 = query_tempo(
+            self._aergo1, self._addr1, ["_sv_T_anchor", "_sv_T_final"]
+        )
+        self._t_anchor2, self._t_final2 = query_tempo(
+            self._aergo2, self._addr2, ["_sv_T_anchor", "_sv_T_final"]
+        )
         print("{}              <- {} (t_final={}) : t_anchor={}"
               .format(aergo1, aergo2, self._t_final1, self._t_anchor1))
         print("{} (t_final={}) -> {}              : t_anchor={}"
@@ -248,11 +261,11 @@ class ProposerClient:
             nonce_to = int(nonce_to)
 
             print("{0} __\n"
-                  "{0}| last merged height : {1}\n"
-                  "{0}| last merged contract trie root :{2}...\n"
+                  "{0}| last merged height: {1}\n"
+                  "{0}| last merged contract trie root: {2}...\n"
                   "{0}| current update nonce: {3}\n"
                   .format(tab, merged_height_from,
-                          merged_root_from[:20], nonce_to))
+                          merged_root_from.decode('utf-8')[1:20], nonce_to))
 
             while True:  # try to gather 2/3 validators
                 # Wait for the next anchor time
@@ -317,16 +330,16 @@ class ProposerClient:
         self.kill_proposer_threads = False
         print("------ START BRIDGE OPERATOR -----------\n")
         print("{}MAINNET{}SIDECHAIN".format("\t", "\t"*4))
-        from_mainnet_args = (self._t_anchor2, self._t_final2,
-                             self._aergo1, self._aergo2,
-                             self._addr1, self._addr2, True, "\t"*5)
-        to_mainnet_args = (self._t_anchor1, self._t_final1,
-                           self._aergo2, self._aergo1,
-                           self._addr2, self._addr1, False)
+        to_2_args = (self._t_anchor2, self._t_final2,
+                     self._aergo1, self._aergo2,
+                     self._addr1, self._addr2, True, "\t"*5)
+        to_1_args = (self._t_anchor1, self._t_final1,
+                     self._aergo2, self._aergo1,
+                     self._addr2, self._addr1, False)
         t_mainnet = threading.Thread(target=self.bridge_worker,
-                                     args=from_mainnet_args)
+                                     args=to_2_args)
         t_sidechain = threading.Thread(target=self.bridge_worker,
-                                       args=to_mainnet_args)
+                                       args=to_1_args)
         t_mainnet.start()
         t_sidechain.start()
         try:

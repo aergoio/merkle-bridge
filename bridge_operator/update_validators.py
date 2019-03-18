@@ -13,6 +13,11 @@ from aergo.herapy.utils.signature import (
     verify_sig,
 )
 
+from bridge_operator.op_utils import (
+    query_tempo,
+    query_validators,
+)
+
 COMMIT_TIME = 3
 
 
@@ -121,19 +126,10 @@ class ValidatorsManager:
         aergo2.connect(self.config_data(network2, 'ip'))
         bridge1 = self.config_data(network1, 'bridges', network2, 'addr')
         bridge2 = self.config_data(network2, 'bridges', network1, 'addr')
-        validators1 = self.query_validators(aergo1, bridge1)
-        validators2 = self.query_validators(aergo2, bridge2)
+        validators1 = query_validators(aergo1, bridge1)
+        validators2 = query_validators(aergo2, bridge2)
+        assert validators1 == validators2, "Validators should be the same"
         return validators1, validators2
-
-    @staticmethod
-    def query_validators(aergo: herapy.Aergo, bridge: str) -> List[str]:
-        nb_validators_q = aergo.query_sc_state(bridge,
-                                               ["_sv_Nb_Validators"])
-        nb_validators = int(nb_validators_q.var_proofs[0].value)
-        args = ["_sv_Validators-" + str(i+1) for i in range(nb_validators)]
-        validators_q = aergo.query_sc_state(bridge, args)
-        validators = [val.value for val in validators_q.var_proofs]
-        return validators
 
     def get_t_anchor(
         self,
@@ -141,7 +137,7 @@ class ValidatorsManager:
         network_to: str
     ) -> int:
         """ Query the anchoring periode of network_from onto network_to."""
-        return self._get_tempo("T_anchor", network_from, network_to)
+        return self.get_tempo(network_from, network_to, "_sv_T_anchor")[0]
 
     def get_t_final(
         self,
@@ -151,25 +147,23 @@ class ValidatorsManager:
         """ Query when network_from should be considered final by validators
         before it can be anchored on network_to
         """
-        return self._get_tempo("T_final", network_from, network_to)
+        return self.get_tempo(network_from, network_to, "_sv_T_final")[0]
 
-    def _get_tempo(
+    def get_tempo(
         self,
-        tempo: str,
         network_from: str,
-        network_to: str
-    ) -> int:
+        network_to: str,
+        tempo: str = None
+    ) -> List[int]:
         """ Query t_final or t_achor depending on the tempo argument."""
+        if tempo is None:
+            args = ["_sv_T_anchor", "_sv_T_final"]
+        else:
+            args = [tempo]
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network_to, 'ip'))
         bridge = self.config_data(network_to, 'bridges', network_from, 'addr')
-        result = self.query_tempo(aergo, bridge, tempo)
-        return result
-
-    @staticmethod
-    def query_tempo(aergo: herapy.Aergo, bridge: str, tempo: str) -> int:
-        result_q = aergo.query_sc_state(bridge, ["_sv_" + tempo])
-        result = int(result_q.var_proofs[0].value)
+        result = query_tempo(aergo, bridge, args)
         return result
 
     def sign_t_anchor(

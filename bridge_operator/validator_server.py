@@ -26,6 +26,10 @@ from bridge_operator.bridge_operator_pb2_grpc import (
 from bridge_operator.bridge_operator_pb2 import (
     Approval,
 )
+from bridge_operator.op_utils import (
+    query_tempo,
+    query_validators,
+)
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
@@ -44,24 +48,35 @@ class ValidatorService(BridgeOperatorServicer):
         aergo1 is considered to be the mainnet side of the bridge.
         Proposers should set anchor.is_from_mainnet accordingly
         """
-        self._validator_index = validator_index
-        self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
-        self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
-        self._t_anchor1 = config_data[aergo1]['bridges'][aergo2]['t_anchor']
-        self._t_final1 = config_data[aergo1]['bridges'][aergo2]['t_final']
-        self._t_anchor2 = config_data[aergo2]['bridges'][aergo1]['t_anchor']
-        self._t_final2 = config_data[aergo2]['bridges'][aergo1]['t_final']
-        print("{}             <- {} (t_final={}) : t_anchor={}"
-              .format(aergo1, aergo2, self._t_final2, self._t_anchor1))
-        print("{} (t_final={}) -> {}              : t_anchor={}"
-              .format(aergo1, self._t_final1, aergo2, self._t_anchor2))
-
         self._aergo1 = herapy.Aergo()
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
         self._aergo1.connect(config_data[aergo1]['ip'])
         self._aergo2.connect(config_data[aergo2]['ip'])
+
+        self._validator_index = validator_index
+        self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
+        self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
+
+        # check validators are correct
+        validators1 = query_validators(self._aergo1, self._addr1)
+        validators2 = query_validators(self._aergo2, self._addr2)
+        assert validators1 == validators2, \
+            "Validators should be the same on both sides of bridge"
+        print("Bridge validators : ", validators1)
+
+        # get the current t_anchor and t_final for both sides of bridge
+        self._t_anchor1, self._t_final1 = query_tempo(
+            self._aergo1, self._addr1, ["_sv_T_anchor", "_sv_T_final"]
+        )
+        self._t_anchor2, self._t_final2 = query_tempo(
+            self._aergo2, self._addr2, ["_sv_T_anchor", "_sv_T_final"]
+        )
+        print("{}             <- {} (t_final={}) : t_anchor={}"
+              .format(aergo1, aergo2, self._t_final1, self._t_anchor1))
+        print("{} (t_final={}) -> {}              : t_anchor={}"
+              .format(aergo1, self._t_final2, aergo2, self._t_anchor2))
 
         print("------ Set Sender Account -----------")
         sender_priv_key1 = \
