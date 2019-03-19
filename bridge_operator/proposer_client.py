@@ -1,6 +1,7 @@
 from functools import (
     partial,
 )
+from getpass import getpass
 import grpc
 import hashlib
 import json
@@ -55,7 +56,9 @@ class ProposerClient:
         self,
         config_file_path: str,
         aergo1: str,
-        aergo2: str
+        aergo2: str,
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> None:
         with open(config_file_path, "r") as f:
             config_data = json.load(f)
@@ -102,13 +105,16 @@ class ProposerClient:
         print("{} (t_final={}) -> {}              : t_anchor={}"
               .format(aergo1, self._t_final2, aergo2, self._t_anchor2))
 
-        sender_priv_key1 = self._config_data["proposer"]['priv_key']
-        sender_priv_key2 = self._config_data["proposer"]['priv_key']
-        sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
-        self._aergo2.new_account(private_key=sender_priv_key2)
-        self._aergo1.get_account()
-        self._aergo2.get_account()
-        print("  > Proposer Address: {}".format(sender_account.address))
+        print("------ Set Sender Account -----------")
+        if privkey_name is None:
+            privkey_name = 'proposer'
+        if privkey_pwd is None:
+            privkey_pwd = getpass("Decrypt exported private key '{}'\n"
+                                  "Password: ".format(privkey_name))
+        sender_priv_key = self._config_data['wallet'][privkey_name]['priv_key']
+        self._aergo1.import_account(sender_priv_key, privkey_pwd)
+        self._aergo2.import_account(sender_priv_key, privkey_pwd)
+        print("  > Proposer Address: {}".format(self._aergo1.account.address))
 
         self.kill_proposer_threads = False
 

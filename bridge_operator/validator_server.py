@@ -4,6 +4,7 @@ from concurrent import (
 from functools import (
     partial,
 )
+from getpass import getpass
 import grpc
 import hashlib
 import json
@@ -42,6 +43,8 @@ class ValidatorService(BridgeOperatorServicer):
         config_data: Dict,
         aergo1: str,
         aergo2: str,
+        privkey_name: str = None,
+        privkey_pwd: str = None,
         validator_index: int = 0
     ) -> None:
         """
@@ -78,12 +81,17 @@ class ValidatorService(BridgeOperatorServicer):
         print("{} (t_final={}) -> {}              : t_anchor={}"
               .format(aergo1, self._t_final2, aergo2, self._t_anchor2))
 
-        print("------ Set Sender Account -----------")
-        sender_priv_key1 = \
-            config_data["validators"][validator_index]['priv_key']
-        sender_account = self._aergo1.new_account(private_key=sender_priv_key1)
-        self.address = sender_account.address.__str__()
-        print("  > Sender Address: {}".format(self.address))
+        print("------ Set Signer Account -----------")
+        if privkey_name is None:
+            privkey_name = 'validator'
+        if privkey_pwd is None:
+            privkey_pwd = getpass("Decrypt exported private key '{}'\n"
+                                  "Password: ".format(privkey_name))
+        sender_priv_key = \
+            config_data['wallet'][privkey_name]['priv_key']
+        self._aergo1.import_account(sender_priv_key, privkey_pwd)
+        self.address = str(self._aergo1.account.address)
+        print("  > Validator Address: {}".format(self.address))
 
     def GetAnchorSignature(self, anchor, context):
         """ Verifies the anchors are valid and signes them
@@ -179,13 +187,16 @@ class ValidatorServer:
         config_file_path: str,
         aergo1: str,
         aergo2: str,
+        privkey_name: str = None,
+        privkey_pwd: str = None,
         validator_index: int = 0
     ) -> None:
         with open(config_file_path, "r") as f:
             config_data = json.load(f)
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         add_BridgeOperatorServicer_to_server(
-            ValidatorService(config_data, aergo1, aergo2, validator_index),
+            ValidatorService(config_data, aergo1, aergo2, privkey_name, 
+                             privkey_pwd, validator_index),
             self.server)
         self.server.add_insecure_port(config_data['validators']
                                       [validator_index]['ip'])
@@ -206,18 +217,20 @@ class ValidatorServer:
         self.server.stop(0)
 
 
-def _serve(servers, index):
+def _serve_worker(servers, index):
     servers[index].run()
 
 
-def _serve_all(config_file_path, aergo1, aergo2):
+def _serve_all(config_file_path, aergo1, aergo2, 
+               privkey_name=None, privkey_pwd=None):
     """ For testing, run all validators in different threads """
     with open(config_file_path, "r") as f:
         config_data = json.load(f)
     validator_indexes = [i for i in range(len(config_data['validators']))]
-    servers = [ValidatorServer(config_file_path, aergo1, aergo2, index)
+    servers = [ValidatorServer(config_file_path, aergo1, aergo2, 
+                               privkey_name, privkey_pwd, index)
                for index in validator_indexes]
-    worker = partial(_serve, servers)
+    worker = partial(_serve_worker, servers)
     pool = Pool(len(validator_indexes))
     pool.map(worker, validator_indexes)
 
@@ -227,4 +240,5 @@ if __name__ == '__main__':
         config_data = json.load(f)
     # validator = ValidatorServer("./config.json", 'mainnet', 'sidechain2')
     # validator.run()
-    _serve_all("./config.json", 'mainnet', 'sidechain2')
+    _serve_all("./config.json", 'mainnet', 'sidechain2',
+               privkey_name='validator', privkey_pwd='1234')

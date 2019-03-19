@@ -8,7 +8,7 @@ This repository contains :
 * Bridge operator:
   * Proposer
   * Validator
-  * Validator set update script
+  * BridgeSettingsManager
   * Bridge deployer script
 
 
@@ -23,7 +23,7 @@ This repository contains :
 
 * Transaction broadcaster (TODO) : allows users to make token transfers without paying aer fees.
 
-The operators and wallet both use a **config.json** file to operate. This file records, network names and ip, token addresses, pegged token addresses, bridge addresses, validators and proposer information (ip and address), wallet private key (TODO:change to encrypted keystore).
+The operators and wallet both use a **config.json** file to operate. This file records, network names and ip, token addresses, pegged token addresses, bridge addresses, validators and proposer information (ip and address), wallet encrypted private keys.
 
 ## Install
 ```sh

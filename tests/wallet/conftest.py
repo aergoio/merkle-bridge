@@ -9,7 +9,8 @@ def deploy_new_token():
         payload_str = f.read()[:-1]
     total_supply = 500*10**6*10**18
     wallet = Wallet("./config.json")
-    wallet.deploy_token(payload_str, "token1", total_supply, 'mainnet')
+    wallet.deploy_token(payload_str, "token1", total_supply, 'mainnet',
+                        privkey_pwd='1234')
 
 
 @pytest.fixture(scope="session")

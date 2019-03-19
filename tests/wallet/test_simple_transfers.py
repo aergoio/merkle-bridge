@@ -14,7 +14,7 @@ def _test_transfer(wallet, asset, fee=0):
     from_balance, _ = wallet.get_balance(asset, 'mainnet')
     print('sender balance before', from_balance)
 
-    wallet.transfer(amount, to, asset, 'mainnet')
+    wallet.transfer(amount, to, asset, 'mainnet', privkey_pwd='1234')
 
     to_balance_after, _ = wallet.get_balance(asset, 'mainnet',
                                              account_name='receiver')
@@ -44,7 +44,8 @@ def test_transfer_pegged_token(wallet):
     wallet.transfer_to_sidechain('mainnet',
                                  'sidechain2',
                                  asset,
-                                 amount)
+                                 amount,
+                                 privkey_pwd='1234')
 
     to_balance, _ = wallet.get_balance(asset, 'sidechain2',
                                        asset_origin_chain='mainnet',
@@ -55,7 +56,7 @@ def test_transfer_pegged_token(wallet):
     print('sender balance before', from_balance)
 
     wallet.transfer(amount, to, asset, 'sidechain2',
-                    asset_origin_chain='mainnet')
+                    asset_origin_chain='mainnet', privkey_pwd='1234')
 
     to_balance_after, _ = wallet.get_balance(asset, 'sidechain2',
                                              asset_origin_chain='mainnet',
@@ -92,19 +93,19 @@ def test_delegated_transfer(wallet):
     with pytest.raises(TxError):
         # test deadline passed
         signed_transfer, delegate_data, balance = wallet.get_signed_transfer(
-            amount, to, 'token1', 'mainnet', fee=1, deadline=1)
+            amount, to, 'token1', 'mainnet', fee=1, deadline=1, privkey_pwd='1234')
 
         # broadcast transaction with a different wallet and collect the fee
         wallet.transfer(amount, to, asset, 'mainnet', privkey_name='default2',
                         sender=sender, signed_transfer=signed_transfer,
-                        delegate_data=delegate_data)
+                        delegate_data=delegate_data, privkey_pwd='1234')
     signed_transfer, delegate_data, balance = wallet.get_signed_transfer(
-        amount, to, 'token1', 'mainnet', fee=1, deadline=0)
+        amount, to, 'token1', 'mainnet', fee=1, deadline=0, privkey_pwd='1234')
 
     # broadcast transaction with a different wallet and collect the fee
     wallet.transfer(amount, to, asset, 'mainnet', privkey_name='default2',
                     sender=sender, signed_transfer=signed_transfer,
-                    delegate_data=delegate_data)
+                    delegate_data=delegate_data, privkey_pwd='1234')
 
     broadcaster_balance_after, _ = wallet.get_balance(asset, 'mainnet',
                                                       account_name='default2')

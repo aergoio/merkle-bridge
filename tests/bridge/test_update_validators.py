@@ -26,8 +26,8 @@ def deploy_bridge():
     aergo1.connect(config_data[mainnet]['ip'])
     aergo2.connect(config_data[sidechain]['ip'])
     sender_priv_key = config_data["wallet"]['default2']['priv_key']
-    aergo1.new_account(private_key=sender_priv_key)
-    aergo2.new_account(private_key=sender_priv_key)
+    aergo1.import_account(sender_priv_key, '1234')
+    aergo2.import_account(sender_priv_key, '1234')
     validators = []
     for validator in config_data['validators']:
         validators.append(validator['addr'])
@@ -82,26 +82,28 @@ def test_update_validators():
 
     # use the default wallet so it doesnt double spend a nonce if the proposer
     # is running
-    sender_priv_key = config_data["wallet"]['default2']['priv_key']
+    sender_priv_key = 'default2'
 
     assert len(config_data['validators']) == 3, "fix config.json for tests"
 
-    new_validators = ["AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"]
+    new_validators = ["AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+                      "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+                      "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+                      "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ"]
     manager = BridgeSettingsManager(config_data)
     # 2/3 of the current validators must sign the new validators
     # atm gathering signatures is a manual voting process.
     sig1, sig2 = manager.sign_new_validators('mainnet', 'sidechain2',
-                                             new_validators)
+                                             new_validators,
+                                             privkey_pwd='1234')
     # once the signatures sig1 and sig2 gathered, validators can be updated
     manager.update_validators(new_validators,
                               [1, 2],
                               [sig1, sig1],
                               [sig2, sig2],
                               'mainnet', 'sidechain2',
-                              priv_key=sender_priv_key)
+                              privkey_name=sender_priv_key,
+                              privkey_pwd='1234')
     validators = manager.get_validators('mainnet', 'sidechain2')
     print("increased number of validators to : {}".format(len(validators[0])))
     print(validators)
@@ -113,18 +115,20 @@ def test_update_validators():
 
     manager = BridgeSettingsManager(new_config_data)
     # test_config.json is the new config containing the updated 'validators'
-    new_validators = ["AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-                      "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474"]
+    new_validators = ["AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+                      "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+                      "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ"]
     manager = BridgeSettingsManager(new_config_data)
     sig1, sig2 = manager.sign_new_validators('mainnet', 'sidechain2',
-                                             new_validators)
+                                             new_validators,
+                                             privkey_pwd='1234')
     manager.update_validators(new_validators,
                               [1, 2, 3],
                               [sig1, sig1, sig1],
                               [sig2, sig2, sig2],
                               'mainnet', 'sidechain2',
-                              priv_key=sender_priv_key)
+                              privkey_name=sender_priv_key,
+                              privkey_pwd='1234')
     validators = manager.get_validators('mainnet', 'sidechain2')
     print("decreased number of validators  to : {}".format(len(validators[0])))
     print(validators)
@@ -136,28 +140,32 @@ def test_update_t_anchor():
         config_data = json.load(f)
     # use the default wallet so it doesnt double spend a nonce if the proposer
     # is running
-    sender_priv_key = config_data["wallet"]['default2']['priv_key']
+    sender_priv_key = 'default2'
 
     manager = BridgeSettingsManager(config_data)
     t_anchor_before = manager.get_t_anchor('mainnet', 'sidechain2')
     print("t_anchor before: ", t_anchor_before)
 
-    sig = manager.sign_t_anchor(11, 'mainnet', 'sidechain2')
+    sig = manager.sign_t_anchor(11, 'mainnet', 'sidechain2',
+                                privkey_pwd='1234')
     manager.update_t_anchor(11,
                             [1, 2],
                             [sig, sig],
                             'mainnet', 'sidechain2',
-                            priv_key=sender_priv_key)
+                            privkey_name=sender_priv_key,
+                            privkey_pwd='1234')
     t_anchor_after = manager.get_t_anchor('mainnet', 'sidechain2')
     print("t_anchor after: ", t_anchor_after)
     assert t_anchor_after == 11
 
-    sig = manager.sign_t_anchor(t_anchor_before, 'mainnet', 'sidechain2')
+    sig = manager.sign_t_anchor(t_anchor_before, 'mainnet', 'sidechain2',
+                                privkey_pwd='1234')
     manager.update_t_anchor(t_anchor_before,
                             [1, 2],
                             [sig, sig],
                             'mainnet', 'sidechain2',
-                            priv_key=sender_priv_key)
+                            privkey_name=sender_priv_key,
+                            privkey_pwd='1234')
 
     t_anchor_after = manager.get_t_anchor('mainnet', 'sidechain2')
     print("t_anchor after: ", t_anchor_after)
@@ -169,28 +177,32 @@ def test_update_t_final():
         config_data = json.load(f)
     # use the default wallet so it doesnt double spend a nonce if the proposer
     # is running
-    sender_priv_key = config_data["wallet"]['default2']['priv_key']
+    sender_priv_key = 'default2'
 
     manager = BridgeSettingsManager(config_data)
     t_final_before = manager.get_t_final('mainnet', 'sidechain2')
     print("t_final before: ", t_final_before)
 
-    sig = manager.sign_t_final(11, 'mainnet', 'sidechain2')
+    sig = manager.sign_t_final(11, 'mainnet', 'sidechain2',
+                               privkey_pwd='1234')
     manager.update_t_final(11,
                            [1, 2],
                            [sig, sig],
                            'mainnet', 'sidechain2',
-                           priv_key=sender_priv_key)
+                           privkey_name=sender_priv_key,
+                           privkey_pwd='1234')
     t_final_after = manager.get_t_final('mainnet', 'sidechain2')
     print("t_final after: ", t_final_after)
     assert t_final_after == 11
 
-    sig = manager.sign_t_final(t_final_before, 'mainnet', 'sidechain2')
+    sig = manager.sign_t_final(t_final_before, 'mainnet', 'sidechain2',
+                               privkey_pwd='1234')
     manager.update_t_final(t_final_before,
                            [1, 2],
                            [sig, sig],
                            'mainnet', 'sidechain2',
-                           priv_key=sender_priv_key)
+                           privkey_name=sender_priv_key,
+                           privkey_pwd='1234')
 
     t_final_after = manager.get_t_final('mainnet', 'sidechain2')
     print("t_final after: ", t_final_after)

@@ -1,3 +1,4 @@
+from getpass import getpass
 import json
 import time
 
@@ -20,8 +21,15 @@ def run(
     t_final_sidechain: int,
     mainnet: str,
     sidechain: str,
-    path: str = "./config.json"
+    path: str = "./config.json",
+    privkey_name: str = None,
+    privkey_pwd: str = None
 ) -> None:
+    if privkey_name is None:
+        privkey_name = 'proposer'
+    if privkey_pwd is None:
+        privkey_pwd = getpass("Decrypt exported private key '{}'\nPassword: "
+                              .format(privkey_name))
     payload = herapy.utils.decode_address(payload_str)
     print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")
     aergo1 = herapy.Aergo()
@@ -32,13 +40,11 @@ def run(
     aergo2.connect(config_data[sidechain]['ip'])
 
     print("------ Set Sender Account -----------")
-    sender_priv_key1 = config_data["proposer"]['priv_key']
-    sender_priv_key2 = config_data["proposer"]['priv_key']
-    sender_account = aergo1.new_account(private_key=sender_priv_key1)
-    aergo2.new_account(private_key=sender_priv_key2)
-    aergo1.get_account()
-    aergo2.get_account()
-    print("  > Sender Address: {}".format(sender_account.address))
+    sender_priv_key1 = config_data['wallet'][privkey_name]['priv_key']
+    sender_priv_key2 = config_data['wallet'][privkey_name]['priv_key']
+    aergo1.import_account(sender_priv_key1, privkey_pwd)
+    aergo2.import_account(sender_priv_key2, privkey_pwd)
+    print("  > Sender Address: {}".format(aergo1.account.address))
 
     print("------ Deploy SC -----------")
     # get validators from config file

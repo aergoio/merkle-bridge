@@ -17,10 +17,6 @@
             }
         }
     },
-    "proposer": {
-        "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-        "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
-    },
     "sidechain2": {
         "bridges": {
             "": {
@@ -33,33 +29,42 @@
     },
     "validators": [
         {
-            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-            "ip": "localhost:9841",
-            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+            "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+            "ip": "localhost:9841"
         },
         {
-            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-            "ip": "localhost:9842",
-            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+            "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+            "ip": "localhost:9842"
         },
         {
-            "addr": "AmPESicKLcPYXJC7ufgK6ti3fVS1r1SbqfxhVDEnTUc5cPXT1474",
-            "ip": "localhost:9843",
-            "priv_key": "6hbRWgddqcg2ZHE5NipM1xgwBDAKqLnCKhGvADWrWE18xAbX8sW"
+            "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+            "ip": "localhost:9843"
         }
     ],
     "wallet": {
         "default": {
-            "addr": "AmNgJZY334Pt87kBbSonK7SkUrmUNiGKyVP9uBJYwHLcEQJ1pCcs",
-            "priv_key": "6hn7ZgZhSwxFAXUEkmezJB344Pe2bgfKLTRFaoq8gNZYPqfXcWX"
+            "addr": "AmNMFbiVsqy6vg4njsTjgy7bKPFHFYhLV4rzQyrENUS9AM1e3tw5",
+            "priv_key": "47CLj29W96rS9SsizUz4pueeuTT2GcSpkoAsvVC3USLzQ5kKTWKmz1WLKnqor2ET7hPd73TC9"
         },
         "default2": {
-            "addr": "AmP97qCMq2w1BecjmGJf9stdXH825gPVre7euFpWp98twevFfMeG",
-            "priv_key": "6jFGW2XhniWu3j8YMGY3GEuitgUwuYf6ohzErfZzPuff7c6bkVL"
+            "addr": "AmNyNPEqeXPfdHeECMNhsH1QcnZsqCtDAudjgFyG5qpasN6tyLPE",
+            "priv_key": "47PZc88CguT8Vm5MJXR7FAy9ewDmnHhyU6w8r2GgRpciz55wUieQVacPaVgUZP7yZGMYEs9BD"
+        },
+        "proposer": {
+            "addr": "AmPxVdu993eosN3UjnPDdN3wb7TNbHeiHDvn2dvZUcH8KXDK3RLU",
+            "priv_key": "47sDAWjMFTP7r2JP2BJ29PJRfY13yUTtVvoLjAf8knhH4GryQrpMJoTqscDjed1YPHVZXY4sN"
         },
         "receiver": {
-            "addr": "AmM3PTX148ZSNAJYGEt1baEZpJPWc8ms7wuw9rqjUEfTCUWfwFuS",
-            "priv_key": "6hqpLV2b1uoaZf2Hvbe4Tjz5KNs8iS6QkaNwVFJVeMPzk8godzV"
+            "addr": "AmPf349iHWd6kQGU45BxFzFCzEDu75Y3FqFPd4WBMteFq4mtDuZd",
+            "priv_key": "47HzJAwuTV1akJPtsBWm4saJaQAgKgq1qSeeKfaFHnMxhjPM5ipPY8EZ3gDVRQ4oLizx1qhwh"
+        },
+        "test": {
+            "addr": "AmM6Db1e8PbDAbCfKgD4s3SfM8xJfkTvEaLZK4exVuWFnYL34S93",
+            "priv_key": "47hxG12EStVwAG6ww5DYRKaKqWB47JhmRwK6kTW9hXbN79Chh2cQAwx4qYxmYvnD3Ys9f5c1x"
+        },
+        "validator": {
+            "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+            "priv_key": "47wwDRMKXH4serxiNQcrtMSxHsGt9qX6wZTt9XNUcABBokLYpUtKuYue1ujmsBLvzy9DcD84i"
         }
     }
 }

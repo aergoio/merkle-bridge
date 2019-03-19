@@ -1,3 +1,4 @@
+from getpass import getpass
 import json
 import time
 
@@ -57,10 +58,12 @@ if __name__ == '__main__':
     aergo.connect(config_data['mainnet']['ip'])
 
     print("------ Set Sender Account -----------")
-    sender_priv_key = config_data["wallet"]['default']['priv_key']
-    sender_account = aergo.new_account(private_key=sender_priv_key)
-    aergo.get_account()
-    receiver = sender_account.address.__str__()
+    privkey_name = 'default'
+    sender_priv_key = config_data["wallet"][privkey_name]['priv_key']
+    privkey_pwd = getpass("Decrypt exported private key '{}'\nPassword: "
+                          .format(privkey_name))
+    aergo.import_account(sender_priv_key, '1234')
+    receiver = aergo.account.address.__str__()
     print("  > Sender Address: {}".format(receiver))
 
     total_supply = 500*10**6*10**18

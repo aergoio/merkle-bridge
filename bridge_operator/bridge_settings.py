@@ -1,3 +1,4 @@
+from getpass import getpass
 import hashlib
 import time
 
@@ -49,10 +50,19 @@ class BridgeSettingsManager:
             config_dict[json_path[-1]] = value
         return config_dict[json_path[-1]]
 
-    def get_aergo(self, network: str, priv_key: str) -> herapy.Aergo:
+    def get_aergo(
+        self,
+        network: str,
+        privkey_name: str,
+        privkey_pwd: str = None
+    ) -> herapy.Aergo:
+        exported_privkey = self.config_data('wallet', privkey_name, 'priv_key')
+        if privkey_pwd is None:
+            privkey_pwd = getpass("Decrypt exported private key '{}'\n"
+                                  "Password: ".format(privkey_name))
         aergo = herapy.Aergo()
         aergo.connect(self.config_data(network, 'ip'))
-        aergo.new_account(private_key=priv_key)
+        aergo.import_account(exported_privkey, privkey_pwd)
         return aergo
 
     def _verify_signatures_single(
@@ -171,26 +181,26 @@ class BridgeSettingsManager:
         t_anchor: int,
         network_from: str,
         network_to: str,
-        priv_key: str = None,
-        validator_index: int = 0
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> bytes:
         """Sign a new anchor periode for network_from -> network_to bridge"""
         return self._sign_tempo(t_anchor, network_from, network_to,
-                                priv_key, validator_index)
+                                privkey_name, privkey_pwd)
 
     def sign_t_final(
         self,
         t_final: int,
         network_from: str,
         network_to: str,
-        priv_key: str = None,
-        validator_index: int = 0
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> bytes:
         """ Sign a new finality of network_from for
         network_from -> network_to bridge.
         """
         return self._sign_tempo(t_final, network_from, network_to,
-                                priv_key, validator_index)
+                                privkey_name, privkey_pwd)
 
     @staticmethod
     def _tempo_digest(tempo: int, bridge: str, aergo: herapy.Aergo) -> bytes:
@@ -209,14 +219,13 @@ class BridgeSettingsManager:
         t_anchor: int,
         network_from: str,
         network_to: str,
-        priv_key: str = None,
-        validator_index: int = 0
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> bytes:
         """ Sign an update of t_final or t_anchor."""
-        if priv_key is None:
-            priv_key = self.config_data('validators', validator_index,
-                                        'priv_key')
-        aergo = self.get_aergo(network_to, priv_key)
+        if privkey_name is None:
+            privkey_name = 'validator'
+        aergo = self.get_aergo(network_to, privkey_name, privkey_pwd)
         bridge = self.config_data(network_to, 'bridges', network_from,
                                   'addr')
         h = self._tempo_digest(t_anchor, bridge, aergo)
@@ -230,13 +239,13 @@ class BridgeSettingsManager:
         sigs: List[bytes],
         network_from: str,
         network_to: str,
-        priv_key: str = None,
-        validator_index: int = 0
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> None:
         """Update the anchoring periode of network_from -> network_to bridge"""
         return self._update_tempo("update_t_anchor", t_anchor, signers,
                                   sigs, network_from, network_to,
-                                  priv_key, validator_index)
+                                  privkey_name, privkey_pwd)
 
     def update_t_final(
         self,
@@ -245,15 +254,15 @@ class BridgeSettingsManager:
         sigs: List[bytes],
         network_from: str,
         network_to: str,
-        priv_key: str = None,
-        validator_index: int = 0
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> None:
         """Update the finality of network_from for the
         network_from -> network_to bridge
         """
         return self._update_tempo("update_t_final", t_final, signers,
                                   sigs, network_from, network_to,
-                                  priv_key, validator_index)
+                                  privkey_name, privkey_pwd)
 
     def _update_tempo(
         self,
@@ -263,15 +272,15 @@ class BridgeSettingsManager:
         sigs: List[bytes],
         network_from: str,
         network_to: str,
-        priv_key: str = None,
-        validator_index: int = 0
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> None:
         """ Verify the validator signatures before updating the t_anchor or
         t_final of the bridge.
         """
-        if priv_key is None:
-            priv_key = self.config_data("proposer", 'priv_key')
-        aergo = self.get_aergo(network_to, priv_key)
+        if privkey_name is None:
+            privkey_name = 'proposer'
+        aergo = self.get_aergo(network_to, privkey_name, privkey_pwd)
         bridge = self.config_data(network_to, 'bridges', network_from, 'addr')
         h = self._tempo_digest(tempo, bridge, aergo)
 
@@ -311,14 +320,13 @@ class BridgeSettingsManager:
         network1: str,
         network2: str,
         new_validators: List[str],
-        priv_key: str = None,
-        validator_index: int = 0
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> Tuple[bytes, bytes]:
-        if priv_key is None:
-            priv_key = self.config_data('validators', validator_index,
-                                        'priv_key')
-        aergo1 = self.get_aergo(network1, priv_key)
-        aergo2 = self.get_aergo(network2, priv_key)
+        if privkey_name is None:
+            privkey_name = 'validator'
+        aergo1 = self.get_aergo(network1, privkey_name, privkey_pwd)
+        aergo2 = self.get_aergo(network2, privkey_name, privkey_pwd)
         bridge1 = self.config_data(network1, 'bridges', network2, 'addr')
         bridge2 = self.config_data(network2, 'bridges', network1, 'addr')
 
@@ -356,15 +364,16 @@ class BridgeSettingsManager:
         signatures2: List[bytes],
         network1: str,
         network2: str,
-        priv_key: str = None
+        privkey_name: str = None,
+        privkey_pwd: str = None
     ) -> None:
         """ Validators should be the same on both sides of the bridge,
         so update_validators updates both sides.
         """
-        if priv_key is None:
-            priv_key = self.config_data("proposer", 'priv_key')
-        aergo1 = self.get_aergo(network1, priv_key)
-        aergo2 = self.get_aergo(network2, priv_key)
+        if privkey_name is None:
+            privkey_name = 'proposer'
+        aergo1 = self.get_aergo(network1, privkey_name, privkey_pwd)
+        aergo2 = self.get_aergo(network2, privkey_name, privkey_pwd)
         bridge1 = self.config_data(network1, 'bridges', network2, 'addr')
         bridge2 = self.config_data(network2, 'bridges', network1, 'addr')
         h1 = self._new_validators_digest(aergo1, bridge1, new_validators)

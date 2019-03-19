@@ -5,11 +5,13 @@ def _test_bridge_transfer(wallet, asset):
     wallet.transfer_to_sidechain('mainnet',
                                  'sidechain2',
                                  asset,
-                                 amount)
+                                 amount,
+                                 privkey_pwd='1234')
     wallet.transfer_from_sidechain('sidechain2',
                                    'mainnet',
                                    asset,
-                                   amount)
+                                   amount,
+                                   privkey_pwd='1234')
     balance_after, _ = wallet.get_balance(asset, 'mainnet')
 
     if asset == 'aergo':
@@ -38,13 +40,15 @@ def test_delegated_bridge_transfer(wallet):
 
     signed_transfer, delegate_data, _ = \
         wallet.get_signed_transfer(amount, to, 'token1', 'mainnet',
-                                   fee=1, deadline=0)
+                                   fee=1, deadline=0,
+                                   privkey_pwd='1234')
 
     wallet.transfer_to_sidechain('mainnet', 'sidechain2',
                                  asset, amount, sender=owner,
                                  signed_transfer=signed_transfer,
                                  delegate_data=delegate_data,
-                                 privkey_name='default2')
+                                 privkey_name='default2',
+                                 privkey_pwd='1234')
     fee_received, _ = wallet.get_balance(asset, 'mainnet',
                                          account_name='default2')
     print("Fee receiver balance = ", fee_received)
@@ -55,13 +59,15 @@ def test_delegated_bridge_transfer(wallet):
     signed_transfer, delegate_data, _ = \
         wallet.get_signed_transfer(amount-1, to, 'token1',
                                    'sidechain2', 'mainnet',
-                                   fee=1, deadline=0)
+                                   fee=1, deadline=0, 
+                                   privkey_pwd='1234')
 
     wallet.transfer_from_sidechain('sidechain2', 'mainnet',
                                    asset, amount-1, sender=owner,
                                    signed_transfer=signed_transfer,
                                    delegate_data=delegate_data,
-                                   privkey_name='default2')
+                                   privkey_name='default2',
+                                   privkey_pwd='1234')
     fee_received, _ = wallet.get_balance(asset, 'sidechain2', 'mainnet',
                                          account_name='default2')
     print("Fee receiver balance = ", fee_received)
