@@ -107,16 +107,56 @@ class Wallet:
         aergo.new_account(skip_state=True)
         exported_privkey = aergo.export_account(password)
         addr = str(aergo.account.address)
-        self.config_data('wallet', account_name, value={})
-        self.config_data('wallet', account_name, 'addr', value=addr)
-        self.config_data('wallet', account_name,
-                         'priv_key', value=exported_privkey)
-        self.save_config()
-        return addr
+        return self.register_account(account_name, exported_privkey, addr=addr)
 
     def get_wallet_address(self, account_name: str = 'default') -> str:
         addr = self.config_data('wallet', account_name, 'addr')
         return addr
+
+    def register_account(
+        self,
+        account_name: str,
+        exported_privkey: str,
+        password: str = None,
+        addr: str = None
+    ) -> str:
+        """Register and exported account to config.json"""
+        try:
+            self.config_data('wallet', account_name)
+        except KeyError:
+            # if KeyError then account doesn't already exists
+            if addr is None:
+                aergo = herapy.Aergo()
+                account = aergo.import_account(exported_privkey, password,
+                                               skip_state=True, skip_self=True)
+                addr = str(account.address)
+            self.config_data('wallet', account_name, value={})
+            self.config_data('wallet', account_name, 'addr', value=addr)
+            self.config_data('wallet', account_name,
+                             'priv_key', value=exported_privkey)
+            self.save_config()
+            return addr
+        error = "Error: account name '{}' already exists".format(account_name)
+        raise InvalidArgumentsError(error)
+
+    def register_asset(
+        self,
+        asset_name: str,
+        origin_chain_name: str,
+        addr_on_origin_chain: str,
+        pegged_chain_name: str = None,
+        addr_on_pegged_chain: str = None
+    ) -> None:
+        """ Register an existing asset to config.json"""
+        self.config_data(origin_chain_name, 'tokens', asset_name, value={})
+        self.config_data(origin_chain_name, 'tokens', asset_name, 'addr',
+                         value=addr_on_origin_chain)
+        self.config_data(origin_chain_name, 'tokens', asset_name, 'pegs',
+                         value={})
+        if pegged_chain_name is not None and addr_on_pegged_chain is not None:
+            self.config_data(origin_chain_name, 'tokens', asset_name, 'pegs',
+                             pegged_chain_name, value=addr_on_pegged_chain)
+        self.save_config()
 
     def _connect_aergo(self, network_name: str) -> herapy.Aergo:
         aergo = herapy.Aergo()
