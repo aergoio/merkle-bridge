@@ -12,6 +12,9 @@ from typing import (
 )
 
 import aergo.herapy as herapy
+from aergo.herapy.errors.general_exception import (
+    GeneralException,
+)
 
 from wallet.transfer_to_sidechain import (
     lock,
@@ -90,8 +93,13 @@ class Wallet:
         password: str = None
     ) -> str:
         if password is None:
-            password = getpass("Create a password for '{}': "
-                               .format(account_name))
+            while True:
+                password = getpass("Create a password for '{}': "
+                                   .format(account_name))
+                confirm = getpass("Confirm password: ")
+                if password == confirm:
+                    break
+                print("Passwords don't match, try again")
         aergo = herapy.Aergo()
         aergo.new_account(skip_state=True)
         exported_privkey = aergo.export_account(password)
@@ -124,13 +132,19 @@ class Wallet:
         """
         if network_name is None:
             raise InvalidArgumentsError("Provide network_name")
-        if privkey_pwd is None:
-            privkey_pwd = getpass("Decrypt exported private key '{}'\n"
-                                  "Password: ".format(privkey_name))
         exported_privkey = self.config_data('wallet', privkey_name, 'priv_key')
         aergo = self._connect_aergo(network_name)
-        aergo.import_account(exported_privkey, privkey_pwd, 
-                             skip_state=skip_state)
+        if privkey_pwd is None:
+            print("Decrypt exported private key '{}'".format(privkey_name))
+            while True:
+                try:
+                    privkey_pwd = getpass("Password: ")
+                    aergo.import_account(exported_privkey, privkey_pwd, 
+                                         skip_state=skip_state)
+                except GeneralException:
+                    print("Wrong password, try again")
+                    continue
+                break
         return aergo
 
     def get_asset_address(
