@@ -79,8 +79,8 @@ class ProposerClient:
         assert validators1 == validators2, \
             "Validators should be the same on both sides of bridge"
         # create all channels with validators
-        self._channels = []
-        self._stubs = []
+        self._channels: List[grpc._channel.Channel] = []
+        self._stubs: List[BridgeOperatorStub] = []
         for i, validator in enumerate(self._config_data['validators']):
             assert validators1[i] == validator['addr'], \
                 "Validators in config file do not match bridge validators"\

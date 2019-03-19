@@ -195,7 +195,7 @@ class ValidatorServer:
             config_data = json.load(f)
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         add_BridgeOperatorServicer_to_server(
-            ValidatorService(config_data, aergo1, aergo2, privkey_name, 
+            ValidatorService(config_data, aergo1, aergo2, privkey_name,
                              privkey_pwd, validator_index),
             self.server)
         self.server.add_insecure_port(config_data['validators']
@@ -221,13 +221,13 @@ def _serve_worker(servers, index):
     servers[index].run()
 
 
-def _serve_all(config_file_path, aergo1, aergo2, 
+def _serve_all(config_file_path, aergo1, aergo2,
                privkey_name=None, privkey_pwd=None):
     """ For testing, run all validators in different threads """
     with open(config_file_path, "r") as f:
         config_data = json.load(f)
     validator_indexes = [i for i in range(len(config_data['validators']))]
-    servers = [ValidatorServer(config_file_path, aergo1, aergo2, 
+    servers = [ValidatorServer(config_file_path, aergo1, aergo2,
                                privkey_name, privkey_pwd, index)
                for index in validator_indexes]
     worker = partial(_serve_worker, servers)

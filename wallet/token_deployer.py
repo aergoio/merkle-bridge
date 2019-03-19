@@ -68,7 +68,8 @@ if __name__ == '__main__':
 
     total_supply = 500*10**6*10**18
 
-    sc_address = deploy_token(payload_str, aergo, receiver, total_supply)
+    sc_address = deploy_token(payload_str, aergo,
+                              receiver, total_supply)
 
     print("------ Disconnect AERGO -----------")
     aergo.disconnect()

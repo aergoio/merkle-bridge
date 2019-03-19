@@ -59,7 +59,7 @@ def test_delegated_bridge_transfer(wallet):
     signed_transfer, delegate_data, _ = \
         wallet.get_signed_transfer(amount-1, to, 'token1',
                                    'sidechain2', 'mainnet',
-                                   fee=1, deadline=0, 
+                                   fee=1, deadline=0,
                                    privkey_pwd='1234')
 
     wallet.transfer_from_sidechain('sidechain2', 'mainnet',

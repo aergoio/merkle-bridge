@@ -92,14 +92,16 @@ def test_delegated_transfer(wallet):
 
     with pytest.raises(TxError):
         # test deadline passed
-        signed_transfer, delegate_data, balance = wallet.get_signed_transfer(
-            amount, to, 'token1', 'mainnet', fee=1, deadline=1, privkey_pwd='1234')
+        signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
+            amount, to, 'token1', 'mainnet', fee=1, deadline=1,
+            privkey_pwd='1234'
+        )
 
         # broadcast transaction with a different wallet and collect the fee
         wallet.transfer(amount, to, asset, 'mainnet', privkey_name='default2',
                         sender=sender, signed_transfer=signed_transfer,
                         delegate_data=delegate_data, privkey_pwd='1234')
-    signed_transfer, delegate_data, balance = wallet.get_signed_transfer(
+    signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
         amount, to, 'token1', 'mainnet', fee=1, deadline=0, privkey_pwd='1234')
 
     # broadcast transaction with a different wallet and collect the fee
