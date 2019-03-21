@@ -61,6 +61,8 @@ class ValidatorService(BridgeOperatorServicer):
         self._validator_index = validator_index
         self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
         self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
+        self._id1 = config_data[aergo1]['bridges'][aergo2]['id']
+        self._id2 = config_data[aergo2]['bridges'][aergo1]['id']
 
         # check validators are correct
         validators1 = query_validators(self._aergo1, self._addr1)
@@ -99,6 +101,7 @@ class ValidatorService(BridgeOperatorServicer):
         """
         tab = ""
         destination = ""
+        bridge_id = ""
         if anchor.is_from_mainnet:
             # aergo1 is considered to be mainnet side of bridge
             err_msg = self.is_valid_anchor(anchor, self._aergo1,
@@ -107,18 +110,20 @@ class ValidatorService(BridgeOperatorServicer):
                                            self._t_anchor2)
             tab = "\t"*5
             destination = "sidechain"
+            bridge_id = self._id2
         else:
             err_msg = self.is_valid_anchor(anchor, self._aergo2,
                                            self._addr2, self._t_final1,
                                            self._aergo1, self._addr1,
                                            self._t_anchor1)
             destination = "mainnet"
+            bridge_id = self._id1
         if err_msg is not None:
             return Approval(error=err_msg)
 
         # sign anchor and return approval
         msg = bytes(anchor.root + anchor.height
-                    + anchor.destination_nonce, 'utf-8')
+                    + anchor.destination_nonce + bridge_id, 'utf-8')
         h = hashlib.sha256(msg).digest()
         sig = self._aergo1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)

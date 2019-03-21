@@ -203,14 +203,19 @@ class BridgeSettingsManager:
                                 privkey_name, privkey_pwd)
 
     @staticmethod
-    def _tempo_digest(tempo: int, bridge: str, aergo: herapy.Aergo) -> bytes:
+    def _tempo_digest(
+        tempo: int,
+        bridge_addr: str,
+        bridge_id: str,
+        aergo: herapy.Aergo
+    ) -> bytes:
         """ Construct the digest message with the bridge update nonce to be
         signed by the validator for a t_anchor or t_final update.
         """
         # get bridge nonce
-        current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
+        current_nonce = aergo.query_sc_state(bridge_addr, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
-        data = str(tempo) + str(current_nonce)
+        data = str(tempo) + str(current_nonce) + bridge_id
         data_bytes = bytes(data, 'utf-8')
         return hashlib.sha256(data_bytes).digest()
 
@@ -226,9 +231,11 @@ class BridgeSettingsManager:
         if privkey_name is None:
             privkey_name = 'validator'
         aergo = self.get_aergo(network_to, privkey_name, privkey_pwd)
-        bridge = self.config_data(network_to, 'bridges', network_from,
-                                  'addr')
-        h = self._tempo_digest(t_anchor, bridge, aergo)
+        bridge_addr = self.config_data(network_to, 'bridges', network_from,
+                                       'addr')
+        bridge_id = self.config_data(network_to, 'bridges', network_from,
+                                     'id')
+        h = self._tempo_digest(t_anchor, bridge_addr, bridge_id, aergo)
         sig = aergo.account.private_key.sign_msg(h)
         return sig
 
@@ -281,14 +288,16 @@ class BridgeSettingsManager:
         if privkey_name is None:
             privkey_name = 'proposer'
         aergo = self.get_aergo(network_to, privkey_name, privkey_pwd)
-        bridge = self.config_data(network_to, 'bridges', network_from, 'addr')
-        h = self._tempo_digest(tempo, bridge, aergo)
+        bridge_addr = self.config_data(network_to, 'bridges', network_from,
+                                       'addr')
+        bridge_id = self.config_data(network_to, 'bridges', network_from, 'id')
+        h = self._tempo_digest(tempo, bridge_addr, bridge_id, aergo)
 
         # verify signatures and keep only 2/3
         all_sigs = self._verify_signatures_single(signers, sigs, h)
         verified_sigs, verified_signers = all_sigs
         # update tempo on network_to
-        tx_hash = self._update_tempo_tx(aergo, bridge, function, tempo,
+        tx_hash = self._update_tempo_tx(aergo, bridge_addr, function, tempo,
                                         verified_signers, verified_sigs)
         time.sleep(COMMIT_TIME)
         result = aergo.get_tx_result(tx_hash)
@@ -327,11 +336,15 @@ class BridgeSettingsManager:
             privkey_name = 'validator'
         aergo1 = self.get_aergo(network1, privkey_name, privkey_pwd)
         aergo2 = self.get_aergo(network2, privkey_name, privkey_pwd)
-        bridge1 = self.config_data(network1, 'bridges', network2, 'addr')
-        bridge2 = self.config_data(network2, 'bridges', network1, 'addr')
+        bridge_addr1 = self.config_data(network1, 'bridges', network2, 'addr')
+        bridge_addr2 = self.config_data(network2, 'bridges', network1, 'addr')
+        bridge_id1 = self.config_data(network1, 'bridges', network2, 'id')
+        bridge_id2 = self.config_data(network2, 'bridges', network1, 'id')
 
-        h1 = self._new_validators_digest(aergo1, bridge1, new_validators)
-        h2 = self._new_validators_digest(aergo2, bridge2, new_validators)
+        h1 = self._new_validators_digest(aergo1, bridge_addr1, bridge_id1,
+                                         new_validators)
+        h2 = self._new_validators_digest(aergo2, bridge_addr2, bridge_id2,
+                                         new_validators)
         sig1 = aergo1.account.private_key.sign_msg(h1)
         sig2 = aergo2.account.private_key.sign_msg(h2)
         return sig1, sig2
@@ -339,20 +352,21 @@ class BridgeSettingsManager:
     @staticmethod
     def _new_validators_digest(
         aergo: herapy.Aergo,
-        bridge: str,
+        bridge_addr: str,
+        bridge_id: str,
         new_validators: List[str]
     ) -> bytes:
         """ Construct the digest message with the bridge update nonce to be
         signed by the validator for a validator set update.
         """
         # get bridge nonce
-        current_nonce = aergo.query_sc_state(bridge, ["_sv_Nonce"])
+        current_nonce = aergo.query_sc_state(bridge_addr, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
         # format data to be signed
         data = ""
         for val in new_validators:
             data += val
-        data += str(current_nonce)
+        data += str(current_nonce) + bridge_id
         data_bytes = bytes(data, 'utf-8')
         return hashlib.sha256(data_bytes).digest()
 
@@ -374,10 +388,14 @@ class BridgeSettingsManager:
             privkey_name = 'proposer'
         aergo1 = self.get_aergo(network1, privkey_name, privkey_pwd)
         aergo2 = self.get_aergo(network2, privkey_name, privkey_pwd)
-        bridge1 = self.config_data(network1, 'bridges', network2, 'addr')
-        bridge2 = self.config_data(network2, 'bridges', network1, 'addr')
-        h1 = self._new_validators_digest(aergo1, bridge1, new_validators)
-        h2 = self._new_validators_digest(aergo2, bridge2, new_validators)
+        bridge_addr1 = self.config_data(network1, 'bridges', network2, 'addr')
+        bridge_addr2 = self.config_data(network2, 'bridges', network1, 'addr')
+        bridge_id1 = self.config_data(network1, 'bridges', network2, 'id')
+        bridge_id2 = self.config_data(network2, 'bridges', network1, 'id')
+        h1 = self._new_validators_digest(aergo1, bridge_addr1, bridge_id1,
+                                         new_validators)
+        h2 = self._new_validators_digest(aergo2, bridge_addr2, bridge_id2,
+                                         new_validators)
 
         # verify signatures and keep only 2/3
         all_sigs = self._verify_signatures_double(signers, signatures1,
@@ -385,9 +403,11 @@ class BridgeSettingsManager:
         verified_sigs1, verified_sigs2, verified_signers = all_sigs
 
         tx_hash1 = self._update_validators_tx(new_validators, verified_signers,
-                                              verified_sigs1, bridge1, aergo1)
+                                              verified_sigs1, bridge_addr1,
+                                              aergo1)
         tx_hash2 = self._update_validators_tx(new_validators, verified_signers,
-                                              verified_sigs2, bridge2, aergo2)
+                                              verified_sigs2, bridge_addr2,
+                                              aergo2)
 
         time.sleep(COMMIT_TIME)
         result1 = aergo1.get_tx_result(tx_hash1)

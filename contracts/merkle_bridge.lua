@@ -50,6 +50,10 @@ state.var {
     Nonce = state.value(),
     -- LastAnchor
     LastAnchor = state.value(),
+    -- ContractID is a replay protection between sidechains as the same addresses can be validators
+    -- on multiple chains.
+    ContractID = state.value(),
+
 }
 
 function constructor(addresses, t_anchor, t_final)
@@ -63,6 +67,12 @@ function constructor(addresses, t_anchor, t_final)
         assert(address.isValidAddress(addr), "invalid address format: " .. addr)
         Validators[i] = addr
     end
+    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
+    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
+    -- take the first 16 bytes to save size of signed message
+    id = string.sub(id, 3, 32)
+    ContractID:set(id)
+    return id
 end
 
 -- signers is the index of signers in Validators
@@ -72,7 +82,7 @@ function set_root(root, height, signers, signatures)
     -- TODO : a malicious BP could commit a user's mint tx after set_root on purpose for user to lose tx fee. -> deadline parameter in aergo tx.
     assert(height > Height:get() + T_anchor:get(), "Next anchor height not reached")
     old_nonce = Nonce:get()
-    message = crypto.sha256(root..tostring(height)..tostring(old_nonce))
+    message = crypto.sha256(root..tostring(height)..tostring(old_nonce)..ContractID:get())
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     Root:set("0x"..root)
     Height:set(height)
@@ -94,7 +104,7 @@ end
 -- signers is the index of signers in Validators
 function update_validators(addresses, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(join(addresses)..tostring(old_nonce))
+    message = crypto.sha256(join(addresses)..tostring(old_nonce)..ContractID:get())
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     old_size = Nb_Validators:get()
     if #addresses < old_size then
@@ -114,7 +124,7 @@ end
 
 function update_t_anchor(t_anchor, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_anchor)..tostring(old_nonce))
+    message = crypto.sha256(tostring(t_anchor)..tostring(old_nonce)..ContractID:get())
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     T_anchor:set(t_anchor)
     Nonce:set(old_nonce + 1)
@@ -122,7 +132,7 @@ end
 
 function update_t_final(t_final, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_final)..tostring(old_nonce))
+    message = crypto.sha256(tostring(t_final)..tostring(old_nonce)..ContractID:get())
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     T_final:set(t_final)
     Nonce:set(old_nonce + 1)
@@ -396,7 +406,10 @@ function constructor()
     TotalSupply:set(bignum.number(0))
     Owner:set(system.getSender())
     -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-    ContractID:set(crypto.sha256(system.getContractID()..system.getPrevBlockHash()))
+    -- take the first 16 bytes to save size of signed message
+    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
+    id = string.sub(id, 3, 32)
+    ContractID:set(id)
     return true
 end
 

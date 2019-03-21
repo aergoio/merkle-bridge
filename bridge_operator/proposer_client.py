@@ -65,6 +65,8 @@ class ProposerClient:
         self._config_data = config_data
         self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
         self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
+        self._id1 = config_data[aergo1]['bridges'][aergo2]['id']
+        self._id2 = config_data[aergo2]['bridges'][aergo1]['id']
 
         print("------ Connect AERGO -----------")
         self._aergo1 = herapy.Aergo()
@@ -121,13 +123,15 @@ class ProposerClient:
     def get_validators_signatures(
         self,
         anchor_msg: Tuple[bool, str, int, int],
+        to_bridge_id: str,
         tab: str
     ) -> Tuple[List[str], List[int]]:
         """ Query all validators and gather 2/3 of their signatures. """
         is_from_mainnet, root, merge_height, nonce = anchor_msg
 
         # messages to get signed
-        msg = bytes(root + str(merge_height) + str(nonce), 'utf-8')
+        msg_str = root + str(merge_height) + str(nonce) + to_bridge_id
+        msg = bytes(msg_str, 'utf-8')
         h = hashlib.sha256(msg).digest()
 
         anchor = Anchor(is_from_mainnet=is_from_mainnet,
@@ -248,6 +252,7 @@ class ProposerClient:
         bridge_from: str,
         bridge_to: str,
         is_from_mainnet: bool,
+        to_bridge_id: str,
         tab: str = ""
     ) -> None:
         """ Thread that anchors in one direction given t_final and t_anchor.
@@ -299,7 +304,8 @@ class ProposerClient:
                     anchor_msg = is_from_mainnet, root, next_anchor_height, \
                         nonce_to
                     sigs, validator_indexes = \
-                        self.get_validators_signatures(anchor_msg, tab)
+                        self.get_validators_signatures(anchor_msg,
+                                                       to_bridge_id, tab)
                 except ValidatorMajorityError:
                     print("{0}Failed to gather 2/3 validators signatures,\n"
                           "{0}waiting for next anchor..."
@@ -338,10 +344,10 @@ class ProposerClient:
         print("{}MAINNET{}SIDECHAIN".format("\t", "\t"*4))
         to_2_args = (self._t_anchor2, self._t_final2,
                      self._aergo1, self._aergo2,
-                     self._addr1, self._addr2, True, "\t"*5)
+                     self._addr1, self._addr2, True, self._id2, "\t"*5)
         to_1_args = (self._t_anchor1, self._t_final1,
                      self._aergo2, self._aergo1,
-                     self._addr2, self._addr1, False)
+                     self._addr2, self._addr1, False, self._id1)
         t_mainnet = threading.Thread(target=self.bridge_worker,
                                      args=to_2_args)
         t_sidechain = threading.Thread(target=self.bridge_worker,

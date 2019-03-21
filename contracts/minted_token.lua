@@ -45,7 +45,10 @@ function constructor()
     TotalSupply:set(bignum.number(0))
     Owner:set(system.getSender())
     -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-    ContractID:set(crypto.sha256(system.getContractID()..system.getPrevBlockHash()))
+    -- take the first 16 bytes to save size of signed message
+    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
+    id = string.sub(id, 3, 32)
+    ContractID:set(id)
     return true
 end
 

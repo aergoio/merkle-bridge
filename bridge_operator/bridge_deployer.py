@@ -101,6 +101,8 @@ def run(
 
     sc_address1 = result1.contract_address
     sc_address2 = result2.contract_address
+    sc_id1 = result1.detail[1:-1]
+    sc_id2 = result2.detail[1:-1]
 
     print("  > SC Address CHAIN1: {}".format(sc_address1))
     print("  > SC Address CHAIN2: {}".format(sc_address2))
@@ -110,6 +112,8 @@ def run(
     config_data[sidechain]['bridges'][mainnet] = {}
     config_data[mainnet]['bridges'][sidechain]['addr'] = sc_address1
     config_data[sidechain]['bridges'][mainnet]['addr'] = sc_address2
+    config_data[mainnet]['bridges'][sidechain]['id'] = sc_id1
+    config_data[sidechain]['bridges'][mainnet]['id'] = sc_id2
     config_data[mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor_mainnet
     config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final_mainnet
     config_data[sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain

@@ -3,6 +3,7 @@
         "bridges": {
             "": {
                 "addr": "bridge address on mainnet",
+                "id": "bridge ContractID variable",
                 "t_anchor": "t_anchor of sidechain on mainnet",
                 "t_final": "t_final of sidechain"
             }
@@ -21,6 +22,7 @@
         "bridges": {
             "": {
                 "addr": "bridge address on sidechain",
+                "id": "bridge ContractID variable",
                 "t_anchor": "t_anchor of mainnet on sidechain",
                 "t_final": "t_final of mainnet"
             }
