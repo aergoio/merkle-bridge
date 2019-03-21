@@ -32,7 +32,8 @@ from wallet.exceptions import (
 from wallet.wallet_utils import (
     get_balance,
     transfer,
-    get_signed_transfer
+    get_signed_transfer,
+    verify_signed_transfer,
 )
 from wallet.token_deployer import (
     deploy_token,
@@ -416,7 +417,7 @@ class Wallet:
         network_name: str,
         asset_origin_chain: str = None,
         fee: int = 0,
-        deadline: int = 0,
+        execute_before: int = 0,
         privkey_name: str = 'default',
         privkey_pwd: str = None
     ) -> Tuple[Tuple[int, str], Optional[Tuple[str, int]], int]:
@@ -425,10 +426,37 @@ class Wallet:
                                             asset_origin_chain)
         aergo = self.get_aergo(network_name, privkey_name, privkey_pwd,
                                skip_state=True)  # state not needed
+        # calculate deadline
+        if execute_before == 0:
+            deadline = 0
+        else:
+            _, block_height = aergo.get_blockchain_status()
+            deadline = block_height + execute_before
+        # create signed transfer
         signed_transfer, delegate_data, balance = get_signed_transfer(
             value, to, asset_addr, aergo, fee, deadline)
         aergo.disconnect()
         return signed_transfer, delegate_data, balance
+
+    def verify_signed_transfer(
+        self,
+        value: int,
+        sender: str,
+        to: str,
+        asset_name: str,
+        network_name: str,
+        signed_transfer: Tuple[int, str],
+        delegate_data: Tuple[str, int],
+        deadline_margin: int,
+        asset_origin_chain: str = None
+    ) -> Tuple[bool, str]:
+        """ Verify a signed token transfer is valid"""
+        asset_addr = self.get_asset_address(asset_name, network_name,
+                                            asset_origin_chain)
+        aergo = self._connect_aergo(network_name)
+        return verify_signed_transfer(sender, to, asset_addr, value,
+                                      signed_transfer, delegate_data, aergo,
+                                      deadline_margin)
 
     # TODO create a tx broadcaster that calls signed transfer,
     # lock or burn with a signature. gRPC with params arguments
@@ -562,7 +590,12 @@ class Wallet:
         signed_transfer: Tuple[int, str] = None,
         delegate_data: Tuple[str, int] = None
     ) -> int:
-        """ Initiate a transfer to a sidechain by locking the asset."""
+        """ Initiate a transfer to a sidechain by locking the asset.
+        signed_transfer and delegate_data are used to pay aer fees with
+        a different account than the one owning tokens. assumes that
+        signed_transfer and delegate_data were created by the same
+        wallet so no checking needed here
+        """
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
 
         if sender is None:
@@ -594,7 +627,7 @@ class Wallet:
         if signed_transfer is None and delegate_data is None \
                 and asset_name != 'aergo':
             # wallet is making his own token transfer, not using tx broadcaster
-            # sign transfer to bridge can pull tokens to lock.
+            # sign transfer so bridge can pull tokens to lock.
             signed_transfer, delegate_data, balance = \
                 get_signed_transfer(amount, bridge_from, asset_address,
                                     aergo_from)
@@ -699,7 +732,12 @@ class Wallet:
         signed_transfer: Tuple[int, str] = None,
         delegate_data: Tuple[str, int] = None
     ) -> int:
-        """ Initiate a transfer from a sidechain by burning the assets."""
+        """ Initiate a transfer from a sidechain by burning the assets.
+        signed_transfer and delegate_data are used to pay aer fees with
+        a different account than the one owning tokens. assumes that
+        signed_transfer and delegate_data were created by the same
+        wallet so no checking needed here
+        """
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
 
         if sender is None:

@@ -19,6 +19,7 @@ This repository contains :
   * Query pending sidechain withdrawals
   * Sign delegated token transfers to use with a tx broadcaster
   * Deploy tokens
+  * Handle encrypted private keys
 
 
 * Transaction broadcaster (TODO) : allows users to make token transfers without paying aer fees.

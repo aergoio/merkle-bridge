@@ -93,7 +93,7 @@ def test_delegated_transfer(wallet):
     with pytest.raises(TxError):
         # test deadline passed
         signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
-            amount, to, 'token1', 'mainnet', fee=1, deadline=1,
+            amount, to, asset, 'mainnet', fee=fee, execute_before=-10,
             privkey_pwd='1234'
         )
 
@@ -102,7 +102,9 @@ def test_delegated_transfer(wallet):
                         sender=sender, signed_transfer=signed_transfer,
                         delegate_data=delegate_data, privkey_pwd='1234')
     signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
-        amount, to, 'token1', 'mainnet', fee=1, deadline=0, privkey_pwd='1234')
+        amount, to, asset, 'mainnet', fee=fee, execute_before=30,
+        privkey_pwd='1234'
+    )
 
     # broadcast transaction with a different wallet and collect the fee
     wallet.transfer(amount, to, asset, 'mainnet', privkey_name='default2',
@@ -122,3 +124,36 @@ def test_delegated_transfer(wallet):
     assert from_balance_after == from_balance - amount - fee
     assert to_balance_after == to_balance + amount
     assert broadcaster_balance_after == broadcaster_balance + fee
+
+
+def test_verify_signed_transfer(wallet):
+    amount = 2
+    to = wallet.get_wallet_address('receiver')
+    fee = 1
+    asset = 'token1'
+    sender = wallet.get_wallet_address('default')
+    signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
+        amount, to, asset, 'mainnet', fee=fee, execute_before=10,
+        privkey_pwd='1234'
+    )
+    valid, _ = wallet.verify_signed_transfer(amount, sender, to, asset,
+                                             'mainnet', signed_transfer,
+                                             delegate_data, 5)
+    assert valid
+    wallet.transfer(amount, to, asset, 'mainnet', privkey_pwd='1234')
+    valid, err = wallet.verify_signed_transfer(amount, sender, to, asset,
+                                               'mainnet', signed_transfer,
+                                               delegate_data, 5)
+    assert not valid
+    assert err == "Invalid nonce"
+    # test deadline too short
+    signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
+        amount, to, asset, 'mainnet', fee=fee, execute_before=1,
+        privkey_pwd='1234'
+    )
+    valid, err = wallet.verify_signed_transfer(amount, sender, to, asset,
+                                               'mainnet', signed_transfer,
+                                               delegate_data, 5)
+
+    assert not valid
+    assert err == "Deadline passed or not enough time to execute"

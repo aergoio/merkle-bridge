@@ -8,6 +8,10 @@ from typing import (
 
 import aergo.herapy as herapy
 
+from aergo.herapy.utils.signature import (
+    verify_sig,
+)
+
 from wallet.exceptions import (
     InvalidArgumentsError,
     InsufficientBalanceError,
@@ -139,3 +143,60 @@ def get_signed_transfer(
     else:
         delegate_data = (str(fee), deadline)
     return signed_transfer, delegate_data, balance
+
+
+def verify_signed_transfer(
+    sender: str,
+    receiver: str,
+    asset_addr: str,
+    amount: int,
+    signed_transfer: Tuple[int, str],
+    delegate_data: Tuple[str, int],
+    aergo: herapy.Aergo,
+    deadline_margin: int
+) -> Tuple[bool, str]:
+    """ Verify a signed token transfer is valid:
+    - enough balance,
+    - nonce is not spent,
+    - signature is correct
+    - enough time remaining before deadline
+    """
+    nonce, sig = signed_transfer
+    fee, deadline = delegate_data
+    # get current balance and nonce
+    current_state = aergo.query_sc_state(asset_addr,
+                                         ["_sv_Balances-" + sender,
+                                          "_sv_Nonces-" + sender,
+                                          "_sv_ContractID"
+                                          ])
+    balance_p, nonce_p, contractID_p = \
+        [item.value for item in current_state.var_proofs]
+
+    # check balance
+    balance = int(json.loads(balance_p)["_bignum"])
+    if amount > balance:
+        err = "Insufficient balance"
+        return False, err
+    # check nonce
+    try:
+        expected_nonce = int(nonce_p)
+    except ValueError:
+        expected_nonce = 0
+    if expected_nonce != nonce:
+        err = "Invalid nonce"
+        return False, err
+    # check signature
+    contractID = str(contractID_p[1:-1], 'utf-8')
+    msg = bytes(receiver + str(amount) + str(nonce) + fee +
+                str(deadline) + contractID, 'utf-8')
+    h = hashlib.sha256(msg).digest()
+    sig_bytes = bytes.fromhex(sig)
+    if not verify_sig(h, sig_bytes, sender):
+        err = "Invalid signature"
+        return False, err
+    # check deadline
+    _, best_height = aergo.get_blockchain_status()
+    if best_height > deadline - deadline_margin:
+        err = "Deadline passed or not enough time to execute"
+        return False, err
+    return True, ""
