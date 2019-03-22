@@ -23,7 +23,7 @@ def burn(
     bridge_from: str,
     signed_transfer: Tuple[int, str] = None,
     delegate_data: Tuple[str, int] = None
-) -> int:
+) -> Tuple[int, str]:
     """ Burn a minted token on a sidechain. """
     if signed_transfer is not None and delegate_data is not None:
         nonce, sig = signed_transfer
@@ -48,7 +48,7 @@ def burn(
     burn_height = tx_detail.block.height
 
     print("Burn success : ", result.detail)
-    return burn_height
+    return burn_height, tx.tx_hash
 
 
 def build_burn_proof(
@@ -95,7 +95,7 @@ def unlock(
     burn_proof: herapy.obj.sc_state.SCState,
     token_origin: str,
     bridge_to: str
-) -> None:
+) -> str:
     """ Unlock the receiver's deposit balance on aergo_to. """
     balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = burn_proof.var_proofs[0].auditPath
@@ -113,3 +113,4 @@ def unlock(
         raise TxError("Unlock asset Tx execution failed : {}".format(result))
 
     print("Unlock success on origin : ", result.detail)
+    return tx.tx_hash

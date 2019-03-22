@@ -112,9 +112,14 @@ def get_signed_transfer(
     asset_addr: str,
     aergo: herapy.Aergo,
     fee: int = 0,
-    deadline: int = 0,
+    execute_before: int = 0,
 ) -> Tuple[Tuple[int, str], Optional[Tuple[str, int]], int]:
     """Sign a standard token transfer to be broadcasted by a 3rd party"""
+    # calculate deadline
+    deadline = 0
+    if execute_before != 0:
+        _, block_height = aergo.get_blockchain_status()
+        deadline = block_height + execute_before
     # get current balance and nonce
     sender = str(aergo.account.address)
     initial_state = aergo.query_sc_state(asset_addr,

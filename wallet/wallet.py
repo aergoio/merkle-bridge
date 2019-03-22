@@ -353,7 +353,8 @@ class Wallet:
         sync: bool = False
     ) -> Tuple[int, int]:
         """ Return the anchoring periode of from_chain onto to_chain
-        and minimum finality time of from_chain
+        and minimum finality time of from_chain. This information is
+        queried from bridge_to.
         """
         if not sync:
             t_anchor = self.config_data(to_chain, 'bridges', from_chain,
@@ -426,15 +427,9 @@ class Wallet:
                                             asset_origin_chain)
         aergo = self.get_aergo(network_name, privkey_name, privkey_pwd,
                                skip_state=True)  # state not needed
-        # calculate deadline
-        if execute_before == 0:
-            deadline = 0
-        else:
-            _, block_height = aergo.get_blockchain_status()
-            deadline = block_height + execute_before
         # create signed transfer
         signed_transfer, delegate_data, balance = get_signed_transfer(
-            value, to, asset_addr, aergo, fee, deadline)
+            value, to, asset_addr, aergo, fee, execute_before)
         aergo.disconnect()
         return signed_transfer, delegate_data, balance
 
@@ -501,39 +496,32 @@ class Wallet:
         amount: int,
         receiver: str = None,
         privkey_name: str = 'default',
-        privkey_pwd: str = None,
-        sender: str = None,
-        signed_transfer: Tuple[int, str] = None,
-        delegate_data: Tuple[str, int] = None
+        privkey_pwd: str = None
     ) -> None:
         """ Transfer assets from from_chain to to_chain.
         The asset being transfered to the to_chain sidechain
         should be native of from_chain
         """
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
-        if sender is None:
-            # wallet privkey_name is locking his own assets
-            sender = self.get_wallet_address(privkey_name)
-
         if receiver is None:
-            receiver = sender
+            receiver = self.get_wallet_address(privkey_name)
 
         lock_height = self.initiate_transfer_lock(
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
-            privkey_pwd, sender, signed_transfer=signed_transfer,
-            delegate_data=delegate_data
+            privkey_pwd
         )
-        minteable = self.get_minteable_balance(from_chain, to_chain,
-                                               asset_name, from_chain,
-                                               account_addr=receiver,
-                                               pending=True)
+        minteable = self.get_minteable_balance(
+            from_chain, to_chain, asset_name, from_chain,
+            account_addr=receiver, pending=True
+        )
         print("pending mint: ", minteable)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
-        self.finalize_transfer_mint(from_chain, to_chain, asset_name,
-                                    receiver, lock_height, privkey_name,
-                                    privkey_pwd)
+        self.finalize_transfer_mint(
+            from_chain, to_chain, asset_name, receiver, lock_height,
+            privkey_name, privkey_pwd
+        )
 
     def transfer_from_sidechain(
         self,
@@ -544,38 +532,31 @@ class Wallet:
         receiver: str = None,
         privkey_name: str = 'default',
         privkey_pwd: str = None,
-        sender: str = None,
-        signed_transfer: Tuple[int, str] = None,
-        delegate_data: Tuple[str, int] = None
     ) -> None:
         """ Transfer assets from from_chain to to_chain
         The asset being transfered back to the to_chain native chain
         should be a minted asset on the sidechain.
         """
         _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
-        if sender is None:
-            # wallet privkey_name is locking his own assets
-            sender = self.get_wallet_address(privkey_name)
-
         if receiver is None:
-            receiver = sender
+            receiver = self.get_wallet_address(privkey_name)
 
         burn_height = self.initiate_transfer_burn(
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
-            privkey_pwd, sender, signed_transfer=signed_transfer,
-            delegate_data=delegate_data)
-
-        unlockeable = self.get_unlockeable_balance(from_chain, to_chain,
-                                                   asset_name, to_chain,
-                                                   account_addr=receiver,
-                                                   pending=True)
+            privkey_pwd
+        )
+        unlockeable = self.get_unlockeable_balance(
+            from_chain, to_chain, asset_name, to_chain, account_addr=receiver,
+            pending=True
+        )
         print("pending unlock: ", unlockeable)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
         time.sleep(t_final-COMMIT_TIME)
 
-        self.finalize_transfer_unlock(from_chain, to_chain, asset_name,
-                                      receiver, burn_height, privkey_name,
-                                      privkey_pwd)
+        self.finalize_transfer_unlock(
+            from_chain, to_chain, asset_name, receiver, burn_height,
+            privkey_name, privkey_pwd
+        )
 
     def initiate_transfer_lock(
         self,
@@ -585,55 +566,26 @@ class Wallet:
         amount: int,
         receiver: str = None,
         privkey_name: str = 'default',
-        privkey_pwd: str = None,
-        sender: str = None,
-        signed_transfer: Tuple[int, str] = None,
-        delegate_data: Tuple[str, int] = None
+        privkey_pwd: str = None
     ) -> int:
         """ Initiate a transfer to a sidechain by locking the asset.
-        signed_transfer and delegate_data are used to pay aer fees with
-        a different account than the one owning tokens. assumes that
-        signed_transfer and delegate_data were created by the same
-        wallet so no checking needed here
         """
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
-
-        if sender is None:
-            # wallet privkey_name is locking his own assets
-            sender = str(aergo_from.account.address)
-
+        sender = str(aergo_from.account.address)
         if receiver is None:
             receiver = sender
-
-        if signed_transfer is not None and delegate_data is not None:
-            # broadcasting a tx
-            if sender != receiver:
-                raise InvalidArgumentsError(
-                    "When broadcasting a signed transfer, sender and "
-                    "receiver must be same"
-                )
-            if sender == str(aergo_from.account.address):
-                raise InvalidArgumentsError(
-                    "Broadcaster is the same as token sender, in this "
-                    "case the token owner can make tx himself"
-                )
-
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-
-        print("\n\n------ Lock {} -----------".format(asset_name))
         asset_address = self.config_data(from_chain, 'tokens',
                                          asset_name, 'addr')
         balance = 0
-        if signed_transfer is None and delegate_data is None \
-                and asset_name != 'aergo':
-            # wallet is making his own token transfer, not using tx broadcaster
+        signed_transfer, delegate_data = None, None
+        if asset_name != 'aergo':
             # sign transfer so bridge can pull tokens to lock.
             signed_transfer, delegate_data, balance = \
                 get_signed_transfer(amount, bridge_from, asset_address,
                                     aergo_from)
         else:
-            # wallet is making his own aer transfer or broadcasting a signed
-            # transfer
+            # transfer aer
             balance = get_balance(sender, asset_address, aergo_from)
 
         print("{} balance on origin before transfer: {}"
@@ -641,9 +593,10 @@ class Wallet:
         if balance < amount:
             raise InsufficientBalanceError("not enough balance")
 
-        lock_height = lock(aergo_from, bridge_from,
-                           receiver, amount, asset_address,
-                           signed_transfer, delegate_data)
+        print("\n\n------ Lock {} -----------".format(asset_name))
+        lock_height, _ = lock(aergo_from, bridge_from,
+                              receiver, amount, asset_address,
+                              signed_transfer, delegate_data)
 
         # remaining balance on origin : aer or asset
         balance = get_balance(sender, asset_address, aergo_from)
@@ -675,21 +628,11 @@ class Wallet:
         aergo_to = self.get_aergo(to_chain, privkey_name, privkey_pwd)
         if receiver is None:
             receiver = str(aergo_to.account.address)
-
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
-
         t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain)
-
-        print("\n------ Get lock proof -----------")
         asset_address = self.config_data(from_chain, 'tokens',
                                          asset_name, 'addr')
-        lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
-                                      bridge_from, bridge_to, lock_height,
-                                      asset_address, t_anchor, t_final)
-
-        print("\n\n------ Mint {} on destination blockchain -----------"
-              .format(asset_name))
         save_pegged_token_address = False
         try:
             token_pegged = self.config_data(from_chain, 'tokens', asset_name,
@@ -701,8 +644,14 @@ class Wallet:
             print("Pegged token unknow by wallet")
             save_pegged_token_address = True
 
-        token_pegged = mint(aergo_to, receiver, lock_proof, asset_address,
-                            bridge_to)
+        print("\n------ Get lock proof -----------")
+        lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
+                                      bridge_from, bridge_to, lock_height,
+                                      asset_address, t_anchor, t_final)
+        print("\n\n------ Mint {} on destination blockchain -----------"
+              .format(asset_name))
+        token_pegged, _ = mint(aergo_to, receiver, lock_proof,
+                               asset_address, bridge_to)
 
         # new balance on sidechain
         balance = get_balance(receiver, token_pegged, aergo_to)
@@ -728,42 +677,14 @@ class Wallet:
         receiver: str = None,
         privkey_name: str = 'default',
         privkey_pwd: str = None,
-        sender: str = None,
-        signed_transfer: Tuple[int, str] = None,
-        delegate_data: Tuple[str, int] = None
     ) -> int:
         """ Initiate a transfer from a sidechain by burning the assets.
-        signed_transfer and delegate_data are used to pay aer fees with
-        a different account than the one owning tokens. assumes that
-        signed_transfer and delegate_data were created by the same
-        wallet so no checking needed here
         """
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
-
-        if sender is None:
-            sender = str(aergo_from.account.address)
-
+        sender = str(aergo_from.account.address)
         if receiver is None:
             receiver = sender
-
-        if signed_transfer is not None and delegate_data is not None:
-            # broadcasting tx
-            if sender != receiver:
-                raise InvalidArgumentsError(
-                    "When broadcasting a signed transfer, sender and "
-                    "receiver must be same"
-                )
-            if sender == str(aergo_from.account.address):
-                raise InvalidArgumentsError(
-                    "Broadcaster is the same as token sender, in this "
-                    "case the token owner can make tx himself"
-                )
-
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        token_pegged = self.config_data(to_chain, 'tokens', asset_name, 'pegs',
-                                        from_chain)
-
-        print("\n\n------ Burn {}-----------".format(asset_name))
         token_pegged = self.config_data(to_chain, 'tokens', asset_name, 'pegs',
                                         from_chain)
         balance = get_balance(sender, token_pegged, aergo_from)
@@ -772,9 +693,9 @@ class Wallet:
         if balance < amount:
             raise InsufficientBalanceError("not enough balance")
 
-        burn_height = burn(aergo_from, receiver, amount,
-                           token_pegged, bridge_from,
-                           signed_transfer, delegate_data)
+        print("\n\n------ Burn {}-----------".format(asset_name))
+        burn_height, _ = burn(aergo_from, receiver, amount,
+                              token_pegged, bridge_from)
 
         # remaining balance on sidechain
         balance = get_balance(sender, token_pegged, aergo_from)
@@ -807,15 +728,12 @@ class Wallet:
         aergo_to = self.get_aergo(to_chain, privkey_name, privkey_pwd)
         if receiver is None:
             receiver = str(aergo_to.account.address)
-
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-
         t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain)
-
-        print("\n------ Get burn proof -----------")
         asset_address = self.config_data(to_chain, 'tokens', asset_name,
                                          'addr')
+        print("\n------ Get burn proof -----------")
         burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
                                       bridge_to, bridge_from, burn_height,
                                       asset_address, t_anchor, t_final)

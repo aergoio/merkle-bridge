@@ -25,7 +25,7 @@ def lock(
     asset: str,
     signed_transfer: Tuple[int, str] = None,
     delegate_data: Tuple[str, int] = None
-) -> int:
+) -> Tuple[int, str]:
     """ Lock can be called to lock aer or tokens.
         it supports delegated transfers when tx broadcaster is not
         the same as the token owner
@@ -57,7 +57,7 @@ def lock(
     lock_height = tx_detail.block.height
 
     print("Lock success : ", result.detail)
-    return lock_height
+    return lock_height, tx.tx_hash
 
 
 def build_lock_proof(
@@ -105,7 +105,7 @@ def mint(
     lock_proof: herapy.obj.sc_state.SCState,
     token_origin: str,
     bridge_to: str
-) -> str:
+) -> Tuple[str, str]:
     """ Mint the receiver's deposit balance on aergo_to. """
     balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = lock_proof.var_proofs[0].auditPath
@@ -124,4 +124,4 @@ def mint(
 
     token_pegged = json.loads(result.detail)[0]
     print("Mint success : ", result.detail)
-    return token_pegged
+    return token_pegged, tx.tx_hash
