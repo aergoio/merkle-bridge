@@ -5,7 +5,6 @@ import time
 from typing import (
     Union,
     Tuple,
-    Optional,
     List,
     Dict,
 )
@@ -13,6 +12,10 @@ from typing import (
 import aergo.herapy as herapy
 from aergo.herapy.errors.general_exception import (
     GeneralException,
+)
+
+from broadcaster.broadcaster_pb2 import (
+    ExecutionStatus,
 )
 
 from wallet.transfer_to_sidechain import (
@@ -28,12 +31,15 @@ from wallet.transfer_from_sidechain import (
 from wallet.exceptions import (
     InvalidArgumentsError,
     InsufficientBalanceError,
+    BroadcasterError,
 )
 from wallet.wallet_utils import (
     get_balance,
     transfer,
     get_signed_transfer,
     verify_signed_transfer,
+    broadcast_simple_transfer,
+    broadcast_bridge_transfer,
 )
 from wallet.token_deployer import (
     deploy_token,
@@ -392,23 +398,95 @@ class Wallet:
         asset_origin_chain: str = None,
         privkey_name: str = 'default',
         privkey_pwd: str = None,
-        sender: str = None,
-        signed_transfer: Tuple[int, str] = None,
-        delegate_data: Tuple[str, int] = None
-    ) -> bool:
+    ) -> str:
         """ Transfer aer or tokens on network_name and specify
         asset_origin_chain for transfers of pegged assets.
         """
-        asset_addr = self.get_asset_address(asset_name, network_name,
-                                            asset_origin_chain)
         aergo = self.get_aergo(network_name, privkey_name, privkey_pwd,
                                skip_state=True)
-        if sender is None:
-            sender = str(aergo.account.address)
-        success = transfer(value, to, asset_addr, aergo, sender,
-                           signed_transfer, delegate_data)
+        sender = str(aergo.account.address)
+        balance, asset_addr = self.get_balance(
+            asset_name, network_name, asset_origin_chain, account_addr=sender
+        )
+        if balance < value:
+            raise InsufficientBalanceError("not enough balance")
+        tx_hash = transfer(value, to, asset_addr, aergo, sender)
         aergo.disconnect()
-        return success
+        return tx_hash
+
+    def _d_transfer(
+        self,
+        value: int,
+        fee: int,
+        to: str,
+        asset_name: str,
+        network_name: str,
+        asset_origin_chain: str = None,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None,
+        execute_before: int = 30
+    ) -> ExecutionStatus:
+        signed_transfer, delegate_data, balance = self.get_signed_transfer(
+            value, to, asset_name, network_name, asset_origin_chain, fee,
+            execute_before, privkey_name, privkey_pwd
+        )
+        if balance < value + fee:
+            raise InsufficientBalanceError("not enough balance")
+        # call  broadcaster
+        br_ip = self.config_data('broadcasters', network_name, 'ip')
+        is_pegged = False
+        if asset_origin_chain is not None:
+            is_pegged = True
+        owner = self.get_wallet_address(privkey_name)
+        return broadcast_simple_transfer(
+            br_ip, owner, asset_name, value, signed_transfer, delegate_data,
+            is_pegged, to
+        )
+
+    def d_transfer(
+        self,
+        value: int,
+        fee: int,
+        to: str,
+        asset_name: str,
+        network_name: str,
+        asset_origin_chain: str = None,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None,
+        execute_before: int = 30
+    ) -> ExecutionStatus:
+        balance, _ = self.get_balance(
+            asset_name, network_name, asset_origin_chain,
+            account_name=privkey_name
+        )
+        print("sender : {} balance before transfer: {}"
+              .format(asset_name, balance/10**18))
+        balance, _ = self.get_balance(
+            asset_name, network_name, asset_origin_chain,
+            account_addr=to
+        )
+        print("receiver : {} balance before transfer: {}"
+              .format(asset_name, balance/10**18))
+        # Broadcast transfer
+        broadcasted = self._d_transfer(
+            value, fee, to, asset_name, network_name, asset_origin_chain,
+            privkey_name, privkey_pwd, execute_before)
+        if broadcasted.error:
+            raise BroadcasterError(broadcasted)
+
+        balance, _ = self.get_balance(
+            asset_name, network_name, asset_origin_chain,
+            account_name=privkey_name
+        )
+        print("sender : {} balance before transfer: {}"
+              .format(asset_name, balance/10**18))
+        balance, _ = self.get_balance(
+            asset_name, network_name, asset_origin_chain,
+            account_addr=to
+        )
+        print("receiver : {} balance before transfer: {}"
+              .format(asset_name, balance/10**18))
+        return broadcasted
 
     def get_signed_transfer(
         self,
@@ -421,7 +499,7 @@ class Wallet:
         execute_before: int = 0,
         privkey_name: str = 'default',
         privkey_pwd: str = None
-    ) -> Tuple[Tuple[int, str], Optional[Tuple[str, int]], int]:
+    ) -> Tuple[Tuple[int, str], Tuple[str, int], int]:
         """Sign a standard token transfer to be broadcasted by a 3rd party"""
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
@@ -453,8 +531,6 @@ class Wallet:
                                       signed_transfer, delegate_data, aergo,
                                       deadline_margin)
 
-    # TODO create a tx broadcaster that calls signed transfer,
-    # lock or burn with a signature. gRPC with params arguments
     # TODO fix standard token : prevent token burning
 
     def deploy_token(
@@ -487,6 +563,168 @@ class Wallet:
         self.save_config()
         aergo.disconnect()
         return sc_address
+
+    def _d_transfer_to_sidechain(
+        self,
+        from_chain: str,
+        to_chain: str,
+        token_name: str,
+        amount: int,
+        fee: int,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None,
+        execute_before: int = 30
+    ) -> ExecutionStatus:
+        """ Create a delegated token transfer with a fee that the broadcaster
+        will collect for executing the transaction.
+        """
+        # create signed transfer
+        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
+        signed_transfer, delegate_data, balance = self.get_signed_transfer(
+            amount, bridge_from, token_name, from_chain, fee=fee,
+            execute_before=execute_before, privkey_name=privkey_name,
+            privkey_pwd=privkey_pwd
+        )
+        if balance < amount + fee:
+            raise InsufficientBalanceError("not enough balance")
+        # call  broadcaster
+        br_ip = self.config_data('broadcasters', from_chain, to_chain, 'ip')
+        owner = self.get_wallet_address(privkey_name)
+        return broadcast_bridge_transfer(
+            br_ip, owner, token_name, amount, signed_transfer, delegate_data,
+        )
+
+    def d_transfer_to_sidechain(
+        self,
+        from_chain: str,
+        to_chain: str,
+        token_name: str,
+        amount: int,
+        fee: int,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None,
+        execute_before: int = 30
+    ) -> ExecutionStatus:
+        """ Create a delegated token transfer with a fee that the broadcaster
+        will collect for executing the transaction.
+        """
+        balance, _ = self.get_balance(token_name, from_chain,
+                                      account_name=privkey_name)
+        print("{} balance on origin before transfer: {}"
+              .format(token_name, balance/10**18))
+        save_pegged_token_address = False
+        try:
+            balance, _ = self.get_balance(token_name, to_chain,
+                                          asset_origin_chain=from_chain,
+                                          account_name=privkey_name)
+            print("{} balance on sidechain before transfer: {}"
+                  .format(token_name, balance/10**18))
+        except KeyError:
+            print("Pegged token unknow by wallet")
+            save_pegged_token_address = True
+
+        print("Waiting for broadcaster...")
+        broadcasted = self._d_transfer_to_sidechain(
+           from_chain, to_chain, token_name, amount, fee, privkey_name,
+           privkey_pwd, execute_before
+        )
+        if broadcasted.error:
+            raise BroadcasterError(broadcasted)
+
+        if save_pegged_token_address:
+            print("\n------ Store mint address in config.json -----------")
+            aergo = self._connect_aergo(to_chain)
+            mint_result = aergo.get_tx_result(broadcasted.withdraw_tx_hash)
+            token_pegged = json.loads(mint_result.detail)[0]
+            self.config_data(from_chain, 'tokens', token_name, 'pegs',
+                             to_chain, value=token_pegged)
+            self.save_config()
+
+        balance, _ = self.get_balance(token_name, from_chain,
+                                      account_name=privkey_name)
+        print("{} balance on origin after transfer: {}"
+              .format(token_name, balance/10**18))
+        balance, _ = self.get_balance(token_name, to_chain,
+                                      asset_origin_chain=from_chain,
+                                      account_name=privkey_name)
+        print("{} balance on sidechain after transfer: {}"
+              .format(token_name, balance/10**18))
+        return broadcasted
+
+    def _d_transfer_from_sidechain(
+        self,
+        from_chain: str,
+        to_chain: str,
+        token_name: str,
+        amount: int,
+        fee: int,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None,
+        execute_before: int = 30
+    ) -> ExecutionStatus:
+        """ Create a delegated token transfer with a fee that the broadcaster
+        will collect for executing the transaction.
+        """
+        # create signed transfer
+        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
+        signed_transfer, delegate_data, balance = self.get_signed_transfer(
+            amount, bridge_from, token_name, from_chain,
+            asset_origin_chain=to_chain, fee=fee,
+            execute_before=execute_before, privkey_name=privkey_name,
+            privkey_pwd=privkey_pwd
+        )
+        if balance < amount + fee:
+            raise InsufficientBalanceError("not enough balance")
+        # call  broadcaster
+        br_ip = self.config_data('broadcasters', to_chain, from_chain, 'ip')
+        owner = self.get_wallet_address(privkey_name)
+        return broadcast_bridge_transfer(
+            br_ip, owner, token_name, amount, signed_transfer, delegate_data,
+            True
+        )
+
+    def d_transfer_from_sidechain(
+        self,
+        from_chain: str,
+        to_chain: str,
+        token_name: str,
+        amount: int,
+        fee: int,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None,
+        execute_before: int = 30
+    ) -> ExecutionStatus:
+        """ Create a delegated token transfer with a fee that the broadcaster
+        will collect for executing the transaction.
+        """
+        balance, _ = self.get_balance(token_name, to_chain,
+                                      account_name=privkey_name)
+        print("{} balance on destination before transfer: {}"
+              .format(token_name, balance/10**18))
+        balance, _ = self.get_balance(token_name, from_chain,
+                                      asset_origin_chain=to_chain,
+                                      account_name=privkey_name)
+        print("{} balance on sidechain before transfer: {}"
+              .format(token_name, balance/10**18))
+
+        print("Waiting for broadcaster...")
+        broadcasted = self._d_transfer_from_sidechain(
+            from_chain, to_chain, token_name, amount, fee, privkey_name,
+            privkey_pwd, execute_before
+        )
+        if broadcasted.error:
+            raise BroadcasterError(broadcasted)
+
+        balance, _ = self.get_balance(token_name, to_chain,
+                                      account_name=privkey_name)
+        print("{} balance on destination after transfer: {}"
+              .format(token_name, balance/10**18))
+        balance, _ = self.get_balance(token_name, from_chain,
+                                      asset_origin_chain=to_chain,
+                                      account_name=privkey_name)
+        print("{} balance on sidechain after transfer: {}"
+              .format(token_name, balance/10**18))
+        return broadcasted
 
     def transfer_to_sidechain(
         self,
@@ -581,7 +819,7 @@ class Wallet:
         signed_transfer, delegate_data = None, None
         if asset_name != 'aergo':
             # sign transfer so bridge can pull tokens to lock.
-            signed_transfer, delegate_data, balance = \
+            signed_transfer, _, balance = \
                 get_signed_transfer(amount, bridge_from, asset_address,
                                     aergo_from)
         else:
@@ -694,8 +932,8 @@ class Wallet:
             raise InsufficientBalanceError("not enough balance")
 
         print("\n\n------ Burn {}-----------".format(asset_name))
-        burn_height, _ = burn(aergo_from, receiver, amount,
-                              token_pegged, bridge_from)
+        burn_height, _ = burn(aergo_from, bridge_from, receiver, amount,
+                              token_pegged)
 
         # remaining balance on sidechain
         balance = get_balance(sender, token_pegged, aergo_from)
@@ -734,8 +972,8 @@ class Wallet:
         asset_address = self.config_data(to_chain, 'tokens', asset_name,
                                          'addr')
         print("\n------ Get burn proof -----------")
-        burn_proof = build_burn_proof(aergo_to, aergo_from, receiver,
-                                      bridge_to, bridge_from, burn_height,
+        burn_proof = build_burn_proof(aergo_from, aergo_to, receiver,
+                                      bridge_from, bridge_to, burn_height,
                                       asset_address, t_anchor, t_final)
 
         print("\n\n------ Unlock {} on origin blockchain -----------"

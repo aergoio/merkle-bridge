@@ -57,7 +57,7 @@ def lock(
     lock_height = tx_detail.block.height
 
     print("Lock success : ", result.detail)
-    return lock_height, tx.tx_hash
+    return lock_height, str(tx.tx_hash)
 
 
 def build_lock_proof(
@@ -123,5 +123,5 @@ def mint(
         raise TxError("Mint asset Tx execution failed : {}".format(result))
 
     token_pegged = json.loads(result.detail)[0]
-    print("Mint success : ", result.detail)
-    return token_pegged, tx.tx_hash
+    print("\nMint success : ", result.detail)
+    return token_pegged, str(tx.tx_hash)

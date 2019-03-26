@@ -16,3 +16,7 @@ class InvalidArgumentsError(Exception):
 
 class InsufficientBalanceError(Exception):
     pass
+
+
+class BroadcasterError(Exception):
+    pass

@@ -1,9 +1,9 @@
+import grpc
 import hashlib
 import json
 import time
 from typing import (
     Tuple,
-    Optional,
 )
 
 import aergo.herapy as herapy
@@ -14,8 +14,15 @@ from aergo.herapy.utils.signature import (
 
 from wallet.exceptions import (
     InvalidArgumentsError,
-    InsufficientBalanceError,
     TxError,
+)
+
+from broadcaster.broadcaster_pb2_grpc import (
+    BroadcasterStub,
+)
+from broadcaster.broadcaster_pb2 import (
+    SignedTransfer,
+    ExecutionStatus,
 )
 
 COMMIT_TIME = 3
@@ -55,21 +62,14 @@ def transfer(
     sender: str,
     signed_transfer: Tuple[int, str] = None,
     delegate_data: Tuple[str, int] = None
-) -> bool:
+) -> str:
     """
     TODO https://github.com/Dexaran/ERC223-token-standard/blob/
     16d350ec85d5b14b9dc857468c8e0eb4a10572d3/ERC223_Token.sol#L107
     """
     # TODO support signed transfer and test sending to a contract that
     # supports token_payable and to pubkey account
-    # TODO verify signature before sending tx in case of signed transfer
-    # -> by broadcaster
     aergo.get_account()  # get the latest nonce for making tx
-
-    balance = get_balance(sender, asset_addr, aergo)
-    if balance < value:
-        raise InsufficientBalanceError("not enough balance")
-
     if asset_addr == "aergo":
         # transfer aer on network_name
         if signed_transfer is not None:
@@ -103,7 +103,7 @@ def transfer(
                       .format(result))
 
     print("Transfer success")
-    return True
+    return str(tx.tx_hash)
 
 
 def get_signed_transfer(
@@ -113,7 +113,7 @@ def get_signed_transfer(
     aergo: herapy.Aergo,
     fee: int = 0,
     execute_before: int = 0,
-) -> Tuple[Tuple[int, str], Optional[Tuple[str, int]], int]:
+) -> Tuple[Tuple[int, str], Tuple[str, int], int]:
     """Sign a standard token transfer to be broadcasted by a 3rd party"""
     # calculate deadline
     deadline = 0
@@ -144,7 +144,7 @@ def get_signed_transfer(
 
     signed_transfer = (nonce, sig)
     if fee == 0 and deadline == 0:
-        delegate_data = None
+        delegate_data = ("", 0)
     else:
         delegate_data = (str(fee), deadline)
     return signed_transfer, delegate_data, balance
@@ -205,3 +205,57 @@ def verify_signed_transfer(
         err = "Deadline passed or not enough time to execute"
         return False, err
     return True, ""
+
+
+def broadcast_transfer(
+    broadcaster_ip: str,
+    rpc_service: str,
+    owner: str,
+    token_name: str,
+    amount: int,
+    signed_transfer: Tuple[int, str],
+    delegate_data: Tuple[str, int],
+    is_pegged: bool = False,
+    receiver: str = None
+) -> ExecutionStatus:
+    channel = grpc.insecure_channel(broadcaster_ip)
+    stub = BroadcasterStub(channel)
+    nonce, signature = signed_transfer
+    fee_str, deadline = delegate_data
+    request = SignedTransfer(
+        owner=owner, token_name=token_name, amount=str(amount),
+        nonce=nonce, signature=signature, fee=fee_str, deadline=deadline,
+        is_pegged=is_pegged, receiver=receiver
+    )
+    return getattr(stub, rpc_service)(request)
+
+
+def broadcast_simple_transfer(
+    broadcaster_ip: str,
+    owner: str,
+    token_name: str,
+    amount: int,
+    signed_transfer: Tuple[int, str],
+    delegate_data: Tuple[str, int],
+    is_pegged: bool = False,
+    receiver: str = None
+) -> ExecutionStatus:
+    return broadcast_transfer(
+        broadcaster_ip, "SimpleTransfer", owner, token_name, amount,
+        signed_transfer, delegate_data, is_pegged, receiver
+    )
+
+
+def broadcast_bridge_transfer(
+    broadcaster_ip: str,
+    owner: str,
+    token_name: str,
+    amount: int,
+    signed_transfer: Tuple[int, str],
+    delegate_data: Tuple[str, int],
+    is_pegged: bool = False,
+) -> ExecutionStatus:
+    return broadcast_transfer(
+        broadcaster_ip, "BridgeTransfer", owner, token_name, amount,
+        signed_transfer, delegate_data, is_pegged
+    )

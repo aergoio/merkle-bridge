@@ -17,10 +17,10 @@ COMMIT_TIME = 3
 
 def burn(
     aergo_from: herapy.Aergo,
+    bridge_from: str,
     receiver: str,
     value: int,
     token_pegged: str,
-    bridge_from: str,
     signed_transfer: Tuple[int, str] = None,
     delegate_data: Tuple[str, int] = None
 ) -> Tuple[int, str]:
@@ -48,15 +48,15 @@ def burn(
     burn_height = tx_detail.block.height
 
     print("Burn success : ", result.detail)
-    return burn_height, tx.tx_hash
+    return burn_height, str(tx.tx_hash)
 
 
 def build_burn_proof(
-    aergo_to: herapy.Aergo,
     aergo_from: herapy.Aergo,
+    aergo_to: herapy.Aergo,
     receiver: str,
-    bridge_to: str,
     bridge_from: str,
+    bridge_to: str,
     burn_height: int,
     token_origin: str,
     t_anchor: int,
@@ -112,5 +112,5 @@ def unlock(
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Unlock asset Tx execution failed : {}".format(result))
 
-    print("Unlock success on origin : ", result.detail)
-    return tx.tx_hash
+    print("\nUnlock success on origin : ", result.detail)
+    return str(tx.tx_hash)

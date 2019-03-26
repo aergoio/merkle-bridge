@@ -1,4 +1,15 @@
 {
+    "broadcasters": {
+        "mainnet": {
+            "ip": "localhost:9850",
+            "sidechain2": {
+                "ip": "localhost:9850"
+            }
+        },
+        "sidechain2": {
+            "ip": "localhost:9850"
+        }
+    },
     "mainnet": {
         "bridges": {
             "": {
@@ -44,6 +55,10 @@
         }
     ],
     "wallet": {
+        "broadcaster": {
+            "addr": "AmPiFGxLvETrs13QYrHUiYoFqAqqWv7TKYXG21zC8TJfJTDHc7HJ",
+            "priv_key": "47T5iXRL4M9mhCZqzxzbWUxhwnE7oDvreBkJuNRADL2DppJDroz1TcEiJF4p9qh6X6Z2ynEMo"
+        },
         "default": {
             "addr": "AmNMFbiVsqy6vg4njsTjgy7bKPFHFYhLV4rzQyrENUS9AM1e3tw5",
             "priv_key": "47CLj29W96rS9SsizUz4pueeuTT2GcSpkoAsvVC3USLzQ5kKTWKmz1WLKnqor2ET7hPd73TC9"

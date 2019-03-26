@@ -22,7 +22,7 @@ This repository contains :
   * Handle encrypted private keys
 
 
-* Transaction broadcaster (TODO) : allows users to make token transfers without paying aer fees.
+* Transaction broadcaster : allows users to make token transfers without paying aer fees.
 
 The operators and wallet both use a **config.json** file to operate. This file records, network names and ip, token addresses, pegged token addresses, bridge addresses, validators and proposer information (ip and address), wallet encrypted private keys.
 
@@ -142,9 +142,13 @@ Start 2 test networks
 $ make docker
 ```
 
-Deploy bridge on mainnet and sidechain, deploy a new token on mainnet.
+Deploy bridge on mainnet and sidechain
 ```sh
 $ make deploy_bridge
+```
+Deploy a new test token on mainnet
+```sh
+$ make deploy_token
 ```
 In a new terminal : start proposer
 ```sh
@@ -154,7 +158,11 @@ In a new terminal : start validator
 ```sh
 $ make validator
 ```
-In a new terminal : test wallet transfers and bridge multisig
+In a new terminal : start broadcaster
+```sh
+$ make broadcaster
+```
+In a new terminal : test wallet transfers, bridge transfers, delegated transfers and the bridge multisig
 ```sh
 $ python3 -m pytest -s tests/
 ```
