@@ -41,6 +41,7 @@ from wallet.wallet_utils import (
     verify_signed_transfer,
     broadcast_simple_transfer,
     broadcast_bridge_transfer,
+    bridge_withdrawable_balance
 )
 from wallet.token_deployer import (
     deploy_token,
@@ -246,38 +247,35 @@ class Wallet:
         to_chain: str,
         asset_name: str,
         asset_origin_chain: str,
-        **kwargs
+        account_name: str = 'default',
+        account_addr: str = None,
+        total_deposit: int = None,
+        pending: bool = False
     ) -> int:
         """ Get the balance that has been locked on one side of the
         bridge and not yet minted on the other side
+        Calculates the difference between the total amount deposited and
+        total amount withdrawn.
+        Set pending to true to include deposits than have not yet been anchored
         """
-        return self._bridge_withdrawable_balance("_sv_Locks-", "_sv_Mints-",
-                                                 from_chain, to_chain,
-                                                 asset_name,
-                                                 asset_origin_chain,
-                                                 **kwargs)
+        if account_addr is None:
+            account_addr = self.get_wallet_address(account_name)
+        asset_address_origin = self.config_data(asset_origin_chain, 'tokens',
+                                                asset_name, 'addr')
+        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
+        bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
+        aergo_from = self._connect_aergo(from_chain)
+        aergo_to = self._connect_aergo(to_chain)
+        withdrawable = bridge_withdrawable_balance(
+            account_addr, asset_address_origin, bridge_from, bridge_to,
+            aergo_from, aergo_to, True, total_deposit, pending
+        )
+        aergo_from.disconnect()
+        aergo_to.disconnect()
+        return withdrawable
 
     def get_unlockeable_balance(
         self,
-        from_chain: str,
-        to_chain: str,
-        asset_name: str,
-        asset_origin_chain: str,
-        **kwargs
-    ) -> int:
-        """ Get the balance that has been burnt on one side of the
-        bridge and not yet unlocked on the other side
-        """
-        return self._bridge_withdrawable_balance("_sv_Burns-", "_sv_Unlocks-",
-                                                 from_chain, to_chain,
-                                                 asset_name,
-                                                 asset_origin_chain,
-                                                 **kwargs)
-
-    def _bridge_withdrawable_balance(
-        self,
-        deposit_key: str,
-        withdraw_key: str,
         from_chain: str,
         to_chain: str,
         asset_name: str,
@@ -287,8 +285,8 @@ class Wallet:
         total_deposit: int = None,
         pending: bool = False
     ) -> int:
-        """ Get the balance that has been locked/burnt on one side of the
-        bridge and not yet minted/unlocked on the other side.
+        """ Get the balance that has been burnt on one side of the
+        bridge and not yet unlocked on the other side
         Calculates the difference between the total amount deposited and
         total amount withdrawn.
         Set pending to true to include deposits than have not yet been anchored
@@ -297,59 +295,17 @@ class Wallet:
             account_addr = self.get_wallet_address(account_name)
         asset_address_origin = self.config_data(asset_origin_chain, 'tokens',
                                                 asset_name, 'addr')
-        account_ref = account_addr + asset_address_origin
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self._connect_aergo(to_chain)
-
-        total_withdrawn = 0
-        if total_deposit is None:
-            total_deposit = 0
-            block_height = 0
-            if pending:
-                # get the height of the latest aergo_from height (includes non
-                # finalized deposits).
-                _, block_height = aergo_from.get_blockchain_status()
-                withdraw_proof = aergo_to.query_sc_state(
-                    bridge_to, [withdraw_key + account_ref], compressed=False
-                )
-                if withdraw_proof.var_proofs[0].inclusion:
-                    total_withdrawn = int(withdraw_proof.var_proofs[0].value
-                                          .decode('utf-8')[1:-1])
-            else:
-                # get the height for the last anchored block on aergo_to (only
-                # finalized deposits
-                withdraw_proof = aergo_to.query_sc_state(
-                    bridge_to, ["_sv_Height", withdraw_key + account_ref],
-                    compressed=False
-                )
-                if withdraw_proof.var_proofs[1].inclusion:
-                    total_withdrawn = int(withdraw_proof.var_proofs[1].value
-                                          .decode('utf-8')[1:-1])
-                block_height = int(withdraw_proof.var_proofs[0].value)
-
-            # calculate total deposit at block_height
-            block_from = aergo_from.get_block(
-                block_height=block_height
-            )
-            deposit_proof = aergo_from.query_sc_state(
-                bridge_from, [deposit_key + account_ref],
-                root=block_from.blocks_root_hash, compressed=False
-            )
-            if deposit_proof.var_proofs[0].inclusion:
-                total_deposit = int(deposit_proof.var_proofs[0].value
-                                    .decode('utf-8')[1:-1])
-        else:
-            withdraw_proof = aergo_to.query_sc_state(
-                bridge_to, [withdraw_key + account_ref], compressed=False
-            )
-            if withdraw_proof.var_proofs[0].inclusion:
-                total_withdrawn = int(withdraw_proof.var_proofs[0].value
-                                      .decode('utf-8')[1:-1])
+        withdrawable = bridge_withdrawable_balance(
+            account_addr, asset_address_origin, bridge_from, bridge_to,
+            aergo_from, aergo_to, False, total_deposit, pending
+        )
         aergo_from.disconnect()
         aergo_to.disconnect()
-        return total_deposit - total_withdrawn
+        return withdrawable
 
     def get_bridge_tempo(
         self,

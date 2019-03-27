@@ -44,8 +44,8 @@ def lock(
                                         amount=0)
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Lock asset Tx commit failed : {}".format(result))
-
     time.sleep(COMMIT_TIME)
+
     # Check lock success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
@@ -53,8 +53,6 @@ def lock(
     # get precise lock height
     tx_detail = aergo_from.get_tx(tx.tx_hash)
     lock_height = tx_detail.block.height
-
-    print("Lock success : ", result.detail)
     return lock_height, str(tx.tx_hash)
 
 
@@ -76,7 +74,8 @@ def build_lock_proof(
     height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
     last_merged_height_to = int(height_proof_to.var_proofs[0].value)
     # waite for anchor containing our transfer
-    sys.stdout.write("waiting new anchor ")
+    if last_merged_height_to < lock_height:
+        sys.stdout.write("waiting new anchor ")
     while last_merged_height_to < lock_height:
         sys.stdout.flush()
         sys.stdout.write(". ")
@@ -94,6 +93,10 @@ def build_lock_proof(
     )
     if not lock_proof.verify_proof(merge_block_from.blocks_root_hash):
         raise InvalidMerkleProofError("Unable to verify lock proof")
+    if not lock_proof.var_proofs[0].inclusion:
+        err = "No tokens deposited for this account reference: {}".format(
+            account_ref)
+        raise InvalidMerkleProofError(err)
     return lock_proof
 
 
@@ -114,12 +117,10 @@ def mint(
                                         token_origin, ap])
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Mint asset Tx commit failed : {}".format(result))
-
     time.sleep(COMMIT_TIME)
+
     result = aergo_to.get_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Mint asset Tx execution failed : {}".format(result))
-
     token_pegged = json.loads(result.detail)[0]
-    print("\nMint success : ", result.detail)
     return token_pegged, str(tx.tx_hash)

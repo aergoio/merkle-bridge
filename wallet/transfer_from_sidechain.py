@@ -33,8 +33,8 @@ def burn(
 
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Burn asset Tx commit failed : {}".format(result))
-
     time.sleep(COMMIT_TIME)
+
     # Check burn success
     result = aergo_from.get_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
@@ -42,8 +42,6 @@ def burn(
     # get precise burn height
     tx_detail = aergo_from.get_tx(tx.tx_hash)
     burn_height = tx_detail.block.height
-
-    print("Burn success : ", result.detail)
     return burn_height, str(tx.tx_hash)
 
 
@@ -65,7 +63,8 @@ def build_burn_proof(
     height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
     last_merged_height_to = int(height_proof_to.var_proofs[0].value)
     # waite for anchor containing our transfer
-    sys.stdout.write("waiting new anchor ")
+    if last_merged_height_to < burn_height:
+        sys.stdout.write("waiting new anchor ")
     while last_merged_height_to < burn_height:
         sys.stdout.flush()
         sys.stdout.write(". ")
@@ -82,6 +81,10 @@ def build_burn_proof(
     )
     if not burn_proof.verify_proof(merge_block_from.blocks_root_hash):
         raise InvalidMerkleProofError("Unable to verify burn proof")
+    if not burn_proof.var_proofs[0].inclusion:
+        err = "No tokens deposited for this account reference: {}".format(
+            account_ref)
+        raise InvalidMerkleProofError(err)
     return burn_proof
 
 
@@ -96,17 +99,15 @@ def unlock(
     balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = burn_proof.var_proofs[0].auditPath
     ap = [node.hex() for node in auditPath]
-    # call mint on aergo_from with the lock proof from aergo_to
+    # call unlock on aergo_to with the burn proof from aergo_from
     tx, result = aergo_to.call_sc(bridge_to, "unlock",
                                   args=[receiver, balance,
                                         token_origin, ap])
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Unlock asset Tx commit failed : {}".format(result))
-
     time.sleep(COMMIT_TIME)
+
     result = aergo_to.get_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Unlock asset Tx execution failed : {}".format(result))
-
-    print("\nUnlock success on origin : ", result.detail)
     return str(tx.tx_hash)

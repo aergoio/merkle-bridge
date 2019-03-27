@@ -246,3 +246,68 @@ def broadcast_bridge_transfer(
         broadcaster_ip, "BridgeTransfer", owner, token_name, amount,
         signed_transfer, is_pegged
     )
+
+
+def bridge_withdrawable_balance(
+    account_addr: str,
+    asset_address_origin: str,
+    bridge_from: str,
+    bridge_to: str,
+    aergo_from: herapy.Aergo,
+    aergo_to: herapy.Aergo,
+    minteable: bool = True,
+    total_deposit: int = None,
+    pending: bool = False
+) -> int:
+    if minteable:
+        withdraw_key = "_sv_Mints-"
+        deposit_key = "_sv_Locks-"
+    else:
+        withdraw_key = "_sv_Unlocks-"
+        deposit_key = "_sv_Burns-"
+    account_ref = account_addr + asset_address_origin
+    total_withdrawn = 0
+    if total_deposit is None:
+        total_deposit = 0
+        block_height = 0
+        if pending:
+            # get the height of the latest aergo_from height (includes non
+            # finalized deposits).
+            _, block_height = aergo_from.get_blockchain_status()
+            withdraw_proof = aergo_to.query_sc_state(
+                bridge_to, [withdraw_key + account_ref], compressed=False
+            )
+            if withdraw_proof.var_proofs[0].inclusion:
+                total_withdrawn = int(withdraw_proof.var_proofs[0].value
+                                      .decode('utf-8')[1:-1])
+        else:
+            # get the height for the last anchored block on aergo_to (only
+            # finalized deposits
+            withdraw_proof = aergo_to.query_sc_state(
+                bridge_to, ["_sv_Height", withdraw_key + account_ref],
+                compressed=False
+            )
+            if withdraw_proof.var_proofs[1].inclusion:
+                total_withdrawn = int(withdraw_proof.var_proofs[1].value
+                                      .decode('utf-8')[1:-1])
+            block_height = int(withdraw_proof.var_proofs[0].value)
+
+        # calculate total deposit at block_height
+        block_from = aergo_from.get_block(
+            block_height=block_height
+        )
+        deposit_proof = aergo_from.query_sc_state(
+            bridge_from, [deposit_key + account_ref],
+            root=block_from.blocks_root_hash, compressed=False
+        )
+        if deposit_proof.var_proofs[0].inclusion:
+            total_deposit = int(deposit_proof.var_proofs[0].value
+                                .decode('utf-8')[1:-1])
+    else:
+        withdraw_proof = aergo_to.query_sc_state(
+            bridge_to, [withdraw_key + account_ref], compressed=False
+        )
+        if withdraw_proof.var_proofs[0].inclusion:
+            total_withdrawn = int(withdraw_proof.var_proofs[0].value
+                                  .decode('utf-8')[1:-1])
+    return total_deposit - total_withdrawn
