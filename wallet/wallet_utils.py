@@ -60,8 +60,7 @@ def transfer(
     asset_addr: str,
     aergo: herapy.Aergo,
     sender: str,
-    signed_transfer: Tuple[int, str] = None,
-    delegate_data: Tuple[str, int] = None
+    signed_transfer: Tuple[int, str, str, int] = None,
 ) -> str:
     """
     TODO https://github.com/Dexaran/ERC223-token-standard/blob/
@@ -79,9 +78,8 @@ def transfer(
                                         amount=value, payload=None)
     else:
         # transfer token (issued or pegged) on network_name
-        if signed_transfer is not None and delegate_data is not None:
-            fee, deadline = delegate_data
-            nonce, sig = signed_transfer
+        if signed_transfer is not None:
+            nonce, sig, fee, deadline = signed_transfer
             tx, result = aergo.call_sc(asset_addr, "signed_transfer",
                                        args=[sender, to, str(value),
                                              nonce, sig, fee, deadline],
@@ -113,7 +111,7 @@ def get_signed_transfer(
     aergo: herapy.Aergo,
     fee: int = 0,
     execute_before: int = 0,
-) -> Tuple[Tuple[int, str], Tuple[str, int], int]:
+) -> Tuple[Tuple[int, str, str, int], int]:
     """Sign a standard token transfer to be broadcasted by a 3rd party"""
     # calculate deadline
     deadline = 0
@@ -141,13 +139,8 @@ def get_signed_transfer(
                 str(deadline) + contractID, 'utf-8')
     h = hashlib.sha256(msg).digest()
     sig = aergo.account.private_key.sign_msg(h).hex()
-
-    signed_transfer = (nonce, sig)
-    if fee == 0 and deadline == 0:
-        delegate_data = ("", 0)
-    else:
-        delegate_data = (str(fee), deadline)
-    return signed_transfer, delegate_data, balance
+    signed_transfer = (nonce, sig, str(fee), deadline)
+    return signed_transfer, balance
 
 
 def verify_signed_transfer(
@@ -155,8 +148,7 @@ def verify_signed_transfer(
     receiver: str,
     asset_addr: str,
     amount: int,
-    signed_transfer: Tuple[int, str],
-    delegate_data: Tuple[str, int],
+    signed_transfer: Tuple[int, str, str, int],
     aergo: herapy.Aergo,
     deadline_margin: int
 ) -> Tuple[bool, str]:
@@ -166,8 +158,7 @@ def verify_signed_transfer(
     - signature is correct
     - enough time remaining before deadline
     """
-    nonce, sig = signed_transfer
-    fee, deadline = delegate_data
+    nonce, sig, fee, deadline = signed_transfer
     # get current balance and nonce
     current_state = aergo.query_sc_state(asset_addr,
                                          ["_sv_Balances-" + sender,
@@ -213,15 +204,13 @@ def broadcast_transfer(
     owner: str,
     token_name: str,
     amount: int,
-    signed_transfer: Tuple[int, str],
-    delegate_data: Tuple[str, int],
+    signed_transfer: Tuple[int, str, str, int],
     is_pegged: bool = False,
     receiver: str = None
 ) -> ExecutionStatus:
     channel = grpc.insecure_channel(broadcaster_ip)
     stub = BroadcasterStub(channel)
-    nonce, signature = signed_transfer
-    fee_str, deadline = delegate_data
+    nonce, signature, fee_str, deadline = signed_transfer
     request = SignedTransfer(
         owner=owner, token_name=token_name, amount=str(amount),
         nonce=nonce, signature=signature, fee=fee_str, deadline=deadline,
@@ -235,14 +224,13 @@ def broadcast_simple_transfer(
     owner: str,
     token_name: str,
     amount: int,
-    signed_transfer: Tuple[int, str],
-    delegate_data: Tuple[str, int],
+    signed_transfer: Tuple[int, str, str, int],
     is_pegged: bool = False,
     receiver: str = None
 ) -> ExecutionStatus:
     return broadcast_transfer(
         broadcaster_ip, "SimpleTransfer", owner, token_name, amount,
-        signed_transfer, delegate_data, is_pegged, receiver
+        signed_transfer, is_pegged, receiver
     )
 
 
@@ -251,11 +239,10 @@ def broadcast_bridge_transfer(
     owner: str,
     token_name: str,
     amount: int,
-    signed_transfer: Tuple[int, str],
-    delegate_data: Tuple[str, int],
+    signed_transfer: Tuple[int, str, str, int],
     is_pegged: bool = False,
 ) -> ExecutionStatus:
     return broadcast_transfer(
         broadcaster_ip, "BridgeTransfer", owner, token_name, amount,
-        signed_transfer, delegate_data, is_pegged
+        signed_transfer, is_pegged
     )

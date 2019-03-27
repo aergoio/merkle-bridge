@@ -4,6 +4,7 @@ import time
 
 from typing import (
     Tuple,
+    Union,
 )
 
 import aergo.herapy as herapy
@@ -23,8 +24,7 @@ def lock(
     receiver: str,
     value: int,
     asset: str,
-    signed_transfer: Tuple[int, str] = None,
-    delegate_data: Tuple[str, int] = None
+    signed_transfer: Union[Tuple[int, str], Tuple[int, str, str, int]] = None,
 ) -> Tuple[int, str]:
     """ Lock can be called to lock aer or tokens.
         it supports delegated transfers when tx broadcaster is not
@@ -39,8 +39,6 @@ def lock(
             raise InvalidArgumentsError("""provide signature
                                         and nonce for token transfers""")
         args = (receiver, str(value), asset) + signed_transfer
-        if delegate_data is not None:
-            args = args + delegate_data
         tx, result = aergo_from.call_sc(bridge_from, "lock",
                                         args=args,
                                         amount=0)

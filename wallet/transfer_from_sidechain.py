@@ -21,19 +21,15 @@ def burn(
     receiver: str,
     value: int,
     token_pegged: str,
-    signed_transfer: Tuple[int, str] = None,
-    delegate_data: Tuple[str, int] = None
+    signed_transfer: Tuple[int, str, str, int] = None,
 ) -> Tuple[int, str]:
     """ Burn a minted token on a sidechain. """
-    if signed_transfer is not None and delegate_data is not None:
-        nonce, sig = signed_transfer
-        fee, deadline = delegate_data
-        args = [receiver, str(value), token_pegged, nonce, sig, fee, deadline]
+    args = (receiver, str(value), token_pegged)
+    if signed_transfer is not None:
+        args = args + signed_transfer
         tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
     else:
-        tx, result = aergo_from.call_sc(bridge_from, "burn",
-                                        args=[receiver, str(value),
-                                              token_pegged])
+        tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
 
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Burn asset Tx commit failed : {}".format(result))

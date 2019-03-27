@@ -80,28 +80,28 @@ def test_verify_signed_transfer(wallet):
     fee = 1
     asset = 'token1'
     sender = wallet.get_wallet_address('default')
-    signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
+    signed_transfer, _ = wallet.get_signed_transfer(
         amount, to, asset, 'mainnet', fee=fee, execute_before=10,
         privkey_pwd='1234'
     )
-    valid, _ = wallet.verify_signed_transfer(amount, sender, to, asset,
-                                             'mainnet', signed_transfer,
-                                             delegate_data, 5)
+    valid, _ = wallet.verify_signed_transfer(
+        amount, sender, to, asset, 'mainnet', signed_transfer, 5
+    )
     assert valid
     wallet.transfer(amount, to, asset, 'mainnet', privkey_pwd='1234')
-    valid, err = wallet.verify_signed_transfer(amount, sender, to, asset,
-                                               'mainnet', signed_transfer,
-                                               delegate_data, 5)
+    valid, err = wallet.verify_signed_transfer(
+        amount, sender, to, asset, 'mainnet', signed_transfer, 5
+    )
     assert not valid
     assert err == "Invalid nonce"
     # test deadline too short
-    signed_transfer, delegate_data, _ = wallet.get_signed_transfer(
+    signed_transfer, _ = wallet.get_signed_transfer(
         amount, to, asset, 'mainnet', fee=fee, execute_before=1,
         privkey_pwd='1234'
     )
-    valid, err = wallet.verify_signed_transfer(amount, sender, to, asset,
-                                               'mainnet', signed_transfer,
-                                               delegate_data, 5)
+    valid, err = wallet.verify_signed_transfer(
+        amount, sender, to, asset, 'mainnet', signed_transfer, 5
+    )
 
     assert not valid
     assert err == "Deadline passed or not enough time to execute"

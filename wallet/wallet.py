@@ -7,6 +7,7 @@ from typing import (
     Tuple,
     List,
     Dict,
+    Optional,
 )
 
 import aergo.herapy as herapy
@@ -426,7 +427,7 @@ class Wallet:
         privkey_pwd: str = None,
         execute_before: int = 30
     ) -> ExecutionStatus:
-        signed_transfer, delegate_data, balance = self.get_signed_transfer(
+        signed_transfer, balance = self.get_signed_transfer(
             value, to, asset_name, network_name, asset_origin_chain, fee,
             execute_before, privkey_name, privkey_pwd
         )
@@ -439,8 +440,7 @@ class Wallet:
             is_pegged = True
         owner = self.get_wallet_address(privkey_name)
         return broadcast_simple_transfer(
-            br_ip, owner, asset_name, value, signed_transfer, delegate_data,
-            is_pegged, to
+            br_ip, owner, asset_name, value, signed_transfer, is_pegged, to
         )
 
     def d_transfer(
@@ -499,17 +499,18 @@ class Wallet:
         execute_before: int = 0,
         privkey_name: str = 'default',
         privkey_pwd: str = None
-    ) -> Tuple[Tuple[int, str], Tuple[str, int], int]:
+    ) -> Tuple[Tuple[int, str, str, int], int]:
         """Sign a standard token transfer to be broadcasted by a 3rd party"""
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
         aergo = self.get_aergo(network_name, privkey_name, privkey_pwd,
                                skip_state=True)  # state not needed
         # create signed transfer
-        signed_transfer, delegate_data, balance = get_signed_transfer(
-            value, to, asset_addr, aergo, fee, execute_before)
+        signed_transfer, balance = get_signed_transfer(
+            value, to, asset_addr, aergo, fee, execute_before
+        )
         aergo.disconnect()
-        return signed_transfer, delegate_data, balance
+        return signed_transfer, balance
 
     def verify_signed_transfer(
         self,
@@ -518,8 +519,7 @@ class Wallet:
         to: str,
         asset_name: str,
         network_name: str,
-        signed_transfer: Tuple[int, str],
-        delegate_data: Tuple[str, int],
+        signed_transfer: Tuple[int, str, str, int],
         deadline_margin: int,
         asset_origin_chain: str = None
     ) -> Tuple[bool, str]:
@@ -527,9 +527,10 @@ class Wallet:
         asset_addr = self.get_asset_address(asset_name, network_name,
                                             asset_origin_chain)
         aergo = self._connect_aergo(network_name)
-        return verify_signed_transfer(sender, to, asset_addr, value,
-                                      signed_transfer, delegate_data, aergo,
-                                      deadline_margin)
+        return verify_signed_transfer(
+            sender, to, asset_addr, value, signed_transfer, aergo,
+            deadline_margin
+        )
 
     # TODO fix standard token : prevent token burning
 
@@ -580,7 +581,7 @@ class Wallet:
         """
         # create signed transfer
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        signed_transfer, delegate_data, balance = self.get_signed_transfer(
+        signed_transfer, balance = self.get_signed_transfer(
             amount, bridge_from, token_name, from_chain, fee=fee,
             execute_before=execute_before, privkey_name=privkey_name,
             privkey_pwd=privkey_pwd
@@ -590,9 +591,8 @@ class Wallet:
         # call  broadcaster
         br_ip = self.config_data('broadcasters', from_chain, to_chain, 'ip')
         owner = self.get_wallet_address(privkey_name)
-        return broadcast_bridge_transfer(
-            br_ip, owner, token_name, amount, signed_transfer, delegate_data,
-        )
+        return broadcast_bridge_transfer(br_ip, owner, token_name, amount,
+                                         signed_transfer)
 
     def d_transfer_to_sidechain(
         self,
@@ -667,7 +667,7 @@ class Wallet:
         """
         # create signed transfer
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        signed_transfer, delegate_data, balance = self.get_signed_transfer(
+        signed_transfer, balance = self.get_signed_transfer(
             amount, bridge_from, token_name, from_chain,
             asset_origin_chain=to_chain, fee=fee,
             execute_before=execute_before, privkey_name=privkey_name,
@@ -678,10 +678,8 @@ class Wallet:
         # call  broadcaster
         br_ip = self.config_data('broadcasters', to_chain, from_chain, 'ip')
         owner = self.get_wallet_address(privkey_name)
-        return broadcast_bridge_transfer(
-            br_ip, owner, token_name, amount, signed_transfer, delegate_data,
-            True
-        )
+        return broadcast_bridge_transfer(br_ip, owner, token_name, amount,
+                                         signed_transfer, True)
 
     def d_transfer_from_sidechain(
         self,
@@ -816,12 +814,14 @@ class Wallet:
         asset_address = self.config_data(from_chain, 'tokens',
                                          asset_name, 'addr')
         balance = 0
-        signed_transfer, delegate_data = None, None
+        signed_transfer: Optional[Union[Tuple[int, str],
+                                        Tuple[int, str, str, int]]] = None
         if asset_name != 'aergo':
             # sign transfer so bridge can pull tokens to lock.
-            signed_transfer, _, balance = \
+            signed_transfer, balance = \
                 get_signed_transfer(amount, bridge_from, asset_address,
                                     aergo_from)
+            signed_transfer = signed_transfer[:2]  # only nonce, sig are needed
         else:
             # transfer aer
             balance = get_balance(sender, asset_address, aergo_from)
@@ -834,7 +834,7 @@ class Wallet:
         print("\n\n------ Lock {} -----------".format(asset_name))
         lock_height, _ = lock(aergo_from, bridge_from,
                               receiver, amount, asset_address,
-                              signed_transfer, delegate_data)
+                              signed_transfer)
 
         # remaining balance on origin : aer or asset
         balance = get_balance(sender, asset_address, aergo_from)

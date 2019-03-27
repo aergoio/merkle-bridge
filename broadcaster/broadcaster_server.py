@@ -118,16 +118,14 @@ class BroadcasterService(BroadcasterServicer):
 
     def unpack_request(
         self, req
-    ) -> Tuple[str, str, int, Tuple[int, str], Tuple[str, int], str, bool]:
+    ) -> Tuple[str, str, int, Tuple[int, str, str, int], str, bool]:
         owner = req.owner
         token_name = req.token_name
         amount = int(req.amount)
-        signed_transfer = (req.nonce, req.signature)
-        delegate_data = (req.fee, req.deadline)
+        signed_transfer = (req.nonce, req.signature, req.fee, req.deadline)
         receiver = req.receiver
         is_pegged = req.is_pegged
-        return (owner, token_name, amount, signed_transfer, delegate_data,
-                receiver, is_pegged)
+        return owner, token_name, amount, signed_transfer, receiver, is_pegged
 
     def check_fee(self, payed_fee: int) -> bool:
         # TODO use live forex
@@ -139,14 +137,14 @@ class BroadcasterService(BroadcasterServicer):
         return False if payed_fee < minimum_fee else True
 
     def BridgeTransfer(self, request, context):
-        owner, token_name, amount, signed_transfer, delegate_data, _, \
-            is_pegged = self.unpack_request(request)
+        owner, token_name, amount, signed_transfer, _, is_pegged = \
+            self.unpack_request(request)
         if is_pegged:
             return self.transfer_from_sidechain(
-                owner, token_name, amount, signed_transfer, delegate_data
+                owner, token_name, amount, signed_transfer
             )
         return self.transfer_to_sidechain(
-                owner, token_name, amount, signed_transfer, delegate_data
+            owner, token_name, amount, signed_transfer,
         )
 
     def transfer_to_sidechain(
@@ -154,8 +152,7 @@ class BroadcasterService(BroadcasterServicer):
         owner: str,
         token_name: str,
         amount: int,
-        signed_transfer: Tuple[int, str],
-        delegate_data: Tuple[str, int]
+        signed_transfer: Tuple[int, str, str, int]
     ) -> ExecutionStatus:
         print("-> Transfer to sidechain")
         result = ExecutionStatus()
@@ -168,7 +165,7 @@ class BroadcasterService(BroadcasterServicer):
             print(err_msg)
             return result
         # check fee is enough
-        payed_fee = int(delegate_data[0])
+        payed_fee = int(signed_transfer[2])
         if not self.check_fee(payed_fee):
             err_msg = "Please pay minimum fee."
             result.error = err_msg
@@ -177,7 +174,7 @@ class BroadcasterService(BroadcasterServicer):
         # verify signed transfer
         ok, err = verify_signed_transfer(
             owner, self._addr1, token_addr, amount, signed_transfer,
-            delegate_data, self._aergo1, 5
+            self._aergo1, 5
         )
         if not ok:
             print(err)
@@ -185,9 +182,10 @@ class BroadcasterService(BroadcasterServicer):
             return result
         # lock
         try:
-            lock_height, tx_hash = lock(self._aergo1, self._addr1,
-                                        owner, amount, token_addr,
-                                        signed_transfer, delegate_data)
+            lock_height, tx_hash = lock(
+                self._aergo1, self._addr1, owner, amount, token_addr,
+                signed_transfer
+            )
         except TxError as e:
             result.error = "Failed to lock asset"
             print(e)
@@ -222,8 +220,7 @@ class BroadcasterService(BroadcasterServicer):
         owner: str,
         token_name: str,
         amount: int,
-        signed_transfer: Tuple[int, str],
-        delegate_data: Tuple[str, int]
+        signed_transfer: Tuple[int, str, str, int]
     ) -> ExecutionStatus:
         print("-> Transfer from sidechain")
         result = ExecutionStatus()
@@ -255,16 +252,17 @@ class BroadcasterService(BroadcasterServicer):
         # verify signed transfer
         ok, err = verify_signed_transfer(
             owner, self._addr2, token_pegged, amount, signed_transfer,
-            delegate_data, self._aergo2, 5
+            self._aergo2, 5
         )
         if not ok:
             result.error = err
             print(err)
             return result
         try:
-            burn_height, tx_hash = burn(self._aergo2, self._addr2,
-                                        owner, amount, token_pegged,
-                                        signed_transfer, delegate_data)
+            burn_height, tx_hash = burn(
+                self._aergo2, self._addr2, owner, amount, token_pegged,
+                signed_transfer
+            )
         except TxError as e:
             result.error = "Failed to burn asset"
             print(e)
@@ -296,8 +294,8 @@ class BroadcasterService(BroadcasterServicer):
     def SimpleTransfer(self, request, context):
         print("-> Simple Transfer")
         result = ExecutionStatus()
-        owner, token_name, amount, signed_transfer, delegate_data, to, \
-            is_pegged = self.unpack_request(request)
+        owner, token_name, amount, signed_transfer, to, is_pegged = \
+            self.unpack_request(request)
         if is_pegged:
             aergo = self._aergo2
         else:
@@ -317,7 +315,7 @@ class BroadcasterService(BroadcasterServicer):
             print(err_msg)
             return result
         # check fee is enough
-        payed_fee = int(delegate_data[0])
+        payed_fee = int(signed_transfer[2])
         if not self.check_fee(payed_fee):
             err_msg = "Please pay minimum fee."
             result.error = err_msg
@@ -325,8 +323,7 @@ class BroadcasterService(BroadcasterServicer):
             return result
         # verify signed transfer
         ok, err = verify_signed_transfer(
-            owner, to, token_addr, amount, signed_transfer,
-            delegate_data, aergo, 5
+            owner, to, token_addr, amount, signed_transfer, aergo, 5
         )
         if not ok:
             print(err)
@@ -334,7 +331,7 @@ class BroadcasterService(BroadcasterServicer):
             return result
         try:
             tx_hash = transfer(amount, to, token_addr, aergo, owner,
-                               signed_transfer, delegate_data)
+                               signed_transfer)
         except TxError as e:
             print(e)
             result.error = "Transfer failed"
