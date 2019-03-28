@@ -24,6 +24,8 @@ def lock(
     receiver: str,
     value: int,
     asset: str,
+    fee_limit: int,
+    fee_price: int,
     signed_transfer: Union[Tuple[int, str], Tuple[int, str, str, int]] = None,
 ) -> Tuple[int, str]:
     """ Lock can be called to lock aer or tokens.
@@ -105,7 +107,9 @@ def mint(
     receiver: str,
     lock_proof: herapy.obj.sc_state.SCState,
     token_origin: str,
-    bridge_to: str
+    bridge_to: str,
+    fee_limit: int,
+    fee_price: int
 ) -> Tuple[str, str]:
     """ Mint the receiver's deposit balance on aergo_to. """
     balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]

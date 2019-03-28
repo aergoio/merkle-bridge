@@ -99,6 +99,7 @@ class BroadcasterService(BroadcasterServicer):
         self._aergo2.import_account(sender_priv_key, privkey_pwd)
         self.address = str(self._aergo1.account.address)
         print("  > Broadcaster Address: {}".format(self.address))
+        self.fee_price = 0
 
     def config_data(
         self,
@@ -154,7 +155,7 @@ class BroadcasterService(BroadcasterServicer):
         amount: int,
         signed_transfer: Tuple[int, str, str, int]
     ) -> ExecutionStatus:
-        print("-> Transfer to sidechain")
+        print("\n-> Transfer to sidechain")
         result = ExecutionStatus()
         try:
             token_addr = self.config_data(self.aergo1, 'tokens', token_name,
@@ -184,7 +185,7 @@ class BroadcasterService(BroadcasterServicer):
         try:
             lock_height, tx_hash = lock(
                 self._aergo1, self._addr1, owner, amount, token_addr,
-                signed_transfer
+                0, self.fee_price, signed_transfer
             )
         except TxError as e:
             result.error = "Failed to lock asset"
@@ -204,8 +205,10 @@ class BroadcasterService(BroadcasterServicer):
             print(err_msg)
             return result
         try:
-            token_pegged, tx_hash = mint(self._aergo2, owner, lock_proof,
-                                         token_addr, self._addr2)
+            token_pegged, tx_hash = mint(
+                self._aergo2, owner, lock_proof, token_addr, self._addr2, 0,
+                self.fee_price
+            )
         except TxError as e:
             result.error = "Asset locked but failed to mint"
             print(e)
@@ -222,7 +225,7 @@ class BroadcasterService(BroadcasterServicer):
         amount: int,
         signed_transfer: Tuple[int, str, str, int]
     ) -> ExecutionStatus:
-        print("-> Transfer from sidechain")
+        print("\n-> Transfer from sidechain")
         result = ExecutionStatus()
         try:
             token_origin = self.config_data(self.aergo1, 'tokens', token_name,
@@ -260,8 +263,8 @@ class BroadcasterService(BroadcasterServicer):
             return result
         try:
             burn_height, tx_hash = burn(
-                self._aergo2, self._addr2, owner, amount, token_pegged,
-                signed_transfer
+                self._aergo2, self._addr2, owner, amount, token_pegged, 0,
+                self.fee_price, signed_transfer
             )
         except TxError as e:
             result.error = "Failed to burn asset"
@@ -283,7 +286,7 @@ class BroadcasterService(BroadcasterServicer):
         # unlock
         try:
             tx_hash = unlock(self._aergo1, owner, burn_proof, token_origin,
-                             self._addr1)
+                             self._addr1, 0, self.fee_price)
         except TxError as e:
             result.error = "Asset burnt but failed to unlock"
             print(e)
@@ -292,7 +295,7 @@ class BroadcasterService(BroadcasterServicer):
         return result
 
     def SimpleTransfer(self, request, context):
-        print("-> Simple Transfer")
+        print("\n-> Simple Transfer")
         result = ExecutionStatus()
         owner, token_name, amount, signed_transfer, to, is_pegged = \
             self.unpack_request(request)
@@ -331,7 +334,7 @@ class BroadcasterService(BroadcasterServicer):
             return result
         try:
             tx_hash = transfer(amount, to, token_addr, aergo, owner,
-                               signed_transfer)
+                               0, self.fee_price, signed_transfer)
         except TxError as e:
             print(e)
             result.error = "Transfer failed"

@@ -16,7 +16,9 @@ def deploy_token(
     payload_str: str,
     aergo: herapy.Aergo,
     receiver: str,
-    total_supply: int
+    total_supply: int,
+    fee_limit: int,
+    fee_price: int
 ) -> str:
     """ Deploy a token contract payload and give the
     total supply to the deployer
@@ -69,7 +71,7 @@ if __name__ == '__main__':
     total_supply = 500*10**6*10**18
 
     sc_address = deploy_token(payload_str, aergo,
-                              receiver, total_supply)
+                              receiver, total_supply, 0, 0)
 
     print("------ Disconnect AERGO -----------")
     aergo.disconnect()

@@ -60,7 +60,9 @@ def transfer(
     asset_addr: str,
     aergo: herapy.Aergo,
     sender: str,
-    signed_transfer: Tuple[int, str, str, int] = None,
+    fee_limit: int,
+    fee_price: int,
+    signed_transfer: Tuple[int, str, str, int] = None
 ) -> str:
     """
     TODO https://github.com/Dexaran/ERC223-token-standard/blob/
