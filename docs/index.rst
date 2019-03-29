@@ -31,6 +31,4 @@ The locked assets can can only be unlocked with a proof of burn of minted assets
 Indices and tables
 ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
