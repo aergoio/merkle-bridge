@@ -38,7 +38,13 @@
                 "t_final": "t_final of mainnet"
             }
         },
-        "ip": "localhost:8845"
+        "ip": "localhost:8845",
+        "tokens": {
+            "aergo": {
+                "addr": "aergo",
+                "pegs": {}
+            }
+        }
     },
     "validators": [
         {
