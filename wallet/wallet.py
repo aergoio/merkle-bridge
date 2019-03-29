@@ -247,7 +247,6 @@ class Wallet:
         from_chain: str,
         to_chain: str,
         asset_name: str,
-        asset_origin_chain: str,
         account_name: str = 'default',
         account_addr: str = None,
         total_deposit: int = None,
@@ -261,7 +260,7 @@ class Wallet:
         """
         if account_addr is None:
             account_addr = self.get_wallet_address(account_name)
-        asset_address_origin = self.config_data(asset_origin_chain, 'tokens',
+        asset_address_origin = self.config_data(from_chain, 'tokens',
                                                 asset_name, 'addr')
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
@@ -280,7 +279,6 @@ class Wallet:
         from_chain: str,
         to_chain: str,
         asset_name: str,
-        asset_origin_chain: str,
         account_name: str = 'default',
         account_addr: str = None,
         total_deposit: int = None,
@@ -294,7 +292,7 @@ class Wallet:
         """
         if account_addr is None:
             account_addr = self.get_wallet_address(account_name)
-        asset_address_origin = self.config_data(asset_origin_chain, 'tokens',
+        asset_address_origin = self.config_data(to_chain, 'tokens',
                                                 asset_name, 'addr')
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
@@ -719,8 +717,8 @@ class Wallet:
             privkey_pwd
         )
         minteable = self.get_minteable_balance(
-            from_chain, to_chain, asset_name, from_chain,
-            account_addr=receiver, pending=True
+            from_chain, to_chain, asset_name, account_addr=receiver,
+            pending=True
         )
         print("pending mint: ", minteable)
         print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
@@ -754,7 +752,7 @@ class Wallet:
             privkey_pwd
         )
         unlockeable = self.get_unlockeable_balance(
-            from_chain, to_chain, asset_name, to_chain, account_addr=receiver,
+            from_chain, to_chain, asset_name, account_addr=receiver,
             pending=True
         )
         print("pending unlock: ", unlockeable)
