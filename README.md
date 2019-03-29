@@ -1,6 +1,8 @@
 # merkle-bridge
 POC implementation of the Aergo Merkle Bridge
 
+https://merkle-bridge.readthedocs.io/en/latest/index.html
+
 This repository contains :
 * Bridge contracts
 
