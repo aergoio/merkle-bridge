@@ -525,7 +525,7 @@ class Wallet:
         sc_address = deploy_token(payload_str, aergo, receiver, total_supply,
                                   fee_limit, self.fee_price)
 
-        print("------ Store addresse in config.json -----------")
+        print("------ Store address in config.json -----------")
         self.config_data(network_name, 'tokens', asset_name, value={})
         self.config_data(network_name, 'tokens', asset_name, 'addr',
                          value=sc_address)

@@ -13,23 +13,11 @@ Configuration file for deploying the bridge (config.json)
     {
         "mainnet": {
             "bridges": {},
-            "ip": "localhost:7845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
-                },
-            }
+            "ip": "localhost:7845"
         },
         "sidechain2": {
             "bridges": {},
-            "ip": "localhost:8845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
-                }
-            }
+            "ip": "localhost:8845"
         },
         "validators": [
             {
@@ -81,9 +69,9 @@ then:
 Bridge settings
 ---------------
 
-- Anchoring periode of each blockchains
+- Anchoring periode of each blockchain
 
-- Minimum finality time of each blockchains
+- Minimum finality time of each blockchain
 
 - Set of validators (same for both sides of the bridge)
 
@@ -112,8 +100,8 @@ Validator i signs a new validator set:
 
     manager = BridgeSettingsManager(config_data)
     sig1_1, sig2_1 = manager.sign_new_validators('mainnet', 'sidechain2',
-                                             new_validators,
-                                             privkey_name='default')
+                                                 new_validators,
+                                                 privkey_name='default')
 
 A proposer that gathered 2/3 signatures can then update the bridge contracts :
 

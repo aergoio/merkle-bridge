@@ -16,24 +16,26 @@ Configuration file for starting a validator (config.json)
  
     {
         "mainnet": {
-            "bridges": {},
-            "ip": "localhost:7845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
-                },
-            }
+            "bridges": {
+                "sidechain2": {
+                    "addr": "Amgxek6sxArhf3TZsPuqmiokyp6a4dJyex4PnLuGj3XTFSAZ3rh6",
+                    "id": "eef35e26c1fe5e3a1235d04affa84a",
+                    "t_anchor": 25,
+                    "t_final": 5
+                }
+            },
+            "ip": "localhost:7845"
         },
         "sidechain2": {
-            "bridges": {},
-            "ip": "localhost:8845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
+            "bridges": {
+                "mainnet": {
+                    "addr": "Amgxek6sxArhf3TZsPuqmiokyp6a4dJyex4PnLuGj3XTFSAZ3rh6",
+                    "id": "1631cf317474c11b9e783bd726ab09",
+                    "t_anchor": 10,
+                    "t_final": 10
                 }
-            }
+            },
+            "ip": "localhost:8845"
         },
         "validators": [
             {
@@ -58,9 +60,11 @@ Configuration file for starting a validator (config.json)
     }
 
 
-Three items need to be registered in the config.json:
+Four items need to be registered in the config.json:
 
-- The a node ip address of the 'mainnet' and 'sidechain2' blockchains being bridged
+- The node ip address of the 'mainnet' and 'sidechain2' blockchains being bridged
+
+- The contract addresses and id variable of bridges on both chains being connected.
 
 - The Aergo Address and ip address of the bridge validators (obviously all validator addresses should be different).
   It is best that validators know the other validators in case of updates

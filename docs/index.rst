@@ -14,7 +14,7 @@ The bridge is composed of onchain smart-contracts, proposers, validators and of 
 At regular intervals, a proposer publishes the state root of the bridge contract on the connected chain.
 The state root is recorded only if it has been signed by 2/3 of validators.
 Users can then independently mint assets on the destination bridge contract by verifying a merkle proof of their locked assets.
-The locked assets can can only be unlocked with a proof of burn of minted assets. 
+The locked assets can only be unlocked with a proof of burn of minted assets. 
 
 .. toctree::
    :maxdepth: 2

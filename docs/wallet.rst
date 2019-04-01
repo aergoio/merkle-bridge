@@ -8,7 +8,7 @@ as the tools are separate and don't need config.json to be used.
 
 Configuration
 -------------
-Configuration file for using a wallet (config.json)
+Configuration file for using the wallet (config.json)
 
 .. code-block:: json
  
@@ -68,7 +68,7 @@ Three items need to be registered in the config.json:
 - The ip of broadcaster services (for paying fees in tokens instead of AER)
 
 
-Register a new account
+Create / Register a new account
 ----------------------
 
 .. code-block:: python
@@ -182,14 +182,14 @@ Simple Transfers
 Bridge Transfers
 ----------------
 
-The transfer_to_sidechain method performs the folloging:
+The transfer_to_sidechain method performs the following:
 
 - lock assets in the bridge contract
 - wait for the next anchor on sidechain
 - create a merkle proof of lock in the anchored state
 - mint the asset on the sidechain with the merkle proof
 
-The transfer_from_sidechain method performs the folloging:
+The transfer_from_sidechain method performs the following:
 
 - brun assets in the bridge contract
 - wait for the next anchor on mainnet
@@ -219,7 +219,7 @@ The transfer_from_sidechain method performs the folloging:
                                    amount)
 
 
-It is also possible to perform the lock/burn and mint/unlock operations at any time.
+It is also possible to perform the lock/burn and mint/unlock operations individually.
 
 .. code-block:: python
 

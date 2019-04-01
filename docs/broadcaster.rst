@@ -3,7 +3,7 @@ Broadcaster
 
 A broadcaster executes pre-signed token transfers and collects a fee in tokens.
 It can execute simple transfers and bridge transfers with lock/mint and burn/unlock. 
-The boradcaster verifies the signed transfer is correct before executing the transaction.
+The broadcaster verifies the signed transfer is correct before executing the transaction.
 The broadcaster server operates only between 2 chains.
 
 Configuration
@@ -25,7 +25,14 @@ Configuration file for starting a broadcaster (config.json)
             }
         },
         "mainnet": {
-            "bridges": {},
+            "bridges": {
+                "sidechain2": {
+                    "addr": "Amgxek6sxArhf3TZsPuqmiokyp6a4dJyex4PnLuGj3XTFSAZ3rh6",
+                    "id": "eef35e26c1fe5e3a1235d04affa84a",
+                    "t_anchor": 25,
+                    "t_final": 5
+                }
+            },
             "ip": "localhost:7845",
             "tokens": {
                 "my_token": {
@@ -37,7 +44,14 @@ Configuration file for starting a broadcaster (config.json)
             }
         },
         "sidechain2": {
-            "bridges": {},
+            "bridges": {
+                "mainnet": {
+                    "addr": "Amgxek6sxArhf3TZsPuqmiokyp6a4dJyex4PnLuGj3XTFSAZ3rh6",
+                    "id": "1631cf317474c11b9e783bd726ab09",
+                    "t_anchor": 10,
+                    "t_final": 10
+                }
+            },
             "ip": "localhost:8845",
             "tokens": {}
         },
@@ -50,12 +64,13 @@ Configuration file for starting a broadcaster (config.json)
     }
 
 
-Three items need to be registered in the config.json:
+Five items need to be registered in the config.json:
 
 - The node ip address of the 'mainnet' and 'sidechain2' blockchains being bridged
 - The address of bridge contracts to other blockchains
 - The ip of broadcaster services 
 - The address and exported private key (encrypted) used to execute transactions
+- Tokens supported by the broadcaster
 
 Starting a broadcaster
 ----------------------

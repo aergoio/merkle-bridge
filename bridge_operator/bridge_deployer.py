@@ -118,7 +118,15 @@ def run(
     config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final_mainnet
     config_data[sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain
     config_data[sidechain]['bridges'][mainnet]['t_final'] = t_final_sidechain
-    config_data[mainnet]['tokens']['aergo']['pegs'] = {}
+    try:
+        config_data[mainnet]['tokens']['aergo']
+    except KeyError:
+        pass
+    else:
+        # this is a new bridge, so remove any old pegged aergo with same name
+        # bridge
+        config_data[mainnet]['tokens']['aergo']['pegs'] = {}
+
     with open(path, "w") as f:
         json.dump(config_data, f, indent=4, sort_keys=True)
 
