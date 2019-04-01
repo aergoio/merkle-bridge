@@ -1,84 +1,71 @@
 Configuration example
+=====================
 
 The config.json file is used by bridge operators, broadcasters and the python wallet to
-stores information about asset addresses, bridge addresses, validators, network nodes etc...
+store information about asset addresses, bridge addresses, validators, network nodes etc...
 
-.. code-block:: json
+This is what a configuration file might look like with 2 bridged networks and tokens sent from one to the other:
+
+.. code-block:: js
 
     {
-        "broadcasters": {
-            "mainnet": {
-                "ip": "localhost:9850", // ip of the mainnet broadcaster service
-                "sidechain2": {
-                    "ip": "localhost:9850" # ip of the mainnet-sidechain2 broadcaster service
+        "broadcasters": {  // named broadcasters
+            "mainnet": {  // name of broadcaster on mainnet
+                "ip": "localhost:9850",  // ip of the mainnet broadcaster service
+                "sidechain2": {  // name of mainnet-sidechain2 broadcaster
+                    "ip": "localhost:9850"  // ip of the mainnet-sidechain2 broadcaster service
                 }
             },
             "sidechain2": {
-                "ip": "localhost:9850"  # ip of the sidechain2 broadcaster
+                "ip": "localhost:9850"  // ip of the sidechain2 broadcaster
             }
         },
-        "mainnet": {
-            "bridges": {
-                "": {
-                    "addr": "bridge address on mainnet",
-                    "id": "bridge ContractID variable",
-                    "t_anchor": "t_anchor of sidechain on mainnet",
-                    "t_final": "t_final of sidechain"
-                },
-                "sidechain2": {
-                    "addr": "AmgEZebmD4BcV4dhKq6h2HcJS2E8vvy5CEYPyrTvuohjQMiJqMC4",
-                    "t_anchor": 25,
-                    "t_final": 5
+        "mainnet": {  // name of blockchain network
+            "bridges": {  // bridge contracts to other networks
+                "sidechain2": {  // name of the network being connected
+                    "addr": "AmgEZebmD4BcV4dhKq6h2HcJS2E8vvy5CEYPyrTvuohjQMiJqMC4",  // bridge contract (on mainnet) address to sidechain
+                    "id": "4ad2de8bc41f0cdf75473bb470ced0",  // bridge id used to prevent bridge update replay
+                    "t_anchor": 25,  // anchoring periode of sidechain to mainnet 
+                    "t_final": 5  // minimum finality time of sidechain
                 }
             },
-            "ip": "localhost:7845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {
-                        "sidechain2": "AmhaiDcJaVVmaUpUUbctuARKLZodJgXMjiiPz6hAgRg7nwnqKT79"
+            "ip": "localhost:7845",  // ip of a mainnet node for herapy
+            "tokens": {  // tokens issued on this network
+                "aergo": {  // name of token issued on mainnet
+                    "addr": "aergo",  // "aergo" means native chain token
+                    "pegs": {  // other networks where this token exists (pegged)
+                        "sidechain2": "AmhaiDcJaVVmaUpUUbctuARKLZodJgXMjiiPz6hAgRg7nwnqKT79"  // token contract of the asset on another chain
                     }
                 },
-                "tok": {
-                    "addr": "Address",
-                    "pegs": {
-                        "side": "sideaddr"
-                    }
-                },
-                "token1": {
-                    "addr": "AmghHtk2gpcpMa6bj1v59qCBfNmKZTi8qDGeuMNg5meJuXGTa2Y1",
-                    "pegs": {
-                        "sidechain2": "AmgssNKd5xXoCguDUnF9Bzhh78W5arwnMtTgDvPZxaAViGDCWa3m"
+                "token1": {  // name of token issued on mainnet
+                    "addr": "AmghHtk2gpcpMa6bj1v59qCBfNmKZTi8qDGeuMNg5meJuXGTa2Y1",  // address of token issued on mainnet
+                    "pegs": {  // other networks where this token exists (pegged)
+                        "sidechain2": "AmgssNKd5xXoCguDUnF9Bzhh78W5arwnMtTgDvPZxaAViGDCWa3m"   // token contract of the asset pegged on another chain
                     }
                 }
             }
         },
-        "sidechain2": {
-            "bridges": {
-                "": {
-                    "addr": "bridge address on sidechain",
-                    "id": "bridge ContractID variable",
-                    "t_anchor": "t_anchor of mainnet on sidechain",
-                    "t_final": "t_final of mainnet"
-                },
-                "mainnet": {
-                    "addr": "Amho9dBsJZdbqC1nG4Vztgy7HWfkc6mxiRKjxMUrjPx6kgszdrsa",
-                    "t_anchor": 10,
-                    "t_final": 10
+        "sidechain2": {  // name of blockchain network
+            "bridges": {  // bridge contracts to other networks
+                "mainnet": {  // name of the network being connected
+                    "addr": "Amho9dBsJZdbqC1nG4Vztgy7HWfkc6mxiRKjxMUrjPx6kgszdrsa",  // bridge contract (on sidechain) address to mainnet
+                    "id": "3e688cb882552b4f7d9032e0ae55d9",  // bridge id used to prevent bridge update replay
+                    "t_anchor": 10,  // anchoring periode of mainnet to sidechain2 
+                    "t_final": 10  // minimum finality time of mainnet
                 }
             },
-            "ip": "localhost:8845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
+            "ip": "localhost:8845",  // ip of a sidechain2 node for herapy
+            "tokens": {  // tokens issued on this network
+                "aergo": {  // name of token issued on mainnet
+                    "addr": "aergo",  // "aergo" means native chain token
+                    "pegs": {}  // other networks where this token exists (pegged)
                 }
             }
         },
-        "validators": [
+        "validators": [  // array of validators that can update the bridge contracts (order is important)
             {
-                "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
-                "ip": "localhost:9841"
+                "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",  // address of the validator's signing private key
+                "ip": "localhost:9841"  // ip address of the validator server signing anchors
             },
             {
                 "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
@@ -89,30 +76,18 @@ stores information about asset addresses, bridge addresses, validators, network 
                 "ip": "localhost:9843"
             }
         ],
-        "wallet": {
-            "broadcaster": {
-                "addr": "AmPiFGxLvETrs13QYrHUiYoFqAqqWv7TKYXG21zC8TJfJTDHc7HJ",
-                "priv_key": "47T5iXRL4M9mhCZqzxzbWUxhwnE7oDvreBkJuNRADL2DppJDroz1TcEiJF4p9qh6X6Z2ynEMo"
+        "wallet": {  // named accounts
+            "broadcaster": {  // name of account
+                "addr": "AmPiFGxLvETrs13QYrHUiYoFqAqqWv7TKYXG21zC8TJfJTDHc7HJ",  // address matching the private key
+                "priv_key": "47T5iXRL4M9mhCZqzxzbWUxhwnE7oDvreBkJuNRADL2DppJDroz1TcEiJF4p9qh6X6Z2ynEMo"  // exported (encrypted) private key
             },
             "default": {
                 "addr": "AmNMFbiVsqy6vg4njsTjgy7bKPFHFYhLV4rzQyrENUS9AM1e3tw5",
                 "priv_key": "47CLj29W96rS9SsizUz4pueeuTT2GcSpkoAsvVC3USLzQ5kKTWKmz1WLKnqor2ET7hPd73TC9"
             },
-            "default2": {
-                "addr": "AmNyNPEqeXPfdHeECMNhsH1QcnZsqCtDAudjgFyG5qpasN6tyLPE",
-                "priv_key": "47PZc88CguT8Vm5MJXR7FAy9ewDmnHhyU6w8r2GgRpciz55wUieQVacPaVgUZP7yZGMYEs9BD"
-            },
             "proposer": {
                 "addr": "AmPxVdu993eosN3UjnPDdN3wb7TNbHeiHDvn2dvZUcH8KXDK3RLU",
                 "priv_key": "47sDAWjMFTP7r2JP2BJ29PJRfY13yUTtVvoLjAf8knhH4GryQrpMJoTqscDjed1YPHVZXY4sN"
-            },
-            "receiver": {
-                "addr": "AmPf349iHWd6kQGU45BxFzFCzEDu75Y3FqFPd4WBMteFq4mtDuZd",
-                "priv_key": "47HzJAwuTV1akJPtsBWm4saJaQAgKgq1qSeeKfaFHnMxhjPM5ipPY8EZ3gDVRQ4oLizx1qhwh"
-            },
-            "test": {
-                "addr": "AmM6Db1e8PbDAbCfKgD4s3SfM8xJfkTvEaLZK4exVuWFnYL34S93",
-                "priv_key": "47hxG12EStVwAG6ww5DYRKaKqWB47JhmRwK6kTW9hXbN79Chh2cQAwx4qYxmYvnD3Ys9f5c1x"
             },
             "validator": {
                 "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
