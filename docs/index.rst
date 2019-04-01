@@ -25,6 +25,7 @@ The locked assets can only be unlocked with a proof of burn of minted assets.
    proposer
    wallet
    broadcaster
+   config
 
 
 
