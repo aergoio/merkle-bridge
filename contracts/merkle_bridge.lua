@@ -82,7 +82,7 @@ function set_root(root, height, signers, signatures)
     -- TODO : a malicious BP could commit a user's mint tx after set_root on purpose for user to lose tx fee. -> deadline parameter in aergo tx.
     assert(height > Height:get() + T_anchor:get(), "Next anchor height not reached")
     old_nonce = Nonce:get()
-    message = crypto.sha256(root..tostring(height)..tostring(old_nonce)..ContractID:get())
+    message = crypto.sha256(root..tostring(height)..tostring(old_nonce)..ContractID:get().."R")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     Root:set("0x"..root)
     Height:set(height)
@@ -107,7 +107,7 @@ end
 -- signers is the index of signers in Validators
 function update_validators(addresses, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(join(addresses)..tostring(old_nonce)..ContractID:get())
+    message = crypto.sha256(join(addresses)..tostring(old_nonce)..ContractID:get().."V")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     old_size = Nb_Validators:get()
     if #addresses < old_size then
@@ -127,7 +127,7 @@ end
 
 function update_t_anchor(t_anchor, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_anchor)..tostring(old_nonce)..ContractID:get())
+    message = crypto.sha256(tostring(t_anchor)..tostring(old_nonce)..ContractID:get().."A")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     T_anchor:set(t_anchor)
     Nonce:set(old_nonce + 1)
@@ -135,7 +135,7 @@ end
 
 function update_t_final(t_final, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_final)..tostring(old_nonce)..ContractID:get())
+    message = crypto.sha256(tostring(t_final)..tostring(old_nonce)..ContractID:get().."F")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     T_final:set(t_final)
     Nonce:set(old_nonce + 1)

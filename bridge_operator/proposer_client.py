@@ -130,7 +130,7 @@ class ProposerClient:
         is_from_mainnet, root, merge_height, nonce = anchor_msg
 
         # messages to get signed
-        msg_str = root + str(merge_height) + str(nonce) + to_bridge_id
+        msg_str = root + str(merge_height) + str(nonce) + to_bridge_id + "R"
         msg = bytes(msg_str, 'utf-8')
         h = hashlib.sha256(msg).digest()
 

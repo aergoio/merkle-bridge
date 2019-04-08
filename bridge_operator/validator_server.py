@@ -123,7 +123,7 @@ class ValidatorService(BridgeOperatorServicer):
 
         # sign anchor and return approval
         msg = bytes(anchor.root + anchor.height
-                    + anchor.destination_nonce + bridge_id, 'utf-8')
+                    + anchor.destination_nonce + bridge_id + "R", 'utf-8')
         h = hashlib.sha256(msg).digest()
         sig = self._aergo1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)

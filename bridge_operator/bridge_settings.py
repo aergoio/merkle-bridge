@@ -185,7 +185,7 @@ class BridgeSettingsManager:
         privkey_pwd: str = None
     ) -> bytes:
         """Sign a new anchor periode for network_from -> network_to bridge"""
-        return self._sign_tempo(t_anchor, network_from, network_to,
+        return self._sign_tempo(t_anchor, "A", network_from, network_to,
                                 privkey_name, privkey_pwd)
 
     def sign_t_final(
@@ -199,12 +199,13 @@ class BridgeSettingsManager:
         """ Sign a new finality of network_from for
         network_from -> network_to bridge.
         """
-        return self._sign_tempo(t_final, network_from, network_to,
+        return self._sign_tempo(t_final, "F", network_from, network_to,
                                 privkey_name, privkey_pwd)
 
     @staticmethod
     def _tempo_digest(
         tempo: int,
+        letter: str,
         bridge_addr: str,
         bridge_id: str,
         aergo: herapy.Aergo
@@ -215,13 +216,14 @@ class BridgeSettingsManager:
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge_addr, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
-        data = str(tempo) + str(current_nonce) + bridge_id
+        data = str(tempo) + str(current_nonce) + bridge_id + letter
         data_bytes = bytes(data, 'utf-8')
         return hashlib.sha256(data_bytes).digest()
 
     def _sign_tempo(
         self,
-        t_anchor: int,
+        tempo: int,
+        letter: str,
         network_from: str,
         network_to: str,
         privkey_name: str = None,
@@ -235,7 +237,7 @@ class BridgeSettingsManager:
                                        'addr')
         bridge_id = self.config_data(network_to, 'bridges', network_from,
                                      'id')
-        h = self._tempo_digest(t_anchor, bridge_addr, bridge_id, aergo)
+        h = self._tempo_digest(tempo, letter, bridge_addr, bridge_id, aergo)
         sig = aergo.account.private_key.sign_msg(h)
         return sig
 
@@ -250,7 +252,7 @@ class BridgeSettingsManager:
         privkey_pwd: str = None
     ) -> None:
         """Update the anchoring periode of network_from -> network_to bridge"""
-        return self._update_tempo("update_t_anchor", t_anchor, signers,
+        return self._update_tempo("update_t_anchor", "A", t_anchor, signers,
                                   sigs, network_from, network_to,
                                   privkey_name, privkey_pwd)
 
@@ -267,13 +269,14 @@ class BridgeSettingsManager:
         """Update the finality of network_from for the
         network_from -> network_to bridge
         """
-        return self._update_tempo("update_t_final", t_final, signers,
+        return self._update_tempo("update_t_final", "F", t_final, signers,
                                   sigs, network_from, network_to,
                                   privkey_name, privkey_pwd)
 
     def _update_tempo(
         self,
         function: str,
+        letter: str,
         tempo: int,
         signers: List[int],
         sigs: List[bytes],
@@ -291,7 +294,7 @@ class BridgeSettingsManager:
         bridge_addr = self.config_data(network_to, 'bridges', network_from,
                                        'addr')
         bridge_id = self.config_data(network_to, 'bridges', network_from, 'id')
-        h = self._tempo_digest(tempo, bridge_addr, bridge_id, aergo)
+        h = self._tempo_digest(tempo, letter, bridge_addr, bridge_id, aergo)
 
         # verify signatures and keep only 2/3
         all_sigs = self._verify_signatures_single(signers, sigs, h)
@@ -366,7 +369,7 @@ class BridgeSettingsManager:
         data = ""
         for val in new_validators:
             data += val
-        data += str(current_nonce) + bridge_id
+        data += str(current_nonce) + bridge_id + "V"
         data_bytes = bytes(data, 'utf-8')
         return hashlib.sha256(data_bytes).digest()
 
