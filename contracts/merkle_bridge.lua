@@ -94,6 +94,9 @@ function validate_signatures(message, signers, signatures)
     nb = Nb_Validators:get()
     assert(nb*2 <= #signers*3, "2/3 validators must sign")
     for i,signer in ipairs(signers) do
+        if i > 1 then
+            assert(signer > signers[i-1], "All signers must be different")
+        end
         assert(Validators[signer], "Signer index not registered")
         assert(crypto.ecverify(message, signatures[i], Validators[signer]), "Invalid signature")
     end

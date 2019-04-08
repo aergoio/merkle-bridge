@@ -1,7 +1,7 @@
 .PHONY: install compile_bridge compile_token deploy_bridge proposer validator broadcaster protoc wallet deploy_token docker 
 
 install:
-	pip install git+ssh://git@github.com/aergoio/herapy.git@bff87a752403216443d5bf7ff52fc2fd671da44e
+	pip install git+ssh://git@github.com/aergoio/herapy.git@2eaf20ae7a24c15e680d410279cbfaf03d1d42a1
 	pip install pytest
 
 compile_bridge:
@@ -43,5 +43,5 @@ deploy_token:
 	python3 -m wallet.token_deployer
 
 docker:
-	docker run --rm -d -p 7845:7845 aergo/node aergosvr --config /aergo/testmode.toml
-	docker run --rm -d -p 8845:7845 aergo/node aergosvr --config /aergo/testmode.toml
+	docker run --rm -d -p 7845:7845 aergo/node:1.0.0-rc aergosvr --config /aergo/testmode.toml
+	docker run --rm -d -p 8845:7845 aergo/node:1.0.0-rc aergosvr --config /aergo/testmode.toml

@@ -22,7 +22,7 @@ def _test_transfer(wallet, asset, fee=0):
 
 
 def test_aer_transfer(wallet):
-    return _test_transfer(wallet, 'aergo', fee=1*10**9)
+    return _test_transfer(wallet, 'aergo', fee=0)
 
 
 def test_token_transfer(wallet):

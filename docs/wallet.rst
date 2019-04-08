@@ -121,7 +121,7 @@ Deploy a test token
     total_supply = 500*10**18
     token_name = "my_token"
     # deploy the token and stored the address in config.json
-    wallet.deploy_token(bytecode, token_name, total_supply)
+    wallet.deploy_token(bytecode, token_name, total_supply, "mainnet")
 
 
 Register an already deployed token

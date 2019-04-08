@@ -98,7 +98,7 @@ wallet = Wallet("./config.json")
 
 total_supply = 500*10**18
 # deploy the token and stored the address in config.json
-wallet.deploy_token(b, "token_name", total_supply)
+wallet.deploy_token(b, "token_name", total_supply, "mainnet")
 ```
 
 ### Transfer tokens from mainnet to sidechain and back again
