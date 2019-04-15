@@ -1,0 +1,72 @@
+version: '3'
+services:
+  aergo8845:
+    image: aergo/node:1.0.1-rc
+    volumes:
+      - ./8845:/aergo
+      - ./genesis_mainnet.json:/config/genesis.json
+    ports:
+      - "7845:7845"
+    command: sh -c "aergosvr init --genesis /config/genesis.json --config /aergo/8845.toml && aergosvr --config /aergo/8845.toml"
+    networks:
+      docker_net:
+        ipv4_address: "172.19.0.45"
+
+  aergo8846:
+    image: aergo/node:1.0.1-rc
+    volumes:
+      - ./8846:/aergo
+      - ./genesis_mainnet.json:/config/genesis.json
+    command: sh -c "aergosvr init --genesis /config/genesis.json --config /aergo/8846.toml && aergosvr --config /aergo/8846.toml"
+    networks:
+      docker_net:
+        ipv4_address: "172.19.0.46"
+
+  aergo8847:
+    image: aergo/node:1.0.1-rc
+    volumes:
+      - ./8847:/aergo
+      - ./genesis_mainnet.json:/config/genesis.json
+    command: sh -c "aergosvr init --genesis /config/genesis.json --config /aergo/8847.toml && aergosvr --config /aergo/8847.toml"
+    networks:
+      docker_net:
+        ipv4_address: "172.19.0.47"
+
+  aergo8848:
+    image: aergo/node:1.0.1-rc
+    volumes:
+      - ./8848:/aergo
+      - ./genesis_sidechain.json:/config/genesis.json
+    ports:
+      - "7848:7848"
+    command: sh -c "aergosvr init --genesis /config/genesis.json --config /aergo/8848.toml && aergosvr --config /aergo/8848.toml"
+    networks:
+      docker_net:
+        ipv4_address: "172.19.0.48"
+
+  aergo8849:
+    image: aergo/node:1.0.1-rc
+    volumes:
+      - ./8849:/aergo
+      - ./genesis_sidechain.json:/config/genesis.json
+    command: sh -c "aergosvr init --genesis /config/genesis.json --config /aergo/8849.toml && aergosvr --config /aergo/8849.toml"
+    networks:
+      docker_net:
+        ipv4_address: "172.19.0.49"
+
+  aergo8850:
+    image: aergo/node:1.0.1-rc
+    volumes:
+      - ./8850:/aergo
+      - ./genesis_sidechain.json:/config/genesis.json
+    command: sh -c "aergosvr init --genesis /config/genesis.json --config /aergo/8850.toml && aergosvr --config /aergo/8850.toml"
+    networks:
+      docker_net:
+        ipv4_address: "172.19.0.50"
+
+networks:
+  docker_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.19.0.0/21"

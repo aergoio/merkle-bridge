@@ -1,0 +1,40 @@
+# aergo TOML Configration File (https://github.com/toml-lang/toml)
+# base configurations
+datadir = "/aergo/data"
+#genesispath = "/Users/pa/Go_workspace/src/github.com/aergoio/aergo/bin/X8847/data/genesis.block"
+#genesisseed = 1530838800 # unix time
+enableprofile = true
+
+[rpc]
+netserviceaddr = "0.0.0.0"
+netserviceport = 7850
+nstls = false
+nscert = ""
+nskey = ""
+nsallowcors = false
+
+[p2p]
+netprotocoladdr = ""
+netprotocolport = 8850
+nptls = false
+npcert = ""
+npkey = "bp.key"
+npaddpeers = [
+"/ip4/172.19.0.48/tcp/8848/p2p/16Uiu2HAkz3gsJbmTW6DWJpKWf826SdZC7xVRR6tExZ1atGVQFW7o",
+"/ip4/172.19.0.49/tcp/8849/p2p/16Uiu2HAm9YTybp5ZX4iCppDkmEvRF8hqaC6zChZ6HRTTwEQnPRrK",
+"/ip4/172.19.0.50/tcp/8850/p2p/16Uiu2HAkzrjyf9JiBkenH63sZZRGNYSAWeBCvRaowmWCXc4t3MZv"
+]
+npexposeself = false
+
+[blockchain]
+# blockchain configurations
+usefastsyncer = true
+blockchainplaceholder = false
+
+[mempool]
+mempoolplaceholder = false
+
+[consensus]
+enablebp = true
+enabledpos = true
+blockinterval = 1
