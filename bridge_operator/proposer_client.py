@@ -45,11 +45,11 @@ class ValidatorMajorityError(Exception):
 
 class ProposerClient:
     """The bridge proposer periodically (every t_anchor) broadcasts
-    the finalized trie state root (after t_final) of the bridge contract
+    the finalized trie state root (after lib) of the bridge contract
     on both sides of the bridge after validation by the Validator servers.
     It first checks the last merged height and waits until
-    now + t_anchor + t_final is reached, then merges the current finalised
-    block (now - t_final). Start again after waiting t_anchor.
+    now > lib + t_anchor is reached, then merges the current finalised
+    block (lib). Start again after waiting t_anchor.
     """
 
     def __init__(
@@ -198,23 +198,18 @@ class ProposerClient:
     def wait_next_anchor(
         merged_height: int,
         aergo: herapy.Aergo,
-        t_final: int,
         t_anchor: int
     ) -> int:
         """ Wait until t_anchor has passed after merged height.
         Return the next finalized block after t_anchor to be the next anchor
         """
-        _, best_height = aergo.get_blockchain_status()
-        # TODO use real lib from rpc
-        lib = best_height - t_final
+        lib = aergo.get_status().consensus_info.status['LibNo']
         wait = (merged_height + t_anchor) - lib
         while wait > 0:
             print("waiting new anchor time :", wait, "s ...")
             time.sleep(wait)
-            # Get origin and destination best height
-            _, best_height = aergo.get_blockchain_status()
-            # Wait best height - t_final >= merge block height + t_anchor
-            lib = best_height - t_final
+            # Wait lib > last merged block height + t_anchor
+            lib = aergo.get_status().consensus_info.status['LibNo']
             wait = (merged_height + t_anchor) - lib
         return lib
 
@@ -246,7 +241,6 @@ class ProposerClient:
     def bridge_worker(
         self,
         t_anchor_to: int,
-        t_final_from: int,
         aergo_from: herapy.Aergo,
         aergo_to: herapy.Aergo,
         bridge_from: str,
@@ -255,7 +249,7 @@ class ProposerClient:
         to_bridge_id: str,
         tab: str = ""
     ) -> None:
-        """ Thread that anchors in one direction given t_final and t_anchor.
+        """ Thread that anchors in one direction given t_anchor.
         Gathers signatures from validators, verifies them, and if 2/3 majority
         is acquired, set the new anchored root in bridge_to.
         """
@@ -282,7 +276,6 @@ class ProposerClient:
                 # Wait for the next anchor time
                 next_anchor_height = self.wait_next_anchor(merged_height_from,
                                                            aergo_from,
-                                                           t_final_from,
                                                            t_anchor_to)
                 # Get root of next anchor to broadcast
                 block = aergo_from.get_block(block_height=next_anchor_height)
@@ -292,7 +285,7 @@ class ProposerClient:
                 root = contract.state_proof.state.storageRoot.hex()
                 if len(root) == 0:
                     print("{}waiting deployment finalization...".format(tab))
-                    time.sleep(t_final_from/4)
+                    time.sleep(5)
                     continue
 
                 print("{}anchoring new root :'0x{}...'"
@@ -342,11 +335,9 @@ class ProposerClient:
         self.kill_proposer_threads = False
         print("------ START BRIDGE OPERATOR -----------\n")
         print("{}MAINNET{}SIDECHAIN".format("\t", "\t"*4))
-        to_2_args = (self._t_anchor2, self._t_final2,
-                     self._aergo1, self._aergo2,
+        to_2_args = (self._t_anchor2, self._aergo1, self._aergo2,
                      self._addr1, self._addr2, True, self._id2, "\t"*5)
-        to_1_args = (self._t_anchor1, self._t_final1,
-                     self._aergo2, self._aergo1,
+        to_1_args = (self._t_anchor1, self._aergo2, self._aergo1,
                      self._addr2, self._addr1, False, self._id1)
         t_mainnet = threading.Thread(target=self.bridge_worker,
                                      args=to_2_args)

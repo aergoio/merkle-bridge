@@ -16,9 +16,7 @@ def run(
     config_data: Dict,
     payload_str: str,
     t_anchor_mainnet: int,
-    t_final_mainnet: int,
     t_anchor_sidechain: int,
-    t_final_sidechain: int,
     mainnet: str,
     sidechain: str,
     path: str = "./config.json",
@@ -38,6 +36,17 @@ def run(
     print("------ Connect AERGO -----------")
     aergo1.connect(config_data[mainnet]['ip'])
     aergo2.connect(config_data[sidechain]['ip'])
+
+    status1 = aergo1.get_status()
+    status2 = aergo2.get_status()
+    height1 = status1.best_block_height
+    height2 = status2.best_block_height
+    lib1 = status1.consensus_info.status['LibNo']
+    lib2 = status2.consensus_info.status['LibNo']
+    # mainnet finalization time
+    t_final_mainnet = height1 - lib1
+    # sidechain finalization time
+    t_final_sidechain = height2 - lib2
 
     print("------ Set Sender Account -----------")
     sender_priv_key1 = config_data['wallet'][privkey_name]['priv_key']
@@ -115,9 +124,9 @@ def run(
     config_data[mainnet]['bridges'][sidechain]['id'] = sc_id1
     config_data[sidechain]['bridges'][mainnet]['id'] = sc_id2
     config_data[mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor_mainnet
-    config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final_mainnet
+    config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final_sidechain
     config_data[sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain
-    config_data[sidechain]['bridges'][mainnet]['t_final'] = t_final_sidechain
+    config_data[sidechain]['bridges'][mainnet]['t_final'] = t_final_mainnet
     try:
         config_data[mainnet]['tokens']['aergo']
     except KeyError:
@@ -140,12 +149,10 @@ if __name__ == '__main__':
         config_data = json.load(f)
     with open("./contracts/bridge_bytecode.txt", "r") as f:
         payload_str = f.read()[:-1]
-    # NOTE t_final is the minimum time to get lib
+    # NOTE t_final is the minimum time to get lib : only informative (not
+    # actually used in code except for Eth bridge because Eth doesn't have LIB)
     t_anchor_mainnet = 25  # sidechain anchoring periord on mainnet
-    t_final_mainnet = 5  # sidechain finalization time
     t_anchor_sidechain = 10  # mainnet anchoring periord on sidechain
-    t_final_sidechain = 10  # mainnet finalization time
     run(config_data, payload_str,
-        t_anchor_mainnet, t_final_mainnet,
-        t_anchor_sidechain, t_final_sidechain,
+        t_anchor_mainnet, t_anchor_sidechain,
         mainnet='mainnet', sidechain='sidechain2')

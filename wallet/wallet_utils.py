@@ -313,3 +313,12 @@ def bridge_withdrawable_balance(
             total_withdrawn = int(withdraw_proof.var_proofs[0].value
                                   .decode('utf-8')[1:-1])
     return total_deposit - total_withdrawn
+
+
+def wait_finalization(
+    aergo: herapy.Aergo
+) -> None:
+    status = aergo.get_status()
+    lib = status.consensus_info.status['LibNo']
+    height = status.best_block_height
+    time.sleep(height - lib)

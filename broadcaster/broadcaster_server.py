@@ -28,6 +28,7 @@ from bridge_operator.op_utils import (
 from wallet.wallet_utils import (
     verify_signed_transfer,
     transfer,
+    wait_finalization
 )
 from wallet.transfer_to_sidechain import (
     lock,
@@ -44,7 +45,6 @@ from wallet.exceptions import (
     TxError,
 )
 
-COMMIT_TIME = 3
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
 
@@ -192,12 +192,12 @@ class BroadcasterService(BroadcasterServicer):
             print(e)
             return result
         result.deposit_tx_hash = tx_hash
-        time.sleep(self._t_final2 - COMMIT_TIME)
+        wait_finalization(self._aergo1)
         # mint
         try:
             lock_proof = build_lock_proof(
                 self._aergo1, self._aergo2, owner, self._addr1, self._addr2,
-                lock_height, token_addr, self._t_anchor2, self._t_final2
+                lock_height, token_addr, self._t_anchor2
             )
         except InvalidMerkleProofError:
             err_msg = "Asset locked but error building merkle proof"
@@ -271,12 +271,12 @@ class BroadcasterService(BroadcasterServicer):
             print(e)
             return result
         result.deposit_tx_hash = tx_hash
-        time.sleep(self._t_final1 - COMMIT_TIME)
+        wait_finalization(self._aergo2)
         # burn
         try:
             burn_proof = build_burn_proof(
                 self._aergo2, self._aergo1, owner, self._addr2, self._addr1,
-                burn_height, token_origin, self._t_anchor1, self._t_final1
+                burn_height, token_origin, self._t_anchor1
             )
         except InvalidMerkleProofError:
             err_msg = "Asset burnt but error building merkle proof"

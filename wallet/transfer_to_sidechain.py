@@ -66,8 +66,7 @@ def build_lock_proof(
     bridge_to: str,
     lock_height: int,
     token_origin: str,
-    t_anchor: int,
-    t_final: int
+    t_anchor: int
 ) -> herapy.obj.sc_state.SCState:
     """ Check the last anchored root includes the lock and build
     a lock proof for that root

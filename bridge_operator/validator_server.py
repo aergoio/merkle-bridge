@@ -105,7 +105,7 @@ class ValidatorService(BridgeOperatorServicer):
         if anchor.is_from_mainnet:
             # aergo1 is considered to be mainnet side of bridge
             err_msg = self.is_valid_anchor(anchor, self._aergo1,
-                                           self._addr1, self._t_final2,
+                                           self._addr1,
                                            self._aergo2, self._addr2,
                                            self._t_anchor2)
             tab = "\t"*5
@@ -113,7 +113,7 @@ class ValidatorService(BridgeOperatorServicer):
             bridge_id = self._id2
         else:
             err_msg = self.is_valid_anchor(anchor, self._aergo2,
-                                           self._addr2, self._t_final1,
+                                           self._addr2,
                                            self._aergo1, self._addr1,
                                            self._t_anchor1)
             destination = "mainnet"
@@ -138,7 +138,6 @@ class ValidatorService(BridgeOperatorServicer):
         anchor,
         aergo_from: herapy.Aergo,
         bridge_from: str,
-        finalized_from: int,
         aergo_to: herapy.Aergo,
         bridge_to: str,
         t_anchor: int
@@ -149,10 +148,9 @@ class ValidatorService(BridgeOperatorServicer):
             3- it's nonce is correct
             4- it's height is higher than previous anchored height + t_anchor
         """
-        # 1- get the last block height and check now > origin_height + t_final
-        # TODO use real lib from rpc
-        _, best_height = aergo_from.get_blockchain_status()
-        lib = best_height - finalized_from
+        # 1- get the last block height and check anchor height > LIB
+        # lib = best_height - finalized_from
+        lib = aergo_from.get_status().consensus_info.status['LibNo']
         if int(anchor.height) > lib:
             print("anchor not finalized\n", anchor)
             return "anchor not finalized"

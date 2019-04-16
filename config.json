@@ -17,6 +17,12 @@
                 "id": "bridge ContractID variable",
                 "t_anchor": "t_anchor of sidechain on mainnet",
                 "t_final": "t_final of sidechain"
+            },
+            "sidechain2": {
+                "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
+                "id": "7b119deefd5a2572e2b78b1cd0a356",
+                "t_anchor": 25,
+                "t_final": 4
             }
         },
         "ip": "localhost:7845",
@@ -24,8 +30,24 @@
             "aergo": {
                 "addr": "aergo",
                 "pegs": {
-                    "": "address of pegged token on aergo2"
+                    "sidechain2": "AmhoYqbizfrTLCx1QCXKoQuyuwtjyWQRwVEfVPMPLkZJEcAY2nSa"
                 }
+            },
+            "tok": {
+                "addr": "Address",
+                "pegs": {
+                    "side": "sideaddr"
+                }
+            },
+            "token1": {
+                "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
+                "pegs": {
+                    "sidechain2": "AmhiUx2hZ9phVDMZoBShEWD2sCFXPJ5BZpagNC8WfssPuZg7wzZS"
+                }
+            },
+            "token_name": {
+                "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
+                "pegs": {}
             }
         }
     },
@@ -36,9 +58,15 @@
                 "id": "bridge ContractID variable",
                 "t_anchor": "t_anchor of mainnet on sidechain",
                 "t_final": "t_final of mainnet"
+            },
+            "mainnet": {
+                "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
+                "id": "a2e2c1918f194c06b07e55d9d9bf06",
+                "t_anchor": 10,
+                "t_final": 4
             }
         },
-        "ip": "localhost:8845",
+        "ip": "localhost:7848",
         "tokens": {
             "aergo": {
                 "addr": "aergo",

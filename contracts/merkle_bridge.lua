@@ -45,6 +45,7 @@ state.var {
     -- T_anchor is the anchoring periode of the bridge
     T_anchor = state.value(),
     -- T_final is the time after which the bridge operator consideres a block finalised
+    -- this value is only useful if the anchored chain doesn't have LIB
     T_final = state.value(),
     -- Nonce is a replay protection for validator and root updates.
     Nonce = state.value(),

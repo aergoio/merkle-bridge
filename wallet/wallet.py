@@ -1,6 +1,5 @@
 from getpass import getpass
 import json
-import time
 
 from typing import (
     Union,
@@ -41,13 +40,12 @@ from wallet.wallet_utils import (
     verify_signed_transfer,
     broadcast_simple_transfer,
     broadcast_bridge_transfer,
-    bridge_withdrawable_balance
+    bridge_withdrawable_balance,
+    wait_finalization
 )
 from wallet.token_deployer import (
     deploy_token,
 )
-
-COMMIT_TIME = 3
 
 
 class Wallet:
@@ -324,7 +322,7 @@ class Wallet:
             t_final = self.config_data(to_chain, 'bridges', from_chain,
                                        "t_final")
             return t_anchor, t_final
-        print("\nGetting latest t_anchor and t_final from bridge contract...")
+        print("\ngetting latest t_anchor and t_final from bridge contract...")
         if aergo is None:
             aergo = self._connect_aergo(to_chain)
         if bridge_address is None:
@@ -344,6 +342,13 @@ class Wallet:
                          value=t_final)
         self.save_config()
         return t_anchor, t_final
+
+    def wait_finalization(
+        self,
+        network_name: str
+    ) -> None:
+        aergo = self._connect_aergo(network_name)
+        wait_finalization(aergo)
 
     def transfer(
         self,
@@ -593,7 +598,7 @@ class Wallet:
             print("Pegged token unknow by wallet")
             save_pegged_token_address = True
 
-        print("Waiting for broadcaster...")
+        print("waiting for broadcaster...")
         broadcasted = self._d_transfer_to_sidechain(
            from_chain, to_chain, token_name, amount, fee, privkey_name,
            privkey_pwd, execute_before
@@ -675,7 +680,7 @@ class Wallet:
         print("{} balance on sidechain before transfer: {}"
               .format(token_name, balance/10**18))
 
-        print("Waiting for broadcaster...")
+        print("waiting for broadcaster...")
         broadcasted = self._d_transfer_from_sidechain(
             from_chain, to_chain, token_name, amount, fee, privkey_name,
             privkey_pwd, execute_before
@@ -708,7 +713,8 @@ class Wallet:
         The asset being transfered to the to_chain sidechain
         should be native of from_chain
         """
-        _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
+        # sync latest t_anchor
+        self.get_bridge_tempo(from_chain, to_chain, sync=True)
         if receiver is None:
             receiver = self.get_wallet_address(privkey_name)
 
@@ -721,8 +727,8 @@ class Wallet:
             pending=True
         )
         print("pending mint: ", minteable)
-        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-        time.sleep(t_final-COMMIT_TIME)
+        print("waiting finalisation ...")
+        self.wait_finalization(from_chain)
 
         self.finalize_transfer_mint(
             from_chain, to_chain, asset_name, receiver, lock_height,
@@ -743,7 +749,8 @@ class Wallet:
         The asset being transfered back to the to_chain native chain
         should be a minted asset on the sidechain.
         """
-        _, t_final = self.get_bridge_tempo(from_chain, to_chain, sync=True)
+        # sync latest t_anchor
+        self.get_bridge_tempo(from_chain, to_chain, sync=True)
         if receiver is None:
             receiver = self.get_wallet_address(privkey_name)
 
@@ -756,8 +763,8 @@ class Wallet:
             pending=True
         )
         print("pending unlock: ", unlockeable)
-        print("waiting finalisation :", t_final-COMMIT_TIME, "s...")
-        time.sleep(t_final-COMMIT_TIME)
+        print("waiting finalisation ...")
+        self.wait_finalization(from_chain)
 
         self.finalize_transfer_unlock(
             from_chain, to_chain, asset_name, receiver, burn_height,
@@ -816,7 +823,7 @@ class Wallet:
 
         # remaining balance on origin : aer or asset
         balance = get_balance(sender, asset_address, aergo_from)
-        print("Remaining {} balance on origin after transfer: {}"
+        print("remaining {} balance on origin after transfer: {}"
               .format(asset_name, balance/10**18))
 
         aergo_from.disconnect()
@@ -847,7 +854,7 @@ class Wallet:
             receiver = tx_sender
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
-        t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain)
+        t_anchor, _ = self.get_bridge_tempo(from_chain, to_chain)
         asset_address = self.config_data(from_chain, 'tokens',
                                          asset_name, 'addr')
         save_pegged_token_address = False
@@ -870,7 +877,7 @@ class Wallet:
         print("\n------ Get lock proof -----------")
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
-                                      asset_address, t_anchor, t_final)
+                                      asset_address, t_anchor)
         print("\n\n------ Mint {} on destination blockchain -----------"
               .format(asset_name))
         token_pegged, tx_hash = mint(
@@ -931,7 +938,7 @@ class Wallet:
 
         # remaining balance on sidechain
         balance = get_balance(sender, token_pegged, aergo_from)
-        print("Remaining {} balance on sidechain after transfer: {}"
+        print("remaining {} balance on sidechain after transfer: {}"
               .format(asset_name, balance/10**18))
 
         aergo_from.disconnect()
@@ -963,13 +970,13 @@ class Wallet:
             receiver = tx_sender
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        t_anchor, t_final = self.get_bridge_tempo(from_chain, to_chain)
+        t_anchor, _ = self.get_bridge_tempo(from_chain, to_chain)
         asset_address = self.config_data(to_chain, 'tokens', asset_name,
                                          'addr')
         print("\n------ Get burn proof -----------")
         burn_proof = build_burn_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, burn_height,
-                                      asset_address, t_anchor, t_final)
+                                      asset_address, t_anchor)
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
