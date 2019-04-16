@@ -67,6 +67,11 @@ function transfer(to, value)
     Balances[from] = Balances[from] - bvalue
     Nonces[from] = (Nonces[from] or 0) + 1
     Balances[to] = (Balances[to] or b0) + bvalue
+    if system.isContract(to) then
+        -- prevent accidentally sending tokens to contracts that don't support them
+        success, is_payable = contract.pcall(contract.call, to, "token_payable")
+        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
+    end
     -- TODO event notification
     return true
 end
@@ -111,6 +116,14 @@ function signed_transfer(from, to, value, nonce, signature, fee, deadline)
     Balances[to] = (Balances[to] or b0) + bvalue
     Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
+    if system.isContract(to) and to ~= system.getSender() then
+        -- if a signed transfer is made to a contract and that contract is not the caller, 
+        -- check that that contract can support standard token transfers
+        -- this prevents a malicious broadcaster from burning tokens by executing a signed transfer
+        -- directly without passing through the contract to record that transfer.
+        success, is_payable = contract.pcall(contract.call, to, "token_payable")
+        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
+    end
     -- TODO event notification
     return true
 end

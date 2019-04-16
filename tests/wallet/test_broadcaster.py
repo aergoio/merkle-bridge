@@ -1,3 +1,12 @@
+from wallet.wallet_utils import (
+    transfer
+)
+from wallet.exceptions import (
+    TxError
+)
+import pytest
+
+
 def test_transfer_to_sidechain_broadcast(wallet):
     asset = 'token1'
     amount = 100*10**18
@@ -88,6 +97,7 @@ def test_verify_signed_transfer(wallet):
         amount, sender, to, asset, 'mainnet', signed_transfer, 5
     )
     assert valid
+    # bump the nonce by transfering
     wallet.transfer(amount, to, asset, 'mainnet', privkey_pwd='1234')
     valid, err = wallet.verify_signed_transfer(
         amount, sender, to, asset, 'mainnet', signed_transfer, 5
@@ -105,3 +115,20 @@ def test_verify_signed_transfer(wallet):
 
     assert not valid
     assert err == "Deadline passed or not enough time to execute"
+
+
+def test_broadcaster_cannot_burn_signed_transfer_to_sidechain(wallet):
+    amount = 2
+    to = wallet.config_data('mainnet', 'bridges', 'sidechain2', 'addr')
+    fee = 1
+    asset = 'token1'
+    token_addr = wallet.config_data('mainnet', 'tokens', asset, 'addr')
+    aergo = wallet.get_aergo('mainnet', 'default2', privkey_pwd='1234')
+    owner = wallet.get_wallet_address('default')
+    signed_transfer, _ = wallet.get_signed_transfer(
+        amount, to, asset, 'mainnet', fee=fee, execute_before=10,
+        privkey_name='default', privkey_pwd='1234'
+    )
+    with pytest.raises(TxError):
+        transfer(amount, to, token_addr, aergo, owner,
+                 0, 0, signed_transfer)

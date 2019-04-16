@@ -160,6 +160,17 @@ function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
     assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
     assert(bamount > b0, "amount must be positive")
 
+    -- Add locked amount to total
+    local account_ref = receiver .. token_address
+    local old = Locks[account_ref]
+    local locked_balance
+    if old == nil then
+        locked_balance = bamount
+    else
+        locked_balance = bignum.number(old) + bamount
+    end
+    Locks[account_ref] = bignum.tostring(locked_balance)
+
     -- Lock assets/aer in the bridge
     if system.getAmount() ~= "0" then
         assert(token_address == "aergo", "for safety and clarity don't provide a token address when locking aergo bits")
@@ -181,17 +192,6 @@ function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
             -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
         end
     end
-
-    -- Add locked amount to total
-    local account_ref = receiver .. token_address
-    local old = Locks[account_ref]
-    local locked_balance
-    if old == nil then
-        locked_balance = bamount
-    else
-        locked_balance = bignum.number(old) + bamount
-    end
-    Locks[account_ref] = bignum.tostring(locked_balance)
     -- TODO add event
     return token_address, bamount
 end
@@ -254,10 +254,19 @@ function burn(receiver, amount, mint_address, nonce, signature, fee, deadline)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(bamount > bignum.number(0), "amount must be positive")
     assert(system.getAmount() == "0", "burn function not payable, only tokens can be burned")
-
-    -- Burn token
     local origin_address = MintedTokens[mint_address]
     assert(origin_address ~= nil, "cannot burn token : must have been minted by bridge")
+    -- Add burnt amount to total
+    local account_ref = receiver .. origin_address
+    local old = Burns[account_ref]
+    local burnt_balance
+    if old == nil then
+        burnt_balance = bamount
+    else
+        burnt_balance = bignum.number(old) + bamount
+    end
+    Burns[account_ref] = bignum.tostring(burnt_balance)
+    -- Burn token
     if fee == nil then
         sender = system.getSender()
         if not contract.call(mint_address, "burn", sender, bignum.tostring(bamount)) then
@@ -271,17 +280,6 @@ function burn(receiver, amount, mint_address, nonce, signature, fee, deadline)
         -- hack : take the token signature from burn tx and create a new tx with a different receiver, include that tx before the first one.
         -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
     end
-
-    -- Add burnt amount to total
-    local account_ref = receiver .. origin_address
-    local old = Burns[account_ref]
-    local burnt_balance
-    if old == nil then
-        burnt_balance = bamount
-    else
-        burnt_balance = bignum.number(old) + bamount
-    end
-    Burns[account_ref] = bignum.tostring(burnt_balance)
     -- TODO add event
     return origin_address, bamount
 end
@@ -436,6 +434,11 @@ function transfer(to, value)
     Balances[from] = Balances[from] - bvalue
     Nonces[from] = (Nonces[from] or 0) + 1
     Balances[to] = (Balances[to] or b0) + bvalue
+    if system.isContract(to) then
+        -- prevent accidentally sending tokens to contracts that don't support them
+        success, is_payable = contract.pcall(contract.call, to, "token_payable")
+        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
+    end
     -- TODO event notification
     return true
 end
@@ -479,6 +482,14 @@ function signed_transfer(from, to, value, nonce, signature, fee, deadline)
     Balances[to] = (Balances[to] or b0) + bvalue
     Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
+    if system.isContract(to) and to ~= system.getSender() then
+        -- if a signed transfer is made to a contract and that contract is not the call, 
+        -- check that that contract can support standard token transfers
+        -- this prevents a malicious broadcaster from burning tokens by executing a signed transfer
+        -- directly without passing through the contract to record that transfer.
+        success, is_payable = contract.pcall(contract.call, to, "token_payable")
+        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
+    end
     -- TODO event notification
     return true
 end
@@ -505,6 +516,11 @@ function mint(to, value)
     local new_total = TotalSupply:get() + bvalue
     TotalSupply:set(new_total)
     Balances[to] = (Balances[to] or b0) + bvalue;
+    if system.isContract(to) then
+        -- prevent accidentally sending tokens to contracts that don't support them
+        success, is_payable = contract.pcall(contract.call, to, "token_payable")
+        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
+    end
     -- TODO event notification
     return true
 end
@@ -575,10 +591,15 @@ end
 
 -- register functions to abi
 abi.register(transfer, signed_transfer, mint, burn, signed_burn)
+
         ]]
     addr, success = contract.deploy(src)
     return addr, success
 end
 
-abi.register(set_root, update_validators, update_t_anchor, update_t_final, lock, unlock, mint, burn)
+function token_payable()
+    error("Cannot receive tokens, must use Lock or Burn to send tokens to the bridge contract")
+end
+
+abi.register(set_root, update_validators, update_t_anchor, update_t_final, lock, unlock, mint, burn, token_payable)
 abi.payable(lock)
