@@ -713,8 +713,6 @@ class Wallet:
         The asset being transfered to the to_chain sidechain
         should be native of from_chain
         """
-        # sync latest t_anchor
-        self.get_bridge_tempo(from_chain, to_chain, sync=True)
         if receiver is None:
             receiver = self.get_wallet_address(privkey_name)
 
@@ -749,8 +747,6 @@ class Wallet:
         The asset being transfered back to the to_chain native chain
         should be a minted asset on the sidechain.
         """
-        # sync latest t_anchor
-        self.get_bridge_tempo(from_chain, to_chain, sync=True)
         if receiver is None:
             receiver = self.get_wallet_address(privkey_name)
 
@@ -854,7 +850,6 @@ class Wallet:
             receiver = tx_sender
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
-        t_anchor, _ = self.get_bridge_tempo(from_chain, to_chain)
         asset_address = self.config_data(from_chain, 'tokens',
                                          asset_name, 'addr')
         save_pegged_token_address = False
@@ -877,7 +872,7 @@ class Wallet:
         print("\n------ Get lock proof -----------")
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
-                                      asset_address, t_anchor)
+                                      asset_address)
         print("\n\n------ Mint {} on destination blockchain -----------"
               .format(asset_name))
         token_pegged, tx_hash = mint(
@@ -970,13 +965,13 @@ class Wallet:
             receiver = tx_sender
         bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
         bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        t_anchor, _ = self.get_bridge_tempo(from_chain, to_chain)
         asset_address = self.config_data(to_chain, 'tokens', asset_name,
                                          'addr')
+
         print("\n------ Get burn proof -----------")
         burn_proof = build_burn_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, burn_height,
-                                      asset_address, t_anchor)
+                                      asset_address)
 
         print("\n\n------ Unlock {} on origin blockchain -----------"
               .format(asset_name))
