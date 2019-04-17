@@ -1,4 +1,6 @@
 
+# docker state
+docker/*/data
 # ctags
 cTags
 tags

@@ -24,6 +24,8 @@ state.var {
     Root = state.value(),
     -- Height of the last block anchored
     Height = state.value(),
+    -- Height of the block containing the last set_root transaction
+    SetRootHeight = state.value(),
     -- Validators contains the addresses and 2/3 of them must sign a root update
     -- The index of validators starts at 1.
     Validators = state.map(),
@@ -62,6 +64,7 @@ function constructor(addresses, t_anchor, t_final)
     T_final:set(t_final)
     Root:set("constructor")
     Height:set(0)
+    SetRootHeight:set(system.getBlockheight())
     Nonce:set(0)
     Nb_Validators:set(#addresses)
     for i, addr in ipairs(addresses) do
@@ -87,7 +90,9 @@ function set_root(root, height, signers, signatures)
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     Root:set("0x"..root)
     Height:set(height)
+    SetRootHeight:set(system.getBlockheight())
     Nonce:set(old_nonce + 1)
+    contract.event("set_root", height, root)
 end
 
 function validate_signatures(message, signers, signatures)

@@ -15,6 +15,7 @@ from aergo.herapy.utils.signature import (
 from wallet.exceptions import (
     InvalidArgumentsError,
     TxError,
+    InvalidMerkleProofError,
 )
 
 from broadcaster.broadcaster_pb2_grpc import (
@@ -322,3 +323,51 @@ def wait_finalization(
     lib = status.consensus_info.status['LibNo']
     height = status.best_block_height
     time.sleep(height - lib)
+
+
+def build_deposit_proof(
+    aergo_from: herapy.Aergo,
+    aergo_to: herapy.Aergo,
+    receiver: str,
+    bridge_from: str,
+    bridge_to: str,
+    deposit_height: int,
+    token_origin: str,
+    key_word: str
+) -> herapy.obj.sc_state.SCState:
+    """ Check the last anchored root includes the lock and build
+    a lock proof for that root
+    """
+    # check last merged height
+    last_anchor_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height",
+                                                         "_sv_SetRootHeight",
+                                                         "_sv_T_anchor"])
+    last_merged_height_to = int(last_anchor_to.var_proofs[0].value)
+    set_root_height = int(last_anchor_to.var_proofs[1].value)
+    t_anchor = int(last_anchor_to.var_proofs[2].value)
+    # waite for anchor containing our transfer
+    if last_merged_height_to < deposit_height:
+        print("waiting new anchor event...")
+        stream = aergo_to.receive_event_stream(bridge_to, "set_root",
+                                               start_block_no=set_root_height)
+        while last_merged_height_to < deposit_height:
+            wait = last_merged_height_to + t_anchor - deposit_height
+            print("(estimated waiting time : {}s...)".format(wait))
+            set_root_event = next(stream)
+            last_merged_height_to = set_root_event.arguments[0]
+        stream.stop()
+    # get inclusion proof of lock in last merged block
+    merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
+    account_ref = receiver + token_origin
+    proof = aergo_from.query_sc_state(
+        bridge_from, [key_word + account_ref],
+        root=merge_block_from.blocks_root_hash, compressed=False
+    )
+    if not proof.verify_proof(merge_block_from.blocks_root_hash):
+        raise InvalidMerkleProofError("Unable to verify {} proof"
+                                      .format(key_word))
+    if not proof.var_proofs[0].inclusion:
+        err = "No tokens deposited for this account reference: {}".format(
+            account_ref)
+        raise InvalidMerkleProofError(err)
+    return proof

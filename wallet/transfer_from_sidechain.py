@@ -12,6 +12,10 @@ from wallet.exceptions import (
     InvalidMerkleProofError,
 )
 
+from wallet.wallet_utils import (
+    build_deposit_proof
+)
+
 COMMIT_TIME = 3
 
 
@@ -60,33 +64,10 @@ def build_burn_proof(
     """ Check the last anchored root includes the burn and build
     a burn proof for that root
     """
-    # check last merged height
-    height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
-    last_merged_height_to = int(height_proof_to.var_proofs[0].value)
-    # waite for anchor containing our transfer
-    if last_merged_height_to < burn_height:
-        sys.stdout.write("waiting new anchor ")
-    while last_merged_height_to < burn_height:
-        sys.stdout.flush()
-        sys.stdout.write(". ")
-        time.sleep(t_anchor/4)
-        height_proof_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
-        last_merged_height_to = int(height_proof_to.var_proofs[0].value)
-        # TODO do this with events when available
-    # get inclusion proof of lock in last merged block
-    merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
-    account_ref = receiver + token_origin
-    burn_proof = aergo_from.query_sc_state(
-        bridge_from, ["_sv_Burns-" + account_ref],
-        root=merge_block_from.blocks_root_hash, compressed=False
+    return build_deposit_proof(
+        aergo_from, aergo_to, receiver, bridge_from, bridge_to, burn_height,
+        token_origin, "_sv_Burns-"
     )
-    if not burn_proof.verify_proof(merge_block_from.blocks_root_hash):
-        raise InvalidMerkleProofError("Unable to verify burn proof")
-    if not burn_proof.var_proofs[0].inclusion:
-        err = "No tokens deposited for this account reference: {}".format(
-            account_ref)
-        raise InvalidMerkleProofError(err)
-    return burn_proof
 
 
 def unlock(
