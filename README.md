@@ -5,6 +5,7 @@ https://merkle-bridge.readthedocs.io/en/latest/index.html
 
 This repository contains :
 * Bridge contracts
+* A proposal for standard tokens on Aergo (necessary for bridge compatibility)
 
 
 * Bridge operator:
@@ -167,4 +168,8 @@ $ make broadcaster
 In a new terminal : test wallet transfers, bridge transfers, delegated transfers and the bridge multisig
 ```sh
 $ python3 -m pytest -s tests/
+```
+Remove test networks data
+```sh
+$ make clean
 ```

@@ -339,17 +339,16 @@ def build_deposit_proof(
     a lock proof for that root
     """
     # check last merged height
-    last_anchor_to = aergo_to.query_sc_state(bridge_to, ["_sv_Height",
-                                                         "_sv_SetRootHeight",
-                                                         "_sv_T_anchor"])
-    last_merged_height_to = int(last_anchor_to.var_proofs[0].value)
-    set_root_height = int(last_anchor_to.var_proofs[1].value)
-    t_anchor = int(last_anchor_to.var_proofs[2].value)
+    anchor_info = aergo_to.query_sc_state(bridge_to, ["_sv_Height",
+                                                      "_sv_T_anchor"])
+    last_merged_height_to = int(anchor_info.var_proofs[0].value)
+    t_anchor = int(anchor_info.var_proofs[1].value)
+    _, current_height = aergo_to.get_blockchain_status()
     # waite for anchor containing our transfer
     if last_merged_height_to < deposit_height:
         print("waiting new anchor event...")
         stream = aergo_to.receive_event_stream(bridge_to, "set_root",
-                                               start_block_no=set_root_height)
+                                               start_block_no=current_height)
         while last_merged_height_to < deposit_height:
             wait = last_merged_height_to + t_anchor - deposit_height
             print("(estimated waiting time : {}s...)".format(wait))
