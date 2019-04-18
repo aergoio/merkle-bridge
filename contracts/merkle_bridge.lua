@@ -169,6 +169,7 @@ function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
     local account_ref = receiver .. token_address
     local old = Locks[account_ref]
     local locked_balance
+    local sender
     if old == nil then
         locked_balance = bamount
     else
@@ -180,24 +181,25 @@ function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
     if system.getAmount() ~= "0" then
         assert(token_address == "aergo", "for safety and clarity don't provide a token address when locking aergo bits")
         assert(system.getAmount() == bignum.tostring(bamount), "for safety and clarity, amount must match the amount sent in the tx")
-   else
+        sender = system.getSender()
+    else
         this_contract = system.getContractID()
-        -- FIXME how can this be hacked with a reentrant call if the token_address is malicious ?
         if fee == nil then
             sender = system.getSender()
             if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, "0", 0) then
                 error("failed to receive token to lock")
             end
         else
+            sender = receiver
             -- the owner of tokens doesn't pay aer fees, lock is called by a broadcaster
-            if not contract.call(token_address, "signed_transfer", receiver, this_contract, bignum.tostring(bamount), nonce, signature, fee, deadline) then
+            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, fee, deadline) then
                 error("failed to receive token to lock")
             end
             -- hack : take the token signature from lock tx and create a new tx with a different receiver, include that tx before the first one. 
             -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
         end
     end
-    -- TODO add event
+    contract.event("lock", sender, receiver, amount, token_address)
     return token_address, bamount
 end
 
@@ -247,7 +249,7 @@ function mint(receiver, balance, token_origin, merkle_proof)
     if not contract.call(mint_address, "mint", receiver, bignum.tostring(to_transfer)) then
         error("failed to mint token")
     end
-    -- TODO add event
+    contract.event("mint", system.getSender(), receiver, to_transfer, token_origin)
     return mint_address, to_transfer
 end
 
@@ -265,6 +267,7 @@ function burn(receiver, amount, mint_address, nonce, signature, fee, deadline)
     local account_ref = receiver .. origin_address
     local old = Burns[account_ref]
     local burnt_balance
+    local sender
     if old == nil then
         burnt_balance = bamount
     else
@@ -278,14 +281,15 @@ function burn(receiver, amount, mint_address, nonce, signature, fee, deadline)
             error("failed to burn token")
         end
     else
+        sender = receiver
         -- the owner of tokens doesn't pay aer fees, burn is called by a broadcaster
-        if not contract.call(mint_address, "signed_burn", receiver, bignum.tostring(bamount), nonce, signature, fee, deadline) then
+        if not contract.call(mint_address, "signed_burn", sender, bignum.tostring(bamount), nonce, signature, fee, deadline) then
             error("failed to burn token")
         end
         -- hack : take the token signature from burn tx and create a new tx with a different receiver, include that tx before the first one.
         -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
     end
-    -- TODO add event
+    contract.event("burn", sender, receiver, amount, mint_address)
     return origin_address, bamount
 end
 
@@ -326,7 +330,7 @@ function unlock(receiver, balance, token_address, merkle_proof)
             error("failed to unlock token")
         end
     end
-    -- TODO add event
+    contract.event("unlock", system.getSender(), receiver, to_transfer, token_address)
     return token_address, to_transfer
 end
 
@@ -444,7 +448,7 @@ function transfer(to, value)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("transfer", system.getSender(), to, value)
     return true
 end
 
@@ -495,7 +499,7 @@ function signed_transfer(from, to, value, nonce, signature, fee, deadline)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("signed_transfer", system.getSender(), from, to, value)
     return true
 end
 
@@ -526,7 +530,7 @@ function mint(to, value)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("mint", to, value)
     return true
 end
 
@@ -547,7 +551,7 @@ function burn(from, value)
     new_total = TotalSupply:get() - bvalue
     TotalSupply:set(new_total)
     Balances[from] = Balances[from] - bvalue
-    -- TODO event notification
+    contract.event("burn", from, value)
     return true
 end
 
@@ -589,14 +593,12 @@ function signed_burn(from, value, nonce, signature, fee, deadline)
     Balances[from] = Balances[from] - bvalue - bfee
     Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
-    -- TODO event notification
+    contract.event("signed_burn", system.getSender(), from, value)
     return true
 end
 
-
 -- register functions to abi
 abi.register(transfer, signed_transfer, mint, burn, signed_burn)
-
         ]]
     addr, success = contract.deploy(src)
     return addr, success

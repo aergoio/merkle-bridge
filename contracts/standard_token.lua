@@ -72,7 +72,7 @@ function transfer(to, value)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("transfer", system.getSender(), to, value)
     return true
 end
 
@@ -124,7 +124,7 @@ function signed_transfer(from, to, value, nonce, signature, fee, deadline)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("signed_transfer", system.getSender(), from, to, value)
     return true
 end
 

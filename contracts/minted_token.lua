@@ -76,7 +76,7 @@ function transfer(to, value)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("transfer", system.getSender(), to, value)
     return true
 end
 
@@ -127,7 +127,7 @@ function signed_transfer(from, to, value, nonce, signature, fee, deadline)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("signed_transfer", system.getSender(), from, to, value)
     return true
 end
 
@@ -158,7 +158,7 @@ function mint(to, value)
         success, is_payable = contract.pcall(contract.call, to, "token_payable")
         assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
     end
-    -- TODO event notification
+    contract.event("mint", to, value)
     return true
 end
 
@@ -179,7 +179,7 @@ function burn(from, value)
     new_total = TotalSupply:get() - bvalue
     TotalSupply:set(new_total)
     Balances[from] = Balances[from] - bvalue
-    -- TODO event notification
+    contract.event("burn", from, value)
     return true
 end
 
@@ -221,7 +221,7 @@ function signed_burn(from, value, nonce, signature, fee, deadline)
     Balances[from] = Balances[from] - bvalue - bfee
     Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
     Nonces[from] = Nonces[from] + 1
-    -- TODO event notification
+    contract.event("signed_burn", system.getSender(), from, value)
     return true
 end
 

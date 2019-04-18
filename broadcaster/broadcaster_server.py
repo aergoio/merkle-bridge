@@ -197,7 +197,7 @@ class BroadcasterService(BroadcasterServicer):
         try:
             lock_proof = build_lock_proof(
                 self._aergo1, self._aergo2, owner, self._addr1, self._addr2,
-                lock_height, token_addr, self._t_anchor2
+                lock_height, token_addr
             )
         except InvalidMerkleProofError:
             err_msg = "Asset locked but error building merkle proof"
@@ -276,7 +276,7 @@ class BroadcasterService(BroadcasterServicer):
         try:
             burn_proof = build_burn_proof(
                 self._aergo2, self._aergo1, owner, self._addr2, self._addr1,
-                burn_height, token_origin, self._t_anchor1
+                burn_height, token_origin
             )
         except InvalidMerkleProofError:
             err_msg = "Asset burnt but error building merkle proof"
