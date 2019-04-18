@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="merkle-bridge",
-    version="0.0.1",
+    version="0.0.2",
     author="Pierre-Alain Ouvrard",
     author_email="pierrealain@blocko.io",
     description="POC implementation of the merkle-bridge",
@@ -13,9 +13,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/aergoio/merkle-bridge",
     packages=setuptools.find_packages(),
-    install_requires=[
-        'aergo-herapy==0.11.0'
-                      ],
+    install_requires=[],
     classifiers=[
                 "Programming Language :: Python :: 3.7",
                 "License :: OSI Approved :: MIT License",
