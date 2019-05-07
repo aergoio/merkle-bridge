@@ -65,12 +65,9 @@ def transfer(
     fee_price: int,
     signed_transfer: Tuple[int, str, str, int] = None
 ) -> str:
+    """ Support 3 types of transfers : simple aer transfers, token transfer,
+    and signed token transfers (token owner != tx signer)
     """
-    TODO https://github.com/Dexaran/ERC223-token-standard/blob/
-    16d350ec85d5b14b9dc857468c8e0eb4a10572d3/ERC223_Token.sol#L107
-    """
-    # TODO support signed transfer and test sending to a contract that
-    # supports token_payable and to pubkey account
     aergo.get_account()  # get the latest nonce for making tx
     if asset_addr == "aergo":
         # transfer aer on network_name

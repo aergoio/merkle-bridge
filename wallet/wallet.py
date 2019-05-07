@@ -506,8 +506,6 @@ class Wallet:
             deadline_margin
         )
 
-    # TODO fix standard token : prevent token burning
-
     def deploy_token(
         self,
         payload_str: str,
