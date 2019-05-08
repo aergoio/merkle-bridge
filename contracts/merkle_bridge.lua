@@ -71,7 +71,7 @@ function constructor(addresses, t_anchor, t_final)
     local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
     -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
     -- take the first 16 bytes to save size of signed message
-    id = string.sub(id, 3, 32)
+    id = string.sub(id, 3, 34)
     ContractID:set(id)
     return id
 end
@@ -415,7 +415,7 @@ function constructor()
     -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
     -- take the first 16 bytes to save size of signed message
     local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
-    id = string.sub(id, 3, 32)
+    id = string.sub(id, 3, 34)
     ContractID:set(id)
     return true
 end

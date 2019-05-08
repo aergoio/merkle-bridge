@@ -8,7 +8,7 @@
             },
             "sidechain2": {
                 "addr": "AmgQCa5Ys7YBqfqKtAvH3WQSCniALkopCgBiGDigBKNt6JLETZF3",
-                "id": "60c1d34d674b3bdd96e105aa374189",
+                "id": "a72fb4a997be60ba24956b8ff136772e",
                 "t_anchor": 10,
                 "t_final": 10
             }
@@ -42,7 +42,7 @@
             },
             "mainnet": {
                 "addr": "AmgQCa5Ys7YBqfqKtAvH3WQSCniALkopCgBiGDigBKNt6JLETZF3",
-                "id": "1a106af573f6b50f5b30428da890a2",
+                "id": "3fd4a569198668b062fb81a83c8f385f",
                 "t_anchor": 10,
                 "t_final": 10
             }

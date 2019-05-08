@@ -19,8 +19,8 @@
                 "t_final": "t_final of sidechain"
             },
             "sidechain2": {
-                "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
-                "id": "7b119deefd5a2572e2b78b1cd0a356",
+                "addr": "AmhXrQ7KdNA4naBi2sTwHj13aBzVBohRhxy262nXsPbV2YbULXUR",
+                "id": "cee9525f0815818fac4e927bd6986aa1",
                 "t_anchor": 25,
                 "t_final": 4
             }
@@ -30,7 +30,7 @@
             "aergo": {
                 "addr": "aergo",
                 "pegs": {
-                    "sidechain2": "AmhoYqbizfrTLCx1QCXKoQuyuwtjyWQRwVEfVPMPLkZJEcAY2nSa"
+                    "sidechain2": "AmgjEe4rgZ4UNY78QZ2smm6DDAPqAhyHA9CjbGYuQsPBMRHf52Hh"
                 }
             },
             "tok": {
@@ -42,7 +42,7 @@
             "token1": {
                 "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
                 "pegs": {
-                    "sidechain2": "AmhiUx2hZ9phVDMZoBShEWD2sCFXPJ5BZpagNC8WfssPuZg7wzZS"
+                    "sidechain2": "AmhkAk2nqdp8QrViAb31KXjp1C9oehyMCrhxyChtEbyecoArr2mJ"
                 }
             },
             "token_name": {
@@ -60,8 +60,8 @@
                 "t_final": "t_final of mainnet"
             },
             "mainnet": {
-                "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
-                "id": "a2e2c1918f194c06b07e55d9d9bf06",
+                "addr": "AmhXrQ7KdNA4naBi2sTwHj13aBzVBohRhxy262nXsPbV2YbULXUR",
+                "id": "bf24e58770cf53edb2939a666b69552c",
                 "t_anchor": 10,
                 "t_final": 4
             }
