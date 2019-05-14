@@ -53,9 +53,14 @@ class Wallet:
     implements the functionality to transfer tokens to sidechains
     """
 
-    def __init__(self, config_file_path: str) -> None:
-        with open(config_file_path, "r") as f:
-            config_data = json.load(f)
+    def __init__(
+        self,
+        config_file_path: str,
+        config_data: Dict = None,
+    ) -> None:
+        if config_data is None:
+            with open(config_file_path, "r") as f:
+                config_data = json.load(f)
         self._config_data = config_data
         self._config_path = config_file_path
         self.fee_price = 0
