@@ -155,4 +155,4 @@ if __name__ == '__main__':
     t_anchor_sidechain = 10  # mainnet anchoring periord on sidechain
     run(config_data, payload_str,
         t_anchor_mainnet, t_anchor_sidechain,
-        mainnet='mainnet', sidechain='sidechain2')
+        'mainnet', 'sidechain2')

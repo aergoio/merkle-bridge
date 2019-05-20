@@ -112,16 +112,16 @@ wallet = Wallet("./config.json")
 amount = 1*10**18
 asset = 'aergo'
 # transfer aergo from mainnet to sidechain2
-wallet.transfer_to_sidechain('mainnet',
-                             'sidechain2',
-                             asset,
-                             amount)
+wallet.bridge_transfer('mainnet',
+                       'sidechain2',
+                       asset,
+                       amount)
 
 # transfer minted aergo from sidechain2 mainnet
-wallet.transfer_from_sidechain('sidechain2',
-                               'mainnet',
-                               asset,
-                               amount)
+wallet.bridge_transfer('sidechain2',
+                       'mainnet',
+                       asset,
+                       amount)
 ```
 
 ### Get balance and transfer assets on a specific network

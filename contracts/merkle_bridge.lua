@@ -49,8 +49,6 @@ state.var {
     T_final = state.value(),
     -- Nonce is a replay protection for validator and root updates.
     Nonce = state.value(),
-    -- LastAnchor
-    LastAnchor = state.value(),
     -- ContractID is a replay protection between sidechains as the same addresses can be validators
     -- on multiple chains.
     ContractID = state.value(),

@@ -15,7 +15,7 @@ def test_transfer_to_sidechain_broadcast(wallet):
     initial_balance_broadcaster, _ = wallet.get_balance(
         asset, 'mainnet', account_name='broadcaster'
     )
-    wallet.d_transfer_to_sidechain(
+    wallet.d_bridge_transfer(
         "mainnet", "sidechain2", "token1", amount, fee,
         privkey_pwd='1234'
     )
@@ -31,7 +31,7 @@ def test_transfer_to_sidechain_broadcast(wallet):
         asset, 'sidechain2', 'mainnet', account_name='broadcaster'
     )
 
-    wallet.d_transfer_from_sidechain(
+    wallet.d_bridge_transfer(
         "sidechain2", "mainnet", "token1", amount - fee, fee,
         privkey_pwd='1234'
     )

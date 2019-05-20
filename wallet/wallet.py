@@ -14,10 +14,6 @@ from aergo.herapy.errors.general_exception import (
     GeneralException,
 )
 
-from broadcaster.broadcaster_pb2 import (
-    ExecutionStatus,
-)
-
 from wallet.transfer_to_sidechain import (
     lock,
     build_lock_proof,
@@ -405,7 +401,7 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None,
         execute_before: int = 30
-    ) -> ExecutionStatus:
+    ):
         signed_transfer, balance = self.get_signed_transfer(
             value, to, asset_name, network_name, asset_origin_chain, fee,
             execute_before, privkey_name, privkey_pwd
@@ -433,7 +429,7 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None,
         execute_before: int = 30
-    ) -> ExecutionStatus:
+    ):
         balance, _ = self.get_balance(
             asset_name, network_name, asset_origin_chain,
             account_name=privkey_name
@@ -553,7 +549,7 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None,
         execute_before: int = 30
-    ) -> ExecutionStatus:
+    ):
         """ Create a delegated token transfer with a fee that the broadcaster
         will collect for executing the transaction.
         """
@@ -582,7 +578,7 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None,
         execute_before: int = 30
-    ) -> ExecutionStatus:
+    ):
         """ Create a delegated token transfer with a fee that the broadcaster
         will collect for executing the transaction.
         """
@@ -639,7 +635,7 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None,
         execute_before: int = 30
-    ) -> ExecutionStatus:
+    ):
         """ Create a delegated token transfer with a fee that the broadcaster
         will collect for executing the transaction.
         """
@@ -669,7 +665,7 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None,
         execute_before: int = 30
-    ) -> ExecutionStatus:
+    ):
         """ Create a delegated token transfer with a fee that the broadcaster
         will collect for executing the transaction.
         """
@@ -999,3 +995,50 @@ class Wallet:
         aergo_to.disconnect()
         aergo_from.disconnect()
         return tx_hash
+
+    def bridge_transfer(
+        self,
+        from_chain: str,
+        to_chain: str,
+        asset_name: str,
+        amount: int,
+        receiver: str = None,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None
+    ) -> None:
+        try:
+            self.config_data(to_chain, "tokens", asset_name, "pegs",
+                             from_chain)
+            return self.transfer_from_sidechain(
+                from_chain, to_chain, asset_name, amount, receiver,
+                privkey_name, privkey_pwd
+            )
+        except KeyError:
+            return self.transfer_to_sidechain(
+                from_chain, to_chain, asset_name, amount, receiver,
+                privkey_name, privkey_pwd
+            )
+
+    def d_bridge_transfer(
+        self,
+        from_chain: str,
+        to_chain: str,
+        token_name: str,
+        amount: int,
+        fee: int,
+        privkey_name: str = 'default',
+        privkey_pwd: str = None,
+        execute_before: int = 30
+    ):
+        try:
+            self.config_data(to_chain, "tokens", token_name, "pegs",
+                             from_chain)
+            return self.d_transfer_from_sidechain(
+                from_chain, to_chain, token_name, amount, fee,
+                privkey_name, privkey_pwd, execute_before
+            )
+        except KeyError:
+            return self.d_transfer_to_sidechain(
+                from_chain, to_chain, token_name, amount, fee,
+                privkey_name, privkey_pwd, execute_before
+            )

@@ -23,7 +23,6 @@ from broadcaster.broadcaster_pb2_grpc import (
 )
 from broadcaster.broadcaster_pb2 import (
     SignedTransfer,
-    ExecutionStatus,
 )
 
 COMMIT_TIME = 3
@@ -207,7 +206,7 @@ def broadcast_transfer(
     signed_transfer: Tuple[int, str, str, int],
     is_pegged: bool = False,
     receiver: str = None
-) -> ExecutionStatus:
+):
     channel = grpc.insecure_channel(broadcaster_ip)
     stub = BroadcasterStub(channel)
     nonce, signature, fee_str, deadline = signed_transfer
@@ -227,7 +226,7 @@ def broadcast_simple_transfer(
     signed_transfer: Tuple[int, str, str, int],
     is_pegged: bool = False,
     receiver: str = None
-) -> ExecutionStatus:
+):
     return broadcast_transfer(
         broadcaster_ip, "SimpleTransfer", owner, token_name, amount,
         signed_transfer, is_pegged, receiver
@@ -241,7 +240,7 @@ def broadcast_bridge_transfer(
     amount: int,
     signed_transfer: Tuple[int, str, str, int],
     is_pegged: bool = False,
-) -> ExecutionStatus:
+):
     return broadcast_transfer(
         broadcaster_ip, "BridgeTransfer", owner, token_name, amount,
         signed_transfer, is_pegged

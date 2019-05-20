@@ -182,6 +182,24 @@ Simple Transfers
 Bridge Transfers
 ----------------
 
+The bridge_transfer method calls transfer_to_sidechain or transfer_from_sidechain
+depending whether the token was minted or not.
+
+.. code-block:: python
+
+    from wallet.wallet import Wallet
+
+    # create a wallet
+    wallet = Wallet("./config.json")
+
+    amount = 1*10**18
+    asset = 'aergo'
+    # transfer aergo from 'mainnet' to 'sidechain2'
+    wallet.bridge_transfer('mainnet',
+                           'sidechain2',
+                           asset,
+                           amount)
+
 The transfer_to_sidechain method performs the following:
 
 - lock assets in the bridge contract
@@ -288,10 +306,10 @@ The broadcaster's ip address should be registered in the wallet's config.json
     # The broadcaster collects the asset fee on 'mainnet' and mints on 'sidechain2'
     # Note : nothing actually forces the broadcaster to mint on sidechain.
     # If the broadcaster is not nice and doesn't mint, users can use another broadcaster next time
-    wallet.d_transfer_to_sidechain('mainnet', 'sidechain2', asset, amount, fee)
+    wallet.d_bridge_transfer('mainnet', 'sidechain2', asset, amount, fee)
 
     # Transfer asset from 'sidechain2' to 'mainnet'
-    wallet.d_transfer_from_sidechain('sidechain2', 'mainnet', asset, amount, fee)
+    wallet.d_bridge_transfer('sidechain2', 'mainnet', asset, amount, fee)
 
 
 Wallet utils
