@@ -27,7 +27,7 @@ def deploy_token(
     print("------ Deploy Token-----------")
     tx, result = aergo.deploy_sc(amount=0,
                                  payload=payload,
-                                 args=[total_supply, receiver])
+                                 args=[str(total_supply), receiver])
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Token deployment Tx commit failed : {}".format(result))
     print("    > result[{0}] : {1}"
