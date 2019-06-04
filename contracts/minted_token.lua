@@ -112,7 +112,7 @@ function signed_transfer(from, to, value, nonce, signature, fee, deadline)
     if Nonces[from] == nil then Nonces[from] = 0 end
     assert(Nonces[from] == nonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
-    data = crypto.sha256(to..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    data = crypto.sha256(to..','..bignum.tostring(bvalue)..','..tostring(nonce)..','..bignum.tostring(bfee)..','..tostring(deadline)..','..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute transfer
     Balances[from] = Balances[from] - bvalue - bfee
@@ -213,7 +213,7 @@ function signed_burn(from, value, nonce, signature, fee, deadline)
     if Nonces[from] == nil then Nonces[from] = 0 end
     assert(Nonces[from] == nonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
-    data = crypto.sha256(system.getSender()..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    data = crypto.sha256(system.getSender()..','..bignum.tostring(bvalue)..','..tostring(nonce)..','..bignum.tostring(bfee)..','..tostring(deadline)..','..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute burn
     new_total = TotalSupply:get() - bvalue

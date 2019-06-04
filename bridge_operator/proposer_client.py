@@ -130,7 +130,8 @@ class ProposerClient:
         is_from_mainnet, root, merge_height, nonce = anchor_msg
 
         # messages to get signed
-        msg_str = root + str(merge_height) + str(nonce) + to_bridge_id + "R"
+        msg_str = root + ',' + str(merge_height) + ',' + str(nonce) + ',' \
+            + to_bridge_id + "R"
         msg = bytes(msg_str, 'utf-8')
         h = hashlib.sha256(msg).digest()
 
@@ -314,8 +315,9 @@ class ProposerClient:
             last_merge = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
             merged_height = int(last_merge.var_proofs[0].value)
             if merged_height + t_anchor_to >= next_anchor_height:
-                print("{}Another proposer already anchored".format(tab))
-                time.sleep(t_anchor_to)
+                print("{}Not yet anchor time"
+                      "or another proposer already anchored".format(tab))
+                time.sleep(merged_height + self.t_anchor - next_anchor_height)
                 continue
 
             # Broadcast finalised merge block

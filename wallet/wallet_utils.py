@@ -134,8 +134,8 @@ def get_signed_transfer(
         nonce = 0
 
     contractID = str(contractID_p[1:-1], 'utf-8')
-    msg = bytes(to + str(value) + str(nonce) + str(fee) +
-                str(deadline) + contractID, 'utf-8')
+    msg = bytes(to + ',' + str(value) + ',' + str(nonce) + ',' + str(fee)
+                + ',' + str(deadline) + ',' + contractID, 'utf-8')
     h = hashlib.sha256(msg).digest()
     sig = aergo.account.private_key.sign_msg(h).hex()
     signed_transfer = (nonce, sig, str(fee), deadline)
@@ -182,8 +182,8 @@ def verify_signed_transfer(
         return False, err
     # check signature
     contractID = str(contractID_p[1:-1], 'utf-8')
-    msg = bytes(receiver + str(amount) + str(nonce) + fee +
-                str(deadline) + contractID, 'utf-8')
+    msg = bytes(receiver + ',' + str(amount) + ',' + str(nonce) + ',' + fee
+                + ',' + str(deadline) + ',' + contractID, 'utf-8')
     h = hashlib.sha256(msg).digest()
     sig_bytes = bytes.fromhex(sig)
     if not verify_sig(h, sig_bytes, sender):

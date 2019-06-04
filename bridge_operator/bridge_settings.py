@@ -216,7 +216,7 @@ class BridgeSettingsManager:
         # get bridge nonce
         current_nonce = aergo.query_sc_state(bridge_addr, ["_sv_Nonce"])
         current_nonce = int(current_nonce.var_proofs[0].value)
-        data = str(tempo) + str(current_nonce) + bridge_id + letter
+        data = str(tempo) + ',' + str(current_nonce) + ',' + bridge_id + letter
         data_bytes = bytes(data, 'utf-8')
         return hashlib.sha256(data_bytes).digest()
 
@@ -368,8 +368,8 @@ class BridgeSettingsManager:
         # format data to be signed
         data = ""
         for val in new_validators:
-            data += val
-        data += str(current_nonce) + bridge_id + "V"
+            data += val + ','
+        data += str(current_nonce) + ',' + bridge_id + "V"
         data_bytes = bytes(data, 'utf-8')
         return hashlib.sha256(data_bytes).digest()
 

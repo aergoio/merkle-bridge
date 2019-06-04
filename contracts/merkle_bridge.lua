@@ -81,7 +81,7 @@ function set_root(root, height, signers, signatures)
     -- (a malicious BP could commit a user's mint tx after set_root on purpose for user to lose tx fee.)
     assert(height > Height:get() + T_anchor:get(), "Next anchor height not reached")
     old_nonce = Nonce:get()
-    message = crypto.sha256(root..tostring(height)..tostring(old_nonce)..ContractID:get().."R")
+    message = crypto.sha256(root..','..tostring(height)..','..tostring(old_nonce)..','..ContractID:get().."R")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     Root:set("0x"..root)
     Height:set(height)
@@ -107,7 +107,7 @@ end
 -- signers is the index of signers in Validators
 function update_validators(addresses, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(join(addresses)..tostring(old_nonce)..ContractID:get().."V")
+    message = crypto.sha256(join(addresses)..tostring(old_nonce)..','..ContractID:get().."V")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     old_size = Nb_Validators:get()
     if #addresses < old_size then
@@ -127,7 +127,7 @@ end
 
 function update_t_anchor(t_anchor, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_anchor)..tostring(old_nonce)..ContractID:get().."A")
+    message = crypto.sha256(tostring(t_anchor)..','..tostring(old_nonce)..','..ContractID:get().."A")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     T_anchor:set(t_anchor)
     Nonce:set(old_nonce + 1)
@@ -135,7 +135,7 @@ end
 
 function update_t_final(t_final, signers, signatures)
     old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_final)..tostring(old_nonce)..ContractID:get().."F")
+    message = crypto.sha256(tostring(t_final)..','..tostring(old_nonce)..','..ContractID:get().."F")
     assert(validate_signatures(message, signers, signatures), "Failed signature validation")
     T_final:set(t_final)
     Nonce:set(old_nonce + 1)
@@ -144,7 +144,7 @@ end
 function join(array)
     str = ""
     for i, data in ipairs(array) do
-        str = str..data
+        str = str..data..','
     end
     return str
 end
@@ -478,7 +478,7 @@ function signed_transfer(from, to, value, nonce, signature, fee, deadline)
     if Nonces[from] == nil then Nonces[from] = 0 end
     assert(Nonces[from] == nonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
-    data = crypto.sha256(to..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    data = crypto.sha256(to..','..bignum.tostring(bvalue)..','..tostring(nonce)..','..bignum.tostring(bfee)..','..tostring(deadline)..','..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute transfer
     Balances[from] = Balances[from] - bvalue - bfee
@@ -579,7 +579,7 @@ function signed_burn(from, value, nonce, signature, fee, deadline)
     if Nonces[from] == nil then Nonces[from] = 0 end
     assert(Nonces[from] == nonce, "nonce is invalid or already spent")
     -- construct signed transfer and verifiy signature
-    data = crypto.sha256(system.getSender()..bignum.tostring(bvalue)..tostring(nonce)..bignum.tostring(bfee)..tostring(deadline)..ContractID:get())
+    data = crypto.sha256(system.getSender()..','..bignum.tostring(bvalue)..','..tostring(nonce)..','..bignum.tostring(bfee)..','..tostring(deadline)..','..ContractID:get())
     assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
     -- execute burn
     new_total = TotalSupply:get() - bvalue
