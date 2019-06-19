@@ -335,22 +335,22 @@ def build_deposit_proof(
     a lock proof for that root
     """
     # check last merged height
-    anchor_info = aergo_to.query_sc_state(bridge_to, ["_sv_Height",
-                                                      "_sv_T_anchor"])
+    anchor_info = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
     last_merged_height_to = int(anchor_info.var_proofs[0].value)
-    t_anchor = int(anchor_info.var_proofs[1].value)
     _, current_height = aergo_to.get_blockchain_status()
     # waite for anchor containing our transfer
-    if last_merged_height_to < deposit_height:
-        print("waiting new anchor event...")
-        stream = aergo_to.receive_event_stream(bridge_to, "set_root",
-                                               start_block_no=current_height)
-        while last_merged_height_to < deposit_height:
-            wait = last_merged_height_to + t_anchor - deposit_height
-            print("(estimated waiting time : {}s...)".format(wait))
-            set_root_event = next(stream)
-            last_merged_height_to = set_root_event.arguments[0]
-        stream.stop()
+    stream = aergo_to.receive_event_stream(bridge_to, "set_root",
+                                           start_block_no=current_height)
+    while last_merged_height_to < deposit_height:
+        print("deposit not recorded in current anchor, waiting new anchor "
+              "event... / "
+              "deposit height : {} / "
+              "last anchor height : {} "
+              .format(deposit_height, last_merged_height_to)
+              )
+        set_root_event = next(stream)
+        last_merged_height_to = set_root_event.arguments[0]
+    stream.stop()
     # get inclusion proof of lock in last merged block
     merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
     account_ref = receiver + token_origin
@@ -362,7 +362,7 @@ def build_deposit_proof(
         raise InvalidMerkleProofError("Unable to verify {} proof"
                                       .format(key_word))
     if not proof.var_proofs[0].inclusion:
-        err = "No tokens deposited for this account reference: {}".format(
-            account_ref)
-        raise InvalidMerkleProofError(err)
+        raise InvalidMerkleProofError(
+            "No tokens deposited for this account reference: {}"
+            .format(account_ref))
     return proof
