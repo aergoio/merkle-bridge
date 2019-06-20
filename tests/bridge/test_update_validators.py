@@ -23,8 +23,8 @@ def deploy_bridge():
     payload = herapy.utils.decode_address(payload_str)
     aergo1 = herapy.Aergo()
     aergo2 = herapy.Aergo()
-    aergo1.connect(config_data[mainnet]['ip'])
-    aergo2.connect(config_data[sidechain]['ip'])
+    aergo1.connect(config_data['networks'][mainnet]['ip'])
+    aergo2.connect(config_data['networks'][sidechain]['ip'])
     sender_priv_key = config_data["wallet"]['default2']['priv_key']
     aergo1.import_account(sender_priv_key, '1234')
     aergo2.import_account(sender_priv_key, '1234')
@@ -66,16 +66,16 @@ def deploy_bridge():
     bridge_addr2 = result2.contract_address
     sc_id1 = result1.detail[1:-1]
     sc_id2 = result2.detail[1:-1]
-    config_data[mainnet]['bridges'][sidechain] = {}
-    config_data[sidechain]['bridges'][mainnet] = {}
-    config_data[mainnet]['bridges'][sidechain]['addr'] = bridge_addr1
-    config_data[sidechain]['bridges'][mainnet]['addr'] = bridge_addr2
-    config_data[mainnet]['bridges'][sidechain]['id'] = sc_id1
-    config_data[sidechain]['bridges'][mainnet]['id'] = sc_id2
-    config_data[mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor
-    config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final
-    config_data[sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor
-    config_data[sidechain]['bridges'][mainnet]['t_final'] = t_final
+    config_data['networks'][mainnet]['bridges'][sidechain] = {}
+    config_data['networks'][sidechain]['bridges'][mainnet] = {}
+    config_data['networks'][mainnet]['bridges'][sidechain]['addr'] = bridge_addr1
+    config_data['networks'][sidechain]['bridges'][mainnet]['addr'] = bridge_addr2
+    config_data['networks'][mainnet]['bridges'][sidechain]['id'] = sc_id1
+    config_data['networks'][sidechain]['bridges'][mainnet]['id'] = sc_id2
+    config_data['networks'][mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor
+    config_data['networks'][mainnet]['bridges'][sidechain]['t_final'] = t_final
+    config_data['networks'][sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor
+    config_data['networks'][sidechain]['bridges'][mainnet]['t_final'] = t_final
     with open(path, "w") as f:
         json.dump(config_data, f, indent=4, sort_keys=True)
 

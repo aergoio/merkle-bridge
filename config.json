@@ -10,67 +10,69 @@
             "ip": "localhost:9850"
         }
     },
-    "mainnet": {
-        "bridges": {
-            "": {
-                "addr": "bridge address on mainnet",
-                "id": "bridge ContractID variable",
-                "t_anchor": "t_anchor of sidechain on mainnet",
-                "t_final": "t_final of sidechain"
+    "networks": {
+        "mainnet": {
+            "bridges": {
+                "": {
+                    "addr": "bridge address on mainnet",
+                    "id": "bridge ContractID variable",
+                    "t_anchor": "t_anchor of sidechain on mainnet",
+                    "t_final": "t_final of sidechain"
+                },
+                "sidechain2": {
+                    "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
+                    "id": "5291aa1bd80ba801c652f7591128f389",
+                    "t_anchor": 25,
+                    "t_final": 4
+                }
             },
-            "sidechain2": {
-                "addr": "AmhXrQ7KdNA4naBi2sTwHj13aBzVBohRhxy262nXsPbV2YbULXUR",
-                "id": "cee9525f0815818fac4e927bd6986aa1",
-                "t_anchor": 25,
-                "t_final": 4
+            "ip": "localhost:7845",
+            "tokens": {
+                "aergo": {
+                    "addr": "aergo",
+                    "pegs": {
+                        "sidechain2": "AmhoYqbizfrTLCx1QCXKoQuyuwtjyWQRwVEfVPMPLkZJEcAY2nSa"
+                    }
+                },
+                "tok": {
+                    "addr": "Address",
+                    "pegs": {
+                        "side": "sideaddr"
+                    }
+                },
+                "token1": {
+                    "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
+                    "pegs": {
+                        "sidechain2": "AmhiUx2hZ9phVDMZoBShEWD2sCFXPJ5BZpagNC8WfssPuZg7wzZS"
+                    }
+                },
+                "token_name": {
+                    "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
+                    "pegs": {}
+                }
             }
         },
-        "ip": "localhost:7845",
-        "tokens": {
-            "aergo": {
-                "addr": "aergo",
-                "pegs": {
-                    "sidechain2": "AmgjEe4rgZ4UNY78QZ2smm6DDAPqAhyHA9CjbGYuQsPBMRHf52Hh"
+        "sidechain2": {
+            "bridges": {
+                "": {
+                    "addr": "bridge address on sidechain",
+                    "id": "bridge ContractID variable",
+                    "t_anchor": "t_anchor of mainnet on sidechain",
+                    "t_final": "t_final of mainnet"
+                },
+                "mainnet": {
+                    "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
+                    "id": "6b1b8f852ba3936a850de19a359250fa",
+                    "t_anchor": 10,
+                    "t_final": 4
                 }
             },
-            "tok": {
-                "addr": "Address",
-                "pegs": {
-                    "side": "sideaddr"
+            "ip": "localhost:7848",
+            "tokens": {
+                "aergo": {
+                    "addr": "aergo",
+                    "pegs": {}
                 }
-            },
-            "token1": {
-                "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
-                "pegs": {
-                    "sidechain2": "AmhkAk2nqdp8QrViAb31KXjp1C9oehyMCrhxyChtEbyecoArr2mJ"
-                }
-            },
-            "token_name": {
-                "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
-                "pegs": {}
-            }
-        }
-    },
-    "sidechain2": {
-        "bridges": {
-            "": {
-                "addr": "bridge address on sidechain",
-                "id": "bridge ContractID variable",
-                "t_anchor": "t_anchor of mainnet on sidechain",
-                "t_final": "t_final of mainnet"
-            },
-            "mainnet": {
-                "addr": "AmhXrQ7KdNA4naBi2sTwHj13aBzVBohRhxy262nXsPbV2YbULXUR",
-                "id": "bf24e58770cf53edb2939a666b69552c",
-                "t_anchor": 10,
-                "t_final": 4
-            }
-        },
-        "ip": "localhost:7848",
-        "tokens": {
-            "aergo": {
-                "addr": "aergo",
-                "pegs": {}
             }
         }
     },

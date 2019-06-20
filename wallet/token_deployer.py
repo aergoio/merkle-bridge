@@ -57,7 +57,7 @@ if __name__ == '__main__':
     aergo = herapy.Aergo()
 
     print("------ Connect AERGO -----------")
-    aergo.connect(config_data['mainnet']['ip'])
+    aergo.connect(config_data['networks']['mainnet']['ip'])
 
     print("------ Set Sender Account -----------")
     privkey_name = 'default'
@@ -77,8 +77,8 @@ if __name__ == '__main__':
     aergo.disconnect()
 
     print("------ Store addresse in config.json -----------")
-    config_data['mainnet']['tokens']['token1'] = {}
-    config_data['mainnet']['tokens']['token1']['addr'] = sc_address
-    config_data['mainnet']['tokens']['token1']['pegs'] = {}
+    config_data['networks']['mainnet']['tokens']['token1'] = {}
+    config_data['networks']['mainnet']['tokens']['token1']['addr'] = sc_address
+    config_data['networks']['mainnet']['tokens']['token1']['pegs'] = {}
     with open("./config.json", "w") as f:
         json.dump(config_data, f, indent=4, sort_keys=True)

@@ -141,8 +141,8 @@ class Wallet:
                 addr = str(account.address)
             self.config_data('wallet', account_name, value={})
             self.config_data('wallet', account_name, 'addr', value=addr)
-            self.config_data('wallet', account_name,
-                             'priv_key', value=exported_privkey)
+            self.config_data(
+                'wallet', account_name, 'priv_key', value=exported_privkey)
             self.save_config()
             return addr
         error = "Error: account name '{}' already exists".format(account_name)
@@ -157,19 +157,23 @@ class Wallet:
         addr_on_pegged_chain: str = None
     ) -> None:
         """ Register an existing asset to config.json"""
-        self.config_data(origin_chain_name, 'tokens', asset_name, value={})
-        self.config_data(origin_chain_name, 'tokens', asset_name, 'addr',
-                         value=addr_on_origin_chain)
-        self.config_data(origin_chain_name, 'tokens', asset_name, 'pegs',
-                         value={})
+        self.config_data(
+            'networks', origin_chain_name, 'tokens', asset_name, value={})
+        self.config_data(
+            'networks', origin_chain_name, 'tokens', asset_name, 'addr',
+            value=addr_on_origin_chain)
+        self.config_data(
+            'networks', origin_chain_name, 'tokens', asset_name, 'pegs',
+            value={})
         if pegged_chain_name is not None and addr_on_pegged_chain is not None:
-            self.config_data(origin_chain_name, 'tokens', asset_name, 'pegs',
-                             pegged_chain_name, value=addr_on_pegged_chain)
+            self.config_data(
+                'networks', origin_chain_name, 'tokens', asset_name, 'pegs',
+                pegged_chain_name, value=addr_on_pegged_chain)
         self.save_config()
 
     def _connect_aergo(self, network_name: str) -> herapy.Aergo:
         aergo = herapy.Aergo()
-        aergo.connect(self.config_data(network_name, 'ip'))
+        aergo.connect(self.config_data('networks', network_name, 'ip'))
         return aergo
 
     def get_aergo(
@@ -211,14 +215,14 @@ class Wallet:
         """ Get the address of a time in config_data given it's name"""
         if asset_origin_chain is None:
             # query a token issued on network_name
-            asset_addr = self.config_data(network_name, 'tokens',
-                                          asset_name, 'addr')
+            asset_addr = self.config_data(
+                'networks', network_name, 'tokens', asset_name, 'addr')
         else:
             # query a pegged token (from asset_origin_chain) balance
             # on network_name sidechain (token or aer)
-            asset_addr = self.config_data(asset_origin_chain, 'tokens',
-                                          asset_name, 'pegs',
-                                          network_name)
+            asset_addr = self.config_data(
+                'networks', asset_origin_chain, 'tokens', asset_name, 'pegs',
+                network_name)
         return asset_addr
 
     def get_balance(
@@ -259,10 +263,12 @@ class Wallet:
         """
         if account_addr is None:
             account_addr = self.get_wallet_address(account_name)
-        asset_address_origin = self.config_data(from_chain, 'tokens',
-                                                asset_name, 'addr')
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
+        asset_address_origin = self.config_data(
+            'networks', from_chain, 'tokens', asset_name, 'addr')
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
+        bridge_to = self.config_data(
+            'networks', to_chain, 'bridges', from_chain, 'addr')
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self._connect_aergo(to_chain)
         withdrawable = bridge_withdrawable_balance(
@@ -291,10 +297,12 @@ class Wallet:
         """
         if account_addr is None:
             account_addr = self.get_wallet_address(account_name)
-        asset_address_origin = self.config_data(to_chain, 'tokens',
-                                                asset_name, 'addr')
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
+        asset_address_origin = self.config_data(
+            'networks', to_chain, 'tokens', asset_name, 'addr')
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
+        bridge_to = self.config_data(
+            'networks', to_chain, 'bridges', from_chain, 'addr')
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self._connect_aergo(to_chain)
         withdrawable = bridge_withdrawable_balance(
@@ -318,17 +326,17 @@ class Wallet:
         queried from bridge_to.
         """
         if not sync:
-            t_anchor = self.config_data(to_chain, 'bridges', from_chain,
-                                        "t_anchor")
-            t_final = self.config_data(to_chain, 'bridges', from_chain,
-                                       "t_final")
+            t_anchor = self.config_data(
+                'networks', to_chain, 'bridges', from_chain, "t_anchor")
+            t_final = self.config_data(
+                'networks', to_chain, 'bridges', from_chain, "t_final")
             return t_anchor, t_final
         print("\ngetting latest t_anchor and t_final from bridge contract...")
         if aergo is None:
             aergo = self._connect_aergo(to_chain)
         if bridge_address is None:
-            bridge_address = self.config_data(to_chain, 'bridges',
-                                              from_chain, 'addr')
+            bridge_address = self.config_data(
+                'networks', to_chain, 'bridges', from_chain, 'addr')
         # Get bridge information
         bridge_info = aergo.query_sc_state(bridge_address,
                                            ["_sv_T_anchor",
@@ -337,10 +345,12 @@ class Wallet:
         t_anchor, t_final = [int(item.value)
                              for item in bridge_info.var_proofs]
         aergo.disconnect()
-        self.config_data(to_chain, 'bridges', from_chain, "t_anchor",
-                         value=t_anchor)
-        self.config_data(to_chain, 'bridges', from_chain, "t_final",
-                         value=t_final)
+        self.config_data(
+            'networks', to_chain, 'bridges', from_chain, "t_anchor",
+            value=t_anchor)
+        self.config_data(
+            'networks', to_chain, 'bridges', from_chain, "t_final",
+            value=t_final)
         self.save_config()
         return t_anchor, t_final
 
@@ -530,11 +540,14 @@ class Wallet:
                                   fee_limit, self.fee_price)
 
         print("------ Store address in config.json -----------")
-        self.config_data(network_name, 'tokens', asset_name, value={})
-        self.config_data(network_name, 'tokens', asset_name, 'addr',
-                         value=sc_address)
-        self.config_data(network_name, 'tokens', asset_name, 'pegs',
-                         value={})
+        self.config_data(
+            'networks', network_name, 'tokens', asset_name, value={})
+        self.config_data(
+            'networks', network_name, 'tokens', asset_name, 'addr',
+            value=sc_address)
+        self.config_data(
+            'networks', network_name, 'tokens', asset_name, 'pegs',
+            value={})
         self.save_config()
         aergo.disconnect()
         return sc_address
@@ -554,7 +567,8 @@ class Wallet:
         will collect for executing the transaction.
         """
         # create signed transfer
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
         signed_transfer, balance = self.get_signed_transfer(
             amount, bridge_from, token_name, from_chain, fee=fee,
             execute_before=execute_before, privkey_name=privkey_name,
@@ -610,8 +624,9 @@ class Wallet:
             aergo = self._connect_aergo(to_chain)
             mint_result = aergo.get_tx_result(broadcasted.withdraw_tx_hash)
             token_pegged = json.loads(mint_result.detail)[0]
-            self.config_data(from_chain, 'tokens', token_name, 'pegs',
-                             to_chain, value=token_pegged)
+            self.config_data(
+                'networks', from_chain, 'tokens', token_name, 'pegs',
+                to_chain, value=token_pegged)
             self.save_config()
 
         balance, _ = self.get_balance(token_name, from_chain,
@@ -640,7 +655,8 @@ class Wallet:
         will collect for executing the transaction.
         """
         # create signed transfer
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
         signed_transfer, balance = self.get_signed_transfer(
             amount, bridge_from, token_name, from_chain,
             asset_origin_chain=to_chain, fee=fee,
@@ -782,9 +798,10 @@ class Wallet:
         sender = str(aergo_from.account.address)
         if receiver is None:
             receiver = sender
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        asset_address = self.config_data(from_chain, 'tokens',
-                                         asset_name, 'addr')
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
+        asset_address = self.config_data(
+            'networks', from_chain, 'tokens', asset_name, 'addr')
         balance = 0
         signed_transfer: Optional[Union[Tuple[int, str],
                                         Tuple[int, str, str, int]]] = None
@@ -847,14 +864,16 @@ class Wallet:
         tx_sender = str(aergo_to.account.address)
         if receiver is None:
             receiver = tx_sender
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
-        asset_address = self.config_data(from_chain, 'tokens',
-                                         asset_name, 'addr')
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
+        bridge_to = self.config_data(
+            'networks', to_chain, 'bridges', from_chain, 'addr')
+        asset_address = self.config_data(
+            'networks', from_chain, 'tokens', asset_name, 'addr')
         save_pegged_token_address = False
         try:
-            token_pegged = self.config_data(from_chain, 'tokens', asset_name,
-                                            'pegs', to_chain)
+            token_pegged = self.config_data(
+                'networks', from_chain, 'tokens', asset_name, 'pegs', to_chain)
             balance = get_balance(receiver, token_pegged, aergo_to)
             print("{} balance on destination before transfer : {}"
                   .format(asset_name, balance/10**18))
@@ -890,8 +909,9 @@ class Wallet:
         # record mint address in file
         if save_pegged_token_address:
             print("\n------ Store mint address in config.json -----------")
-            self.config_data(from_chain, 'tokens', asset_name, 'pegs',
-                             to_chain, value=token_pegged)
+            self.config_data(
+                'networks', from_chain, 'tokens', asset_name, 'pegs', to_chain,
+                value=token_pegged)
             self.save_config()
         return token_pegged, tx_hash
 
@@ -911,9 +931,10 @@ class Wallet:
         sender = str(aergo_from.account.address)
         if receiver is None:
             receiver = sender
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        token_pegged = self.config_data(to_chain, 'tokens', asset_name, 'pegs',
-                                        from_chain)
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
+        token_pegged = self.config_data(
+            'networks', to_chain, 'tokens', asset_name, 'pegs', from_chain)
         balance = get_balance(sender, token_pegged, aergo_from)
         print("{} balance on sidechain before transfer: {}"
               .format(asset_name, balance/10**18))
@@ -962,10 +983,12 @@ class Wallet:
         tx_sender = str(aergo_to.account.address)
         if receiver is None:
             receiver = tx_sender
-        bridge_to = self.config_data(to_chain, 'bridges', from_chain, 'addr')
-        bridge_from = self.config_data(from_chain, 'bridges', to_chain, 'addr')
-        asset_address = self.config_data(to_chain, 'tokens', asset_name,
-                                         'addr')
+        bridge_to = self.config_data(
+            'networks', to_chain, 'bridges', from_chain, 'addr')
+        bridge_from = self.config_data(
+            'networks', from_chain, 'bridges', to_chain, 'addr')
+        asset_address = self.config_data(
+            'networks', to_chain, 'tokens', asset_name, 'addr')
 
         print("\n------ Get burn proof -----------")
         burn_proof = build_burn_proof(aergo_from, aergo_to, receiver,
@@ -1007,8 +1030,8 @@ class Wallet:
         privkey_pwd: str = None
     ) -> None:
         try:
-            self.config_data(to_chain, "tokens", asset_name, "pegs",
-                             from_chain)
+            self.config_data(
+                'networks', to_chain, "tokens", asset_name, "pegs", from_chain)
             return self.transfer_from_sidechain(
                 from_chain, to_chain, asset_name, amount, receiver,
                 privkey_name, privkey_pwd
@@ -1031,8 +1054,8 @@ class Wallet:
         execute_before: int = 30
     ):
         try:
-            self.config_data(to_chain, "tokens", token_name, "pegs",
-                             from_chain)
+            self.config_data(
+                'networks', to_chain, "tokens", token_name, "pegs", from_chain)
             return self.d_transfer_from_sidechain(
                 from_chain, to_chain, token_name, amount, fee,
                 privkey_name, privkey_pwd, execute_before

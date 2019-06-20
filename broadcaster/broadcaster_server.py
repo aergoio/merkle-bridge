@@ -69,11 +69,11 @@ class BroadcasterService(BroadcasterServicer):
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(config_data[aergo1]['ip'])
-        self._aergo2.connect(config_data[aergo2]['ip'])
+        self._aergo1.connect(config_data['networks'][aergo1]['ip'])
+        self._aergo2.connect(config_data['networks'][aergo2]['ip'])
 
-        self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
-        self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
+        self._addr1 = config_data['networks'][aergo1]['bridges'][aergo2]['addr']
+        self._addr2 = config_data['networks'][aergo2]['bridges'][aergo1]['addr']
 
         # get the current t_anchor and t_final for both sides of bridge
         self._t_anchor1, self._t_final1 = query_tempo(
@@ -154,12 +154,12 @@ class BroadcasterService(BroadcasterServicer):
         token_name: str,
         amount: int,
         signed_transfer: Tuple[int, str, str, int]
-    ) -> ExecutionStatus:
+    ):
         print("\n-> Transfer to sidechain")
         result = ExecutionStatus()
         try:
-            token_addr = self.config_data(self.aergo1, 'tokens', token_name,
-                                          'addr')
+            token_addr = self.config_data(
+                'networks', self.aergo1, 'tokens', token_name, 'addr')
         except KeyError:
             err_msg = "Token named '{}' if not suported".format(token_name)
             result.error = err_msg
@@ -213,8 +213,9 @@ class BroadcasterService(BroadcasterServicer):
             result.error = "Asset locked but failed to mint"
             print(e)
             return result
-        self.config_data(self.aergo1, 'tokens', token_name, 'pegs',
-                         self.aergo2, value=token_pegged)
+        self.config_data(
+            'networks', self.aergo1, 'tokens', token_name, 'pegs', self.aergo2,
+            value=token_pegged)
         result.withdraw_tx_hash = tx_hash
         return result
 
@@ -224,20 +225,22 @@ class BroadcasterService(BroadcasterServicer):
         token_name: str,
         amount: int,
         signed_transfer: Tuple[int, str, str, int]
-    ) -> ExecutionStatus:
+    ):
         print("\n-> Transfer from sidechain")
         result = ExecutionStatus()
         try:
-            token_origin = self.config_data(self.aergo1, 'tokens', token_name,
-                                            'addr')
+            token_origin = self.config_data(
+                'networks', self.aergo1, 'tokens', token_name, 'addr')
         except KeyError:
             err_msg = "Token named '{}' is not suported".format(token_name)
             result.error = err_msg
             print(err_msg)
             return result
         try:
-            token_pegged = self.config_data(self.aergo1, 'tokens', token_name,
-                                            'pegs', self.aergo2)
+            token_pegged = self.config_data(
+                'networks', self.aergo1, 'tokens', token_name, 'pegs',
+                self.aergo2
+            )
         except KeyError:
             # query pegged token
             query = self._aergo2.query_sc_state(
@@ -249,8 +252,10 @@ class BroadcasterService(BroadcasterServicer):
                 print(err_msg)
                 return result
             token_pegged = query.var_proofs[0].value[1:-1].decode('utf-8')
-            self.config_data(self.aergo1, 'tokens', token_name, 'pegs',
-                             self.aergo2, value=token_pegged)
+            self.config_data(
+                'networks', self.aergo1, 'tokens', token_name, 'pegs',
+                self.aergo2, value=token_pegged
+            )
 
         # verify signed transfer
         ok, err = verify_signed_transfer(
@@ -306,11 +311,12 @@ class BroadcasterService(BroadcasterServicer):
         try:
             if is_pegged:
                 token_addr = self.config_data(
-                    self.aergo1, 'tokens', token_name, 'pegs', self.aergo2
+                    'networks', self.aergo1, 'tokens', token_name, 'pegs',
+                    self.aergo2
                 )
             else:
                 token_addr = self.config_data(
-                    self.aergo1, 'tokens', token_name, 'addr'
+                    'networks', self.aergo1, 'tokens', token_name, 'addr'
                 )
         except KeyError:
             err_msg = "Token named '{}' is not suported".format(token_name)

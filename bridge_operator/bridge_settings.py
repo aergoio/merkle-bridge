@@ -61,7 +61,7 @@ class BridgeSettingsManager:
             privkey_pwd = getpass("Decrypt exported private key '{}'\n"
                                   "Password: ".format(privkey_name))
         aergo = herapy.Aergo()
-        aergo.connect(self.config_data(network, 'ip'))
+        aergo.connect(self.config_data('networks', network, 'ip'))
         aergo.import_account(exported_privkey, privkey_pwd)
         return aergo
 
@@ -132,10 +132,12 @@ class BridgeSettingsManager:
         """
         aergo1 = herapy.Aergo()
         aergo2 = herapy.Aergo()
-        aergo1.connect(self.config_data(network1, 'ip'))
-        aergo2.connect(self.config_data(network2, 'ip'))
-        bridge1 = self.config_data(network1, 'bridges', network2, 'addr')
-        bridge2 = self.config_data(network2, 'bridges', network1, 'addr')
+        aergo1.connect(self.config_data('networks', network1, 'ip'))
+        aergo2.connect(self.config_data('networks', network2, 'ip'))
+        bridge1 = self.config_data(
+            'networks', network1, 'bridges', network2, 'addr')
+        bridge2 = self.config_data(
+            'networks', network2, 'bridges', network1, 'addr')
         validators1 = query_validators(aergo1, bridge1)
         validators2 = query_validators(aergo2, bridge2)
         assert validators1 == validators2, "Validators should be the same"
@@ -171,8 +173,9 @@ class BridgeSettingsManager:
         else:
             args = [tempo]
         aergo = herapy.Aergo()
-        aergo.connect(self.config_data(network_to, 'ip'))
-        bridge = self.config_data(network_to, 'bridges', network_from, 'addr')
+        aergo.connect(self.config_data('networks', network_to, 'ip'))
+        bridge = self.config_data(
+            'networks', network_to, 'bridges', network_from, 'addr')
         result = query_tempo(aergo, bridge, args)
         return result
 
@@ -233,10 +236,10 @@ class BridgeSettingsManager:
         if privkey_name is None:
             privkey_name = 'validator'
         aergo = self.get_aergo(network_to, privkey_name, privkey_pwd)
-        bridge_addr = self.config_data(network_to, 'bridges', network_from,
-                                       'addr')
-        bridge_id = self.config_data(network_to, 'bridges', network_from,
-                                     'id')
+        bridge_addr = self.config_data(
+            'networks', network_to, 'bridges', network_from, 'addr')
+        bridge_id = self.config_data(
+            'networks', network_to, 'bridges', network_from, 'id')
         h = self._tempo_digest(tempo, letter, bridge_addr, bridge_id, aergo)
         sig = aergo.account.private_key.sign_msg(h)
         return sig
@@ -291,9 +294,10 @@ class BridgeSettingsManager:
         if privkey_name is None:
             privkey_name = 'proposer'
         aergo = self.get_aergo(network_to, privkey_name, privkey_pwd)
-        bridge_addr = self.config_data(network_to, 'bridges', network_from,
-                                       'addr')
-        bridge_id = self.config_data(network_to, 'bridges', network_from, 'id')
+        bridge_addr = self.config_data(
+            'networks', network_to, 'bridges', network_from, 'addr')
+        bridge_id = self.config_data(
+            'networks', network_to, 'bridges', network_from, 'id')
         h = self._tempo_digest(tempo, letter, bridge_addr, bridge_id, aergo)
 
         # verify signatures and keep only 2/3
@@ -339,10 +343,14 @@ class BridgeSettingsManager:
             privkey_name = 'validator'
         aergo1 = self.get_aergo(network1, privkey_name, privkey_pwd)
         aergo2 = self.get_aergo(network2, privkey_name, privkey_pwd)
-        bridge_addr1 = self.config_data(network1, 'bridges', network2, 'addr')
-        bridge_addr2 = self.config_data(network2, 'bridges', network1, 'addr')
-        bridge_id1 = self.config_data(network1, 'bridges', network2, 'id')
-        bridge_id2 = self.config_data(network2, 'bridges', network1, 'id')
+        bridge_addr1 = self.config_data(
+            'networks', network1, 'bridges', network2, 'addr')
+        bridge_addr2 = self.config_data(
+            'networks', network2, 'bridges', network1, 'addr')
+        bridge_id1 = self.config_data(
+            'networks', network1, 'bridges', network2, 'id')
+        bridge_id2 = self.config_data(
+            'networks', network2, 'bridges', network1, 'id')
 
         h1 = self._new_validators_digest(aergo1, bridge_addr1, bridge_id1,
                                          new_validators)
@@ -391,10 +399,14 @@ class BridgeSettingsManager:
             privkey_name = 'proposer'
         aergo1 = self.get_aergo(network1, privkey_name, privkey_pwd)
         aergo2 = self.get_aergo(network2, privkey_name, privkey_pwd)
-        bridge_addr1 = self.config_data(network1, 'bridges', network2, 'addr')
-        bridge_addr2 = self.config_data(network2, 'bridges', network1, 'addr')
-        bridge_id1 = self.config_data(network1, 'bridges', network2, 'id')
-        bridge_id2 = self.config_data(network2, 'bridges', network1, 'id')
+        bridge_addr1 = self.config_data(
+            'networks', network1, 'bridges', network2, 'addr')
+        bridge_addr2 = self.config_data(
+            'networks', network2, 'bridges', network1, 'addr')
+        bridge_id1 = self.config_data(
+            'networks', network1, 'bridges', network2, 'id')
+        bridge_id2 = self.config_data(
+            'networks', network2, 'bridges', network1, 'id')
         h1 = self._new_validators_digest(aergo1, bridge_addr1, bridge_id1,
                                          new_validators)
         h2 = self._new_validators_digest(aergo2, bridge_addr2, bridge_id2,

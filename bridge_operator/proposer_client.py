@@ -70,12 +70,12 @@ class ProposerClient(threading.Thread):
         self.hera_from = herapy.Aergo()
         self.hera_to = herapy.Aergo()
 
-        self.hera_from.connect(self._config_data[aergo_from]['ip'])
-        self.hera_to.connect(self._config_data[aergo_to]['ip'])
+        self.hera_from.connect(self._config_data['networks'][aergo_from]['ip'])
+        self.hera_to.connect(self._config_data['networks'][aergo_to]['ip'])
 
-        self.bridge_from = config_data[aergo_from]['bridges'][aergo_to]['addr']
-        self.bridge_to = config_data[aergo_to]['bridges'][aergo_from]['addr']
-        self.bridge_to_id = config_data[aergo_to]['bridges'][aergo_from]['id']
+        self.bridge_from = config_data['networks'][aergo_from]['bridges'][aergo_to]['addr']
+        self.bridge_to = config_data['networks'][aergo_to]['bridges'][aergo_from]['addr']
+        self.bridge_to_id = config_data['networks'][aergo_to]['bridges'][aergo_from]['id']
 
         print("------ Connect to Validators -----------")
         validators = query_validators(self.hera_to, self.bridge_to)

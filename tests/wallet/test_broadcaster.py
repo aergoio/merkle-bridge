@@ -119,10 +119,12 @@ def test_verify_signed_transfer(wallet):
 
 def test_broadcaster_cannot_burn_signed_transfer_to_sidechain(wallet):
     amount = 2
-    to = wallet.config_data('mainnet', 'bridges', 'sidechain2', 'addr')
+    to = wallet.config_data(
+        'networks', 'mainnet', 'bridges', 'sidechain2', 'addr')
     fee = 1
     asset = 'token1'
-    token_addr = wallet.config_data('mainnet', 'tokens', asset, 'addr')
+    token_addr = wallet.config_data(
+        'networks', 'mainnet', 'tokens', asset, 'addr')
     aergo = wallet.get_aergo('mainnet', 'default2', privkey_pwd='1234')
     owner = wallet.get_wallet_address('default')
     signed_transfer, _ = wallet.get_signed_transfer(

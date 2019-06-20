@@ -1,53 +1,55 @@
 {
-    "mainnet": {
-        "bridges": {
-            "": {
-                "addr": "bridge address on mainnet",
-                "t_anchor": "t_anchor of sidechain on mainnet",
-                "t_final": "t_final of sidechain"
+    "networks": {
+        "mainnet": {
+            "bridges": {
+                "": {
+                    "addr": "bridge address on mainnet",
+                    "t_anchor": "t_anchor of sidechain on mainnet",
+                    "t_final": "t_final of sidechain"
+                },
+                "sidechain2": {
+                    "addr": "AmgBnXQzzaaZ1YmtYPrmY9bCv4oV3y3mAs5iN51VpL7HM4PtQFEM",
+                    "id": "f343aa0ee59554d3d48de896cc7f0fd3",
+                    "t_anchor": 10,
+                    "t_final": 10
+                }
             },
-            "sidechain2": {
-                "addr": "AmgQCa5Ys7YBqfqKtAvH3WQSCniALkopCgBiGDigBKNt6JLETZF3",
-                "id": "a72fb4a997be60ba24956b8ff136772e",
-                "t_anchor": 10,
-                "t_final": 10
+            "ip": "localhost:7845",
+            "tokens": {
+                "aergo": {
+                    "addr": "aergo",
+                    "pegs": {
+                        "sidechain2": "AmgC9rtBgZfWQnDgpeDh35o4cmCecZBYRpUmKBpYhDutk9xtVGaM"
+                    }
+                },
+                "token1": {
+                    "addr": "AmfwvF9M9Gox1c9fqDFDwuy6yy4L2KwWnHV5P8BQcVfuz7gpdjtH",
+                    "pegs": {
+                        "sidechain2": "AmgT6GTDrSAgsjnQWq377gQDVDPY2jGiqDthbySt8Y2MfrC3NV4H"
+                    }
+                },
+                "token2": {
+                    "addr": "AmgNW29Q8yGSyw3aUJaaTaLaGjVYLDNuuTMWcsq6vyQgubefs5Hw",
+                    "pegs": {}
+                }
             }
         },
-        "ip": "localhost:7845",
-        "tokens": {
-            "aergo": {
-                "addr": "aergo",
-                "pegs": {
-                    "sidechain2": "AmgC9rtBgZfWQnDgpeDh35o4cmCecZBYRpUmKBpYhDutk9xtVGaM"
+        "sidechain2": {
+            "bridges": {
+                "": {
+                    "addr": "bridge address on sidechain",
+                    "t_anchor": "t_anchor of mainnet on sidechain",
+                    "t_final": "t_final of mainnet"
+                },
+                "mainnet": {
+                    "addr": "AmgdSALxV9ovDFiknP4Qpy3AxEjarsxWRH7DLaFFdB9LprY2Thd7",
+                    "id": "ae3a28aad37b7c99a4be3191b48254c3",
+                    "t_anchor": 10,
+                    "t_final": 10
                 }
             },
-            "token1": {
-                "addr": "AmfwvF9M9Gox1c9fqDFDwuy6yy4L2KwWnHV5P8BQcVfuz7gpdjtH",
-                "pegs": {
-                    "sidechain2": "AmgT6GTDrSAgsjnQWq377gQDVDPY2jGiqDthbySt8Y2MfrC3NV4H"
-                }
-            },
-            "token2": {
-                "addr": "AmgNW29Q8yGSyw3aUJaaTaLaGjVYLDNuuTMWcsq6vyQgubefs5Hw",
-                "pegs": {}
-            }
+            "ip": "localhost:7848"
         }
-    },
-    "sidechain2": {
-        "bridges": {
-            "": {
-                "addr": "bridge address on sidechain",
-                "t_anchor": "t_anchor of mainnet on sidechain",
-                "t_final": "t_final of mainnet"
-            },
-            "mainnet": {
-                "addr": "AmgQCa5Ys7YBqfqKtAvH3WQSCniALkopCgBiGDigBKNt6JLETZF3",
-                "id": "3fd4a569198668b062fb81a83c8f385f",
-                "t_anchor": 10,
-                "t_final": 10
-            }
-        },
-        "ip": "localhost:7848"
     },
     "validators": [
         {

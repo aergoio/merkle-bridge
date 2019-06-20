@@ -55,14 +55,14 @@ class ValidatorService(BridgeOperatorServicer):
         self._aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(config_data[aergo1]['ip'])
-        self._aergo2.connect(config_data[aergo2]['ip'])
+        self._aergo1.connect(config_data['networks'][aergo1]['ip'])
+        self._aergo2.connect(config_data['networks'][aergo2]['ip'])
 
         self._validator_index = validator_index
-        self._addr1 = config_data[aergo1]['bridges'][aergo2]['addr']
-        self._addr2 = config_data[aergo2]['bridges'][aergo1]['addr']
-        self._id1 = config_data[aergo1]['bridges'][aergo2]['id']
-        self._id2 = config_data[aergo2]['bridges'][aergo1]['id']
+        self._addr1 = config_data['networks'][aergo1]['bridges'][aergo2]['addr']
+        self._addr2 = config_data['networks'][aergo2]['bridges'][aergo1]['addr']
+        self._id1 = config_data['networks'][aergo1]['bridges'][aergo2]['id']
+        self._id2 = config_data['networks'][aergo2]['bridges'][aergo1]['id']
 
         # check validators are correct
         validators1 = query_validators(self._aergo1, self._addr1)
@@ -122,8 +122,10 @@ class ValidatorService(BridgeOperatorServicer):
             return Approval(error=err_msg)
 
         # sign anchor and return approval
-        msg = bytes(anchor.root + ',' + anchor.height + ','
-                    + anchor.destination_nonce + ',' + bridge_id + "R", 'utf-8')
+        msg = bytes(
+            anchor.root + ',' + anchor.height + ',' + anchor.destination_nonce
+            + ',' + bridge_id + "R", 'utf-8'
+        )
         h = hashlib.sha256(msg).digest()
         sig = self._aergo1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)

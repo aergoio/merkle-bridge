@@ -34,8 +34,8 @@ def run(
     aergo2 = herapy.Aergo()
 
     print("------ Connect AERGO -----------")
-    aergo1.connect(config_data[mainnet]['ip'])
-    aergo2.connect(config_data[sidechain]['ip'])
+    aergo1.connect(config_data['networks'][mainnet]['ip'])
+    aergo2.connect(config_data['networks'][sidechain]['ip'])
 
     status1 = aergo1.get_status()
     status2 = aergo2.get_status()
@@ -117,24 +117,24 @@ def run(
     print("  > SC Address CHAIN2: {}".format(sc_address2))
 
     print("------ Store bridge addresses in config.json  -----------")
-    config_data[mainnet]['bridges'][sidechain] = {}
-    config_data[sidechain]['bridges'][mainnet] = {}
-    config_data[mainnet]['bridges'][sidechain]['addr'] = sc_address1
-    config_data[sidechain]['bridges'][mainnet]['addr'] = sc_address2
-    config_data[mainnet]['bridges'][sidechain]['id'] = sc_id1
-    config_data[sidechain]['bridges'][mainnet]['id'] = sc_id2
-    config_data[mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor_mainnet
-    config_data[mainnet]['bridges'][sidechain]['t_final'] = t_final_sidechain
-    config_data[sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain
-    config_data[sidechain]['bridges'][mainnet]['t_final'] = t_final_mainnet
+    config_data['networks'][mainnet]['bridges'][sidechain] = {}
+    config_data['networks'][sidechain]['bridges'][mainnet] = {}
+    config_data['networks'][mainnet]['bridges'][sidechain]['addr'] = sc_address1
+    config_data['networks'][sidechain]['bridges'][mainnet]['addr'] = sc_address2
+    config_data['networks'][mainnet]['bridges'][sidechain]['id'] = sc_id1
+    config_data['networks'][sidechain]['bridges'][mainnet]['id'] = sc_id2
+    config_data['networks'][mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor_mainnet
+    config_data['networks'][mainnet]['bridges'][sidechain]['t_final'] = t_final_sidechain
+    config_data['networks'][sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain
+    config_data['networks'][sidechain]['bridges'][mainnet]['t_final'] = t_final_mainnet
     try:
-        config_data[mainnet]['tokens']['aergo']
+        config_data['networks'][mainnet]['tokens']['aergo']
     except KeyError:
         pass
     else:
         # this is a new bridge, so remove any old pegged aergo with same name
         # bridge
-        config_data[mainnet]['tokens']['aergo']['pegs'] = {}
+        config_data['networks'][mainnet]['tokens']['aergo']['pegs'] = {}
 
     with open(path, "w") as f:
         json.dump(config_data, f, indent=4, sort_keys=True)
