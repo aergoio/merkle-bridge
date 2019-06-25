@@ -272,7 +272,7 @@ def bridge_withdrawable_balance(
         total_deposit = int(deposit_proof.var_proofs[0].value
                             .decode('utf-8')[1:-1])
 
-    # anchored_deposit : withdrawable_balance
+    # get total withdrawn and last anchor height
     withdraw_proof = aergo_to.query_sc_state(
         bridge_to, ["_sv_Height", withdraw_key + account_ref],
         compressed=False
@@ -284,9 +284,11 @@ def bridge_withdrawable_balance(
     if withdraw_proof.var_proofs[1].inclusion:
         total_withdrawn = int(withdraw_proof.var_proofs[1].value
                               .decode('utf-8')[1:-1])
-    block_height = int(withdraw_proof.var_proofs[0].value)
+    last_anchor_height = int(withdraw_proof.var_proofs[0].value)
+
+    # get anchored deposit : total deposit before the last anchor
     block_from = aergo_from.get_block(
-        block_height=block_height
+        block_height=last_anchor_height
     )
     deposit_proof = aergo_from.query_sc_state(
         bridge_from, [deposit_key + account_ref],
