@@ -252,9 +252,7 @@ class Wallet:
         asset_name: str,
         account_name: str = 'default',
         account_addr: str = None,
-        total_deposit: int = None,
-        pending: bool = False
-    ) -> int:
+    ) -> Tuple[int, int]:
         """ Get the balance that has been locked on one side of the
         bridge and not yet minted on the other side
         Calculates the difference between the total amount deposited and
@@ -271,13 +269,13 @@ class Wallet:
             'networks', to_chain, 'bridges', from_chain, 'addr')
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self._connect_aergo(to_chain)
-        withdrawable = bridge_withdrawable_balance(
+        withdrawable, pending = bridge_withdrawable_balance(
             account_addr, asset_address_origin, bridge_from, bridge_to,
-            aergo_from, aergo_to, True, total_deposit, pending
+            aergo_from, aergo_to, "_sv_Locks-", "_sv_Mints-"
         )
         aergo_from.disconnect()
         aergo_to.disconnect()
-        return withdrawable
+        return withdrawable, pending
 
     def get_unlockeable_balance(
         self,
@@ -286,9 +284,7 @@ class Wallet:
         asset_name: str,
         account_name: str = 'default',
         account_addr: str = None,
-        total_deposit: int = None,
-        pending: bool = False
-    ) -> int:
+    ) -> Tuple[int, int]:
         """ Get the balance that has been burnt on one side of the
         bridge and not yet unlocked on the other side
         Calculates the difference between the total amount deposited and
@@ -305,13 +301,13 @@ class Wallet:
             'networks', to_chain, 'bridges', from_chain, 'addr')
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self._connect_aergo(to_chain)
-        withdrawable = bridge_withdrawable_balance(
+        withdrawable, pending = bridge_withdrawable_balance(
             account_addr, asset_address_origin, bridge_from, bridge_to,
-            aergo_from, aergo_to, False, total_deposit, pending
+            aergo_from, aergo_to, "_sv_Burns-", "_sv_Unlocks-"
         )
         aergo_from.disconnect()
         aergo_to.disconnect()
-        return withdrawable
+        return withdrawable, pending
 
     def get_bridge_tempo(
         self,
@@ -735,11 +731,10 @@ class Wallet:
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
             privkey_pwd
         )
-        minteable = self.get_minteable_balance(
-            from_chain, to_chain, asset_name, account_addr=receiver,
-            pending=True
+        minteable, pending = self.get_minteable_balance(
+            from_chain, to_chain, asset_name, account_addr=receiver
         )
-        print("pending mint: ", minteable)
+        print("pending mint: ", minteable + pending)
         print("waiting finalisation ...")
         self.wait_finalization(from_chain)
 
@@ -769,11 +764,10 @@ class Wallet:
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
             privkey_pwd
         )
-        unlockeable = self.get_unlockeable_balance(
-            from_chain, to_chain, asset_name, account_addr=receiver,
-            pending=True
+        unlockeable, pending = self.get_unlockeable_balance(
+            from_chain, to_chain, asset_name, account_addr=receiver
         )
-        print("pending unlock: ", unlockeable)
+        print("pending unlock: ", unlockeable + pending)
         print("waiting finalisation ...")
         self.wait_finalization(from_chain)
 
