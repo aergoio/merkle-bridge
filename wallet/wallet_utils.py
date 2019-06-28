@@ -8,6 +8,9 @@ from typing import (
 
 import aergo.herapy as herapy
 
+from aergo.herapy.utils.encoding import (
+    decode_b58_check,
+)
 from aergo.herapy.utils.signature import (
     verify_sig,
 )
@@ -39,6 +42,10 @@ def get_balance(
     """ Get an account or the default wallet balance of Aer
     or any token on a given network.
     """
+    if not is_aergo_address(account_addr):
+        raise InvalidArgumentsError(
+            "Account {} must be an Aergo address".format(account_addr)
+        )
     balance = 0
     if asset_addr == "aergo":
         # query aergo bits on network_name
@@ -67,6 +74,10 @@ def transfer(
     """ Support 3 types of transfers : simple aer transfers, token transfer,
     and signed token transfers (token owner != tx signer)
     """
+    if not is_aergo_address(to):
+        raise InvalidArgumentsError(
+            "Receiver {} must be an Aergo address".format(to)
+        )
     aergo.get_account()  # get the latest nonce for making tx
     if asset_addr == "aergo":
         # transfer aer on network_name
@@ -325,6 +336,10 @@ def build_deposit_proof(
     """ Check the last anchored root includes the lock and build
     a lock proof for that root
     """
+    if not is_aergo_address(receiver):
+        raise InvalidArgumentsError(
+            "Receiver {} must be an Aergo address".format(receiver)
+        )
     # check last merged height
     anchor_info = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
     last_merged_height_to = int(anchor_info.var_proofs[0].value)
@@ -357,3 +372,15 @@ def build_deposit_proof(
             "No tokens deposited for this account reference: {}"
             .format(account_ref))
     return proof
+
+
+def is_aergo_address(address: str):
+    if address[0] != 'A':
+        return False
+    try:
+        decode_b58_check(address)
+    except ValueError:
+        return False
+    if len(address) != 52:
+        return False
+    return True

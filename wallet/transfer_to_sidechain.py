@@ -14,7 +14,8 @@ from wallet.exceptions import (
 )
 
 from wallet.wallet_utils import (
-    build_deposit_proof
+    build_deposit_proof,
+    is_aergo_address
 )
 
 COMMIT_TIME = 3
@@ -34,6 +35,10 @@ def lock(
         it supports delegated transfers when tx broadcaster is not
         the same as the token owner
     """
+    if not is_aergo_address(receiver):
+        raise InvalidArgumentsError(
+            "Receiver {} must be an Aergo address".format(receiver)
+        )
     if asset == "aergo":
         tx, result = aergo_from.call_sc(bridge_from, "lock",
                                         args=[receiver, str(value), asset],
@@ -88,6 +93,10 @@ def mint(
     fee_price: int
 ) -> Tuple[str, str]:
     """ Mint the receiver's deposit balance on aergo_to. """
+    if not is_aergo_address(receiver):
+        raise InvalidArgumentsError(
+            "Receiver {} must be an Aergo address".format(receiver)
+        )
     balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = lock_proof.var_proofs[0].auditPath
     ap = [node.hex() for node in auditPath]

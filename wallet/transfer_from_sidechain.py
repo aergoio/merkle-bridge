@@ -8,10 +8,12 @@ import aergo.herapy as herapy
 
 from wallet.exceptions import (
     TxError,
+    InvalidArgumentsError
 )
 
 from wallet.wallet_utils import (
-    build_deposit_proof
+    build_deposit_proof,
+    is_aergo_address,
 )
 
 COMMIT_TIME = 3
@@ -28,6 +30,10 @@ def burn(
     signed_transfer: Tuple[int, str, str, int] = None,
 ) -> Tuple[int, str]:
     """ Burn a minted token on a sidechain. """
+    if not is_aergo_address(receiver):
+        raise InvalidArgumentsError(
+            "Receiver {} must be an Aergo address".format(receiver)
+        )
     args = (receiver, str(value), token_pegged)
     if signed_transfer is not None:
         args = args + signed_transfer
@@ -77,6 +83,10 @@ def unlock(
     fee_price: int,
 ) -> str:
     """ Unlock the receiver's deposit balance on aergo_to. """
+    if not is_aergo_address(receiver):
+        raise InvalidArgumentsError(
+            "Receiver {} must be an Aergo address".format(receiver)
+        )
     balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = burn_proof.var_proofs[0].auditPath
     ap = [node.hex() for node in auditPath]
