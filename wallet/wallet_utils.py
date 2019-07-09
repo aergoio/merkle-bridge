@@ -56,6 +56,10 @@ def get_balance(
                                          ["_sv_Balances-" +
                                           account_addr]
                                          )
+        if not balance_q.account.state_proof.inclusion:
+            raise InvalidArgumentsError(
+                "Contract doesnt exist in state, check contract deployed and "
+                "chain synced {}".format(balance_q))
         if balance_q.var_proofs[0].inclusion:
             balance = json.loads(balance_q.var_proofs[0].value)['_bignum']
     return int(balance)
@@ -135,9 +139,16 @@ def get_signed_transfer(
                                           "_sv_Nonces-" + sender,
                                           "_sv_ContractID"
                                           ])
+    if not initial_state.account.state_proof.inclusion:
+        raise InvalidArgumentsError(
+            "Contract doesnt exist in state, check contract deployed and "
+            "chain synced {}".format(initial_state))
     balance_p, nonce_p, contractID_p = \
         [item.value for item in initial_state.var_proofs]
-    balance = int(json.loads(balance_p)["_bignum"])
+    try:
+        balance = int(json.loads(balance_p)["_bignum"])
+    except json.decoder.JSONDecodeError:
+        balance = 0
 
     try:
         nonce = int(nonce_p)
@@ -175,11 +186,18 @@ def verify_signed_transfer(
                                           "_sv_Nonces-" + sender,
                                           "_sv_ContractID"
                                           ])
+    if not current_state.account.state_proof.inclusion:
+        raise InvalidArgumentsError(
+            "Contract doesnt exist in state, check contract deployed and "
+            "chain synced {}".format(current_state))
     balance_p, nonce_p, contractID_p = \
         [item.value for item in current_state.var_proofs]
 
     # check balance
-    balance = int(json.loads(balance_p)["_bignum"])
+    try:
+        balance = int(json.loads(balance_p)["_bignum"])
+    except json.decoder.JSONDecodeError:
+        balance = 0
     if amount > balance:
         err = "Insufficient balance"
         return False, err
@@ -278,6 +296,10 @@ def bridge_withdrawable_balance(
         bridge_from, [deposit_key + account_ref],
         root=block_from.blocks_root_hash, compressed=False
     )
+    if not deposit_proof.account.state_proof.inclusion:
+        raise InvalidArgumentsError(
+            "Contract doesnt exist in state, check contract deployed and "
+            "chain synced {}".format(deposit_proof))
     total_deposit = 0
     if deposit_proof.var_proofs[0].inclusion:
         total_deposit = int(deposit_proof.var_proofs[0].value
@@ -288,9 +310,13 @@ def bridge_withdrawable_balance(
         bridge_to, ["_sv_Height", withdraw_key + account_ref],
         compressed=False
     )
+    if not withdraw_proof.account.state_proof.inclusion:
+        raise InvalidArgumentsError(
+            "Contract doesnt exist in state, check contract deployed and "
+            "chain synced {}".format(withdraw_proof))
     if not withdraw_proof.var_proofs[0].inclusion:
-        raise InvalidMerkleProofError("Cannot query last anchored height",
-                                      withdraw_proof)
+        raise InvalidArgumentsError("Cannot query last anchored height",
+                                    withdraw_proof)
     total_withdrawn = 0
     if withdraw_proof.var_proofs[1].inclusion:
         total_withdrawn = int(withdraw_proof.var_proofs[1].value
@@ -305,6 +331,10 @@ def bridge_withdrawable_balance(
         bridge_from, [deposit_key + account_ref],
         root=block_from.blocks_root_hash, compressed=False
     )
+    if not deposit_proof.account.state_proof.inclusion:
+        raise InvalidArgumentsError(
+            "Contract doesnt exist in state, check contract deployed and "
+            "chain synced {}".format(deposit_proof))
     anchored_deposit = 0
     if deposit_proof.var_proofs[0].inclusion:
         anchored_deposit = int(deposit_proof.var_proofs[0].value
@@ -342,6 +372,13 @@ def build_deposit_proof(
         )
     # check last merged height
     anchor_info = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    if not anchor_info.account.state_proof.inclusion:
+        raise InvalidArgumentsError(
+            "Contract doesnt exist in state, check contract deployed and "
+            "chain synced {}".format(anchor_info))
+    if not anchor_info.var_proofs[0].inclusion:
+        raise InvalidArgumentsError("Cannot query last anchored height",
+                                    anchor_info)
     last_merged_height_to = int(anchor_info.var_proofs[0].value)
     _, current_height = aergo_to.get_blockchain_status()
     # waite for anchor containing our transfer
@@ -367,6 +404,10 @@ def build_deposit_proof(
     if not proof.verify_proof(merge_block_from.blocks_root_hash):
         raise InvalidMerkleProofError("Unable to verify {} proof"
                                       .format(key_word))
+    if not proof.account.state_proof.inclusion:
+        raise InvalidMerkleProofError(
+            "Contract doesnt exist in state, check contract deployed and "
+            "chain synced {}".format(proof))
     if not proof.var_proofs[0].inclusion:
         raise InvalidMerkleProofError(
             "No tokens deposited for this account reference: {}"

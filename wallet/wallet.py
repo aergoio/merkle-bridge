@@ -338,6 +338,16 @@ class Wallet:
                                            ["_sv_T_anchor",
                                             "_sv_T_final",
                                             ])
+        if not bridge_info.account.state_proof.inclusion:
+            raise InvalidArgumentsError(
+                "Contract doesnt exist in state, check contract deployed and "
+                "chain synced {}".format(bridge_info))
+        if not bridge_info.var_proofs[0].inclusion:
+            raise InvalidArgumentsError("Cannot query T_anchor",
+                                        bridge_info)
+        if not bridge_info.var_proofs[1].inclusion:
+            raise InvalidArgumentsError("Cannot query T_final",
+                                        bridge_info)
         t_anchor, t_final = [int(item.value)
                              for item in bridge_info.var_proofs]
         aergo.disconnect()
