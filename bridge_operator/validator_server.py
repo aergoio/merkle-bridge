@@ -54,37 +54,37 @@ class ValidatorService(BridgeOperatorServicer):
         """
         with open(config_file_path, "r") as f:
             config_data = json.load(f)
-        self._aergo1 = herapy.Aergo()
-        self._aergo2 = herapy.Aergo()
+        self.aergo1 = herapy.Aergo()
+        self.aergo2 = herapy.Aergo()
 
         print("------ Connect AERGO -----------")
-        self._aergo1.connect(config_data['networks'][aergo1]['ip'])
-        self._aergo2.connect(config_data['networks'][aergo2]['ip'])
+        self.aergo1.connect(config_data['networks'][aergo1]['ip'])
+        self.aergo2.connect(config_data['networks'][aergo2]['ip'])
 
         self._validator_index = validator_index
-        self._addr1 = config_data['networks'][aergo1]['bridges'][aergo2]['addr']
-        self._addr2 = config_data['networks'][aergo2]['bridges'][aergo1]['addr']
-        self._id1 = config_data['networks'][aergo1]['bridges'][aergo2]['id']
-        self._id2 = config_data['networks'][aergo2]['bridges'][aergo1]['id']
+        self.addr1 = config_data['networks'][aergo1]['bridges'][aergo2]['addr']
+        self.addr2 = config_data['networks'][aergo2]['bridges'][aergo1]['addr']
+        self.id1 = config_data['networks'][aergo1]['bridges'][aergo2]['id']
+        self.id2 = config_data['networks'][aergo2]['bridges'][aergo1]['id']
 
         # check validators are correct
-        validators1 = query_validators(self._aergo1, self._addr1)
-        validators2 = query_validators(self._aergo2, self._addr2)
+        validators1 = query_validators(self.aergo1, self.addr1)
+        validators2 = query_validators(self.aergo2, self.addr2)
         assert validators1 == validators2, \
             "Validators should be the same on both sides of bridge"
         print("Bridge validators : ", validators1)
 
         # get the current t_anchor and t_final for both sides of bridge
-        self._t_anchor1, self._t_final1 = query_tempo(
-            self._aergo1, self._addr1, ["_sv_T_anchor", "_sv_T_final"]
+        self.t_anchor1, self.t_final1 = query_tempo(
+            self.aergo1, self.addr1, ["_sv_T_anchor", "_sv_T_final"]
         )
-        self._t_anchor2, self._t_final2 = query_tempo(
-            self._aergo2, self._addr2, ["_sv_T_anchor", "_sv_T_final"]
+        self.t_anchor2, self.t_final2 = query_tempo(
+            self.aergo2, self.addr2, ["_sv_T_anchor", "_sv_T_final"]
         )
         print("{}             <- {} (t_final={}) : t_anchor={}"
-              .format(aergo1, aergo2, self._t_final1, self._t_anchor1))
+              .format(aergo1, aergo2, self.t_final1, self.t_anchor1))
         print("{} (t_final={}) -> {}              : t_anchor={}"
-              .format(aergo1, self._t_final2, aergo2, self._t_anchor2))
+              .format(aergo1, self.t_final2, aergo2, self.t_anchor2))
 
         print("------ Set Signer Account -----------")
         if privkey_name is None:
@@ -94,8 +94,8 @@ class ValidatorService(BridgeOperatorServicer):
                                   "Password: ".format(privkey_name))
         sender_priv_key = \
             config_data['wallet'][privkey_name]['priv_key']
-        self._aergo1.import_account(sender_priv_key, privkey_pwd)
-        self.address = str(self._aergo1.account.address)
+        self.aergo1.import_account(sender_priv_key, privkey_pwd)
+        self.address = str(self.aergo1.account.address)
         print("  > Validator Address: {}".format(self.address))
 
     def GetAnchorSignature(self, anchor, context):
@@ -107,20 +107,20 @@ class ValidatorService(BridgeOperatorServicer):
         bridge_id = ""
         if anchor.is_from_mainnet:
             # aergo1 is considered to be mainnet side of bridge
-            err_msg = self.is_valid_anchor(anchor, self._aergo1,
-                                           self._addr1,
-                                           self._aergo2, self._addr2,
-                                           self._t_anchor2)
+            err_msg = self.is_valid_anchor(anchor, self.aergo1,
+                                           self.addr1,
+                                           self.aergo2, self.addr2,
+                                           self.t_anchor2)
             tab = "\t"*5
             destination = "sidechain"
-            bridge_id = self._id2
+            bridge_id = self.id2
         else:
-            err_msg = self.is_valid_anchor(anchor, self._aergo2,
-                                           self._addr2,
-                                           self._aergo1, self._addr1,
-                                           self._t_anchor1)
+            err_msg = self.is_valid_anchor(anchor, self.aergo2,
+                                           self.addr2,
+                                           self.aergo1, self.addr1,
+                                           self.t_anchor1)
             destination = "mainnet"
-            bridge_id = self._id1
+            bridge_id = self.id1
         if err_msg is not None:
             return Approval(error=err_msg)
 
@@ -130,7 +130,7 @@ class ValidatorService(BridgeOperatorServicer):
             + ',' + bridge_id + "R", 'utf-8'
         )
         h = hashlib.sha256(msg).digest()
-        sig = self._aergo1.account.private_key.sign_msg(h)
+        sig = self.aergo1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)
         print("{0}Validator {1} signed a new anchor for {2},\n"
               "{0}with nonce {3}"
@@ -201,6 +201,8 @@ class ValidatorServer:
         auto_update: bool = False,
     ) -> None:
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        with open("./config.json", "r") as f:
+            config_data = json.load(f)
         add_BridgeOperatorServicer_to_server(
             ValidatorService(config_file_path, aergo1, aergo2, privkey_name,
                              privkey_pwd, validator_index, auto_update),
