@@ -1,3 +1,4 @@
+import argparse
 from functools import (
     partial,
 )
@@ -16,7 +17,6 @@ from typing import (
     Optional,
     List,
     Any,
-    Dict
 )
 
 import aergo.herapy as herapy
@@ -53,17 +53,20 @@ class ProposerClient(threading.Thread):
 
     def __init__(
         self,
-        config_data: Dict,
+        config_file_path: str,
         aergo_from: str,
         aergo_to: str,
         is_from_mainnet: bool,
         privkey_name: str = None,
         privkey_pwd: str = None,
-        tab: str = ""
+        tab: str = "",
+        auto_update: bool = False
     ) -> None:
         threading.Thread.__init__(self)
         self.tab = tab
         self.is_from_mainnet = is_from_mainnet
+        with open(config_file_path, "r") as f:
+            config_data = json.load(f)
         self._config_data = config_data
 
         print("------ Connect AERGO -----------")
@@ -319,20 +322,20 @@ class BridgeProposerClient:
 
     def __init__(
         self,
-        config_data: Dict,
+        config_file_path: str,
         aergo_mainnet: str,
         aergo_sidechain: str,
         privkey_name: str = None,
         privkey_pwd: str = None,
-        tab: str = ""
+        auto_update: bool = False
     ) -> None:
         self.t_proposer1 = ProposerClient(
-            config_data, aergo_mainnet, aergo_sidechain, True, privkey_name,
-            privkey_pwd
+            config_file_path, aergo_mainnet, aergo_sidechain, True,
+            privkey_name, privkey_pwd, "", auto_update
         )
         self.t_proposer2 = ProposerClient(
-            config_data, aergo_sidechain, aergo_mainnet, False, privkey_name,
-            privkey_pwd, "\t"*5
+            config_file_path, aergo_sidechain, aergo_mainnet, False,
+            privkey_name, privkey_pwd, "\t"*5, auto_update
         )
 
     def run(self):
@@ -341,8 +344,28 @@ class BridgeProposerClient:
 
 
 if __name__ == '__main__':
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
+    parser = argparse.ArgumentParser(
+        description='Start a proposer between 2 Aergo networks.')
+    # Add arguments
+    parser.add_argument(
+        '-c', '--config_file_path', type=str, help='Path to config.json',
+        required=True)
+    parser.add_argument(
+        '--net1', type=str, help='Name of Aergo network in config file',
+        required=True)
+    parser.add_argument(
+        '--net2', type=str, help='Name of Aergo network in config file',
+        required=True)
+    parser.add_argument(
+        '--privkey_name', type=str, help='Name of account in config file '
+        'to sign anchors', required=False)
+    parser.add_argument(
+        '--auto_update', dest='auto_update', action='store_true',
+        help='Update bridge contract when settings change in config file')
+    parser.set_defaults(auto_update=False)
+    args = parser.parse_args()
     proposer = BridgeProposerClient(
-        config_data, 'mainnet', 'sidechain2', privkey_pwd='1234')
+        args.config_file_path, args.net1, args.net2,
+        privkey_name=args.privkey_name, auto_update=args.auto_update
+    )
     proposer.run()
