@@ -1,8 +1,6 @@
-.PHONY: install compile_bridge compile_token deploy_bridge proposer validator broadcaster protoc wallet deploy_token docker clean
+.PHONY: compile_bridge compile_token deploy_bridge proposer validator broadcaster protoc deploy_token docker clean
 
-install:
-	pip install git+ssh://git@github.com/aergoio/herapy.git@4aabc7d2cb45cdbf263a972f6f11857c13118a87
-	pip install pytest
+# Shortcuts for development and testing
 
 compile_bridge:
 	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/merkle_bridge.lua > contracts/bridge_bytecode.txt
@@ -11,7 +9,7 @@ compile_token:
 	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/standard_token.lua > contracts/token_bytecode.txt
 
 deploy_bridge:
-	python3 -m bridge_operator.bridge_deployer
+	python3 -m bridge_operator.bridge_deployer -c './config.json' --net1 'mainnet' --net2 'sidechain2' --t_anchor1 6 --t_final1 4 --t_anchor2 7 --t_final2 5 --privkey_name "proposer"
 
 proposer:
 	python3 -m bridge_operator.proposer_client
@@ -34,15 +32,11 @@ protoc:
 		--grpc_python_out=. \
 		./proto/broadcaster/*.proto
 
-
-#Below commands are simple tools for development only
-wallet:
-	python3 -m wallet.wallet
-
 deploy_token:
 	python3 -m wallet.token_deployer
 
 docker:
+	docker build --build-arg GIT_TAG=5a16373a3c535f77304709f725e10284dccfbea1 -t aergo/node ./docker
 	docker-compose -f ./docker/docker-compose.yml up
 
 clean:

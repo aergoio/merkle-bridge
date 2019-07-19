@@ -411,7 +411,7 @@ def build_deposit_proof(
     if not proof.var_proofs[0].inclusion:
         raise InvalidMerkleProofError(
             "No tokens deposited for this account reference: {}"
-            .format(account_ref))
+            .format(proof))
     return proof
 
 

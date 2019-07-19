@@ -1,10 +1,7 @@
+import argparse
 from getpass import getpass
 import json
 import time
-
-from typing import (
-    Dict,
-)
 
 import aergo.herapy as herapy
 
@@ -12,14 +9,15 @@ import aergo.herapy as herapy
 COMMIT_TIME = 3
 
 
-def run(
-    config_data: Dict,
+def deploy_bridge(
+    config_file_path: str,
     payload_str: str,
-    t_anchor_mainnet: int,
-    t_anchor_sidechain: int,
-    mainnet: str,
-    sidechain: str,
-    path: str = "./config.json",
+    t_anchor1: int,
+    t_final1: int,
+    t_anchor2: int,
+    t_final2: int,
+    net1: str,
+    net2: str,
     privkey_name: str = None,
     privkey_pwd: str = None
 ) -> None:
@@ -29,13 +27,15 @@ def run(
         privkey_pwd = getpass("Decrypt exported private key '{}'\nPassword: "
                               .format(privkey_name))
     payload = herapy.utils.decode_address(payload_str)
+    with open(config_file_path, "r") as f:
+        config_data = json.load(f)
     print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")
     aergo1 = herapy.Aergo()
     aergo2 = herapy.Aergo()
 
     print("------ Connect AERGO -----------")
-    aergo1.connect(config_data['networks'][mainnet]['ip'])
-    aergo2.connect(config_data['networks'][sidechain]['ip'])
+    aergo1.connect(config_data['networks'][net1]['ip'])
+    aergo2.connect(config_data['networks'][net2]['ip'])
 
     status1 = aergo1.get_status()
     status2 = aergo2.get_status()
@@ -43,10 +43,10 @@ def run(
     height2 = status2.best_block_height
     lib1 = status1.consensus_info.status['LibNo']
     lib2 = status2.consensus_info.status['LibNo']
-    # mainnet finalization time
-    t_final_mainnet = height1 - lib1
-    # sidechain finalization time
-    t_final_sidechain = height2 - lib2
+    # net1 finalization time
+    t_final1 = height1 - lib1
+    # net2 finalization time
+    t_final2 = height2 - lib2
 
     print("------ Set Sender Account -----------")
     sender_priv_key1 = config_data['wallet'][privkey_name]['priv_key']
@@ -64,13 +64,13 @@ def run(
     tx1, result1 = aergo1.deploy_sc(amount=0,
                                     payload=payload,
                                     args=[validators,
-                                          t_anchor_mainnet,
-                                          t_final_mainnet])
+                                          t_anchor1,
+                                          t_final1])
     tx2, result2 = aergo2.deploy_sc(amount=0,
                                     payload=payload,
                                     args=[validators,
-                                          t_anchor_sidechain,
-                                          t_final_sidechain])
+                                          t_anchor2,
+                                          t_final2])
     if result1.status != herapy.CommitStatus.TX_OK:
         print("    > ERROR[{0}]: {1}"
               .format(result1.status, result1.detail))
@@ -117,26 +117,26 @@ def run(
     print("  > SC Address CHAIN2: {}".format(sc_address2))
 
     print("------ Store bridge addresses in config.json  -----------")
-    config_data['networks'][mainnet]['bridges'][sidechain] = {}
-    config_data['networks'][sidechain]['bridges'][mainnet] = {}
-    config_data['networks'][mainnet]['bridges'][sidechain]['addr'] = sc_address1
-    config_data['networks'][sidechain]['bridges'][mainnet]['addr'] = sc_address2
-    config_data['networks'][mainnet]['bridges'][sidechain]['id'] = sc_id1
-    config_data['networks'][sidechain]['bridges'][mainnet]['id'] = sc_id2
-    config_data['networks'][mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor_mainnet
-    config_data['networks'][mainnet]['bridges'][sidechain]['t_final'] = t_final_sidechain
-    config_data['networks'][sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor_sidechain
-    config_data['networks'][sidechain]['bridges'][mainnet]['t_final'] = t_final_mainnet
+    config_data['networks'][net1]['bridges'][net2] = {}
+    config_data['networks'][net2]['bridges'][net1] = {}
+    config_data['networks'][net1]['bridges'][net2]['addr'] = sc_address1
+    config_data['networks'][net2]['bridges'][net1]['addr'] = sc_address2
+    config_data['networks'][net1]['bridges'][net2]['id'] = sc_id1
+    config_data['networks'][net2]['bridges'][net1]['id'] = sc_id2
+    config_data['networks'][net1]['bridges'][net2]['t_anchor'] = t_anchor1
+    config_data['networks'][net1]['bridges'][net2]['t_final'] = t_final2
+    config_data['networks'][net2]['bridges'][net1]['t_anchor'] = t_anchor2
+    config_data['networks'][net2]['bridges'][net1]['t_final'] = t_final1
     try:
-        config_data['networks'][mainnet]['tokens']['aergo']
+        config_data['networks'][net1]['tokens']['aergo']
     except KeyError:
         pass
     else:
         # this is a new bridge, so remove any old pegged aergo with same name
         # bridge
-        config_data['networks'][mainnet]['tokens']['aergo']['pegs'] = {}
+        config_data['networks'][net1]['tokens']['aergo']['pegs'] = {}
 
-    with open(path, "w") as f:
+    with open(config_file_path, "w") as f:
         json.dump(config_data, f, indent=4, sort_keys=True)
 
     print("------ Disconnect AERGO -----------")
@@ -145,14 +145,38 @@ def run(
 
 
 if __name__ == '__main__':
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
-    with open("./contracts/bridge_bytecode.txt", "r") as f:
+    with open("contracts/bridge_bytecode.txt", "r") as f:
         payload_str = f.read()[:-1]
-    # NOTE t_final is the minimum time to get lib : only informative (not
-    # actually used in code except for Eth bridge because Eth doesn't have LIB)
-    t_anchor_mainnet = 25  # sidechain anchoring periord on mainnet
-    t_anchor_sidechain = 10  # mainnet anchoring periord on sidechain
-    run(config_data, payload_str,
-        t_anchor_mainnet, t_anchor_sidechain,
-        'mainnet', 'sidechain2')
+    parser = argparse.ArgumentParser(
+        description='Deploy bridge contracts between 2 Aergo networks.')
+    # Add arguments
+    parser.add_argument(
+        '-c', '--config_file_path', type=str, help='Path to config.json',
+        required=True)
+    parser.add_argument(
+        '--net1', type=str, required=True,
+        help='Name of Aergo network in config file')
+    parser.add_argument(
+        '--net2', type=str, required=True,
+        help='Name of Aergo network in config file')
+    parser.add_argument(
+        '--t_anchor1', type=int, required=True,
+        help='Anchoring periode (in Aergo blocks) of net2 on net1')
+    parser.add_argument(
+        '--t_final1', type=int, required=True,
+        help='Finality of net2 (in Aergo blocks) root anchored on net1')
+    parser.add_argument(
+        '--t_anchor2', type=int, required=True,
+        help='Anchoring periode (in Aergo blocks) of net1 on net2')
+    parser.add_argument(
+        '--t_final2', type=int, required=True,
+        help='Finality of net1 (in Aergo blocks) root anchored on net2')
+    parser.add_argument(
+        '--privkey_name', type=str, help='Name of account in config file '
+        'to sign anchors', required=False)
+
+    args = parser.parse_args()
+
+    deploy_bridge(args.config_file_path, payload_str,
+                  args.t_anchor1, args.t_final1, args.t_anchor2, args.t_final2,
+                  args.net1, args.net2, privkey_name=args.privkey_name)
