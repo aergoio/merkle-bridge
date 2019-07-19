@@ -15,7 +15,7 @@ proposer:
 	python3 -m bridge_operator.proposer_client
 
 validator:
-	python3 -m bridge_operator.validator_server
+	python3 -m bridge_operator.validator_server -c './config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update --local_test
 
 broadcaster:
 	python3 -m broadcaster.broadcaster_server

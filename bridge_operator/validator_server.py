@@ -1,3 +1,4 @@
+import argparse
 from concurrent import (
     futures,
 )
@@ -15,7 +16,6 @@ import time
 
 from typing import (
     Optional,
-    Dict,
 )
 
 import aergo.herapy as herapy
@@ -40,17 +40,20 @@ class ValidatorService(BridgeOperatorServicer):
 
     def __init__(
         self,
-        config_data: Dict,
+        config_file_path: str,
         aergo1: str,
         aergo2: str,
         privkey_name: str = None,
         privkey_pwd: str = None,
-        validator_index: int = 0
+        validator_index: int = 0,
+        auto_update: bool = False,
     ) -> None:
         """
         aergo1 is considered to be the mainnet side of the bridge.
         Proposers should set anchor.is_from_mainnet accordingly
         """
+        with open(config_file_path, "r") as f:
+            config_data = json.load(f)
         self._aergo1 = herapy.Aergo()
         self._aergo2 = herapy.Aergo()
 
@@ -194,14 +197,13 @@ class ValidatorServer:
         aergo2: str,
         privkey_name: str = None,
         privkey_pwd: str = None,
-        validator_index: int = 0
+        validator_index: int = 0,
+        auto_update: bool = False,
     ) -> None:
-        with open(config_file_path, "r") as f:
-            config_data = json.load(f)
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         add_BridgeOperatorServicer_to_server(
-            ValidatorService(config_data, aergo1, aergo2, privkey_name,
-                             privkey_pwd, validator_index),
+            ValidatorService(config_file_path, aergo1, aergo2, privkey_name,
+                             privkey_pwd, validator_index, auto_update),
             self.server)
         self.server.add_insecure_port(config_data['validators']
                                       [validator_index]['ip'])
@@ -241,9 +243,43 @@ def _serve_all(config_file_path, aergo1, aergo2,
 
 
 if __name__ == '__main__':
-    with open("./config.json", "r") as f:
-        config_data = json.load(f)
-    # validator = ValidatorServer("./config.json", 'mainnet', 'sidechain2')
-    # validator.run()
-    _serve_all("./config.json", 'mainnet', 'sidechain2',
-               privkey_name='validator', privkey_pwd='1234')
+    parser = argparse.ArgumentParser(
+        description='Start a validator between 2 Aergo networks.')
+    # Add arguments
+    parser.add_argument(
+        '-c', '--config_file_path', type=str, help='Path to config.json',
+        required=True)
+    parser.add_argument(
+        '--net1', type=str, help='Name of Aergo network in config file',
+        required=True)
+    parser.add_argument(
+        '--net2', type=str, help='Name of Aergo network in config file',
+        required=True)
+    parser.add_argument(
+        '-i', '--validator_index', type=int, required=True,
+        help='Index of the validator in the ordered list of validators')
+    parser.add_argument(
+        '--privkey_name', type=str, help='Name of account in config file '
+        'to sign anchors', required=False)
+    parser.add_argument(
+        '--auto_update', dest='auto_update', action='store_true',
+        help='Update bridge contract when settings change in config file')
+    parser.add_argument(
+        '--local_test', dest='local_test', action='store_true',
+        help='Start all validators locally for convenient testing')
+    parser.set_defaults(auto_update=False)
+    parser.set_defaults(local_test=False)
+
+    args = parser.parse_args()
+
+    if args.local_test:
+        _serve_all(args.config_file_path, args.net1, args.net2,
+                   privkey_name=args.privkey_name, privkey_pwd='1234')
+    else:
+        validator = ValidatorServer(
+            args.config_file_path, args.net1, args.net2,
+            privkey_name=args.privkey_name,
+            validator_index=args.validator_index,
+            auto_update=args.auto_update
+        )
+        validator.run()
