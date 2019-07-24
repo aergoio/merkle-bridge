@@ -12,7 +12,7 @@ deploy_bridge:
 	python3 -m bridge_operator.bridge_deployer -c './config.json' --net1 'mainnet' --net2 'sidechain2' --t_anchor1 6 --t_final1 4 --t_anchor2 7 --t_final2 5 --privkey_name "proposer"
 
 proposer:
-	python3 -m bridge_operator.proposer_client
+	python3 -m bridge_operator.proposer_client -c './config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update
 
 validator:
 	python3 -m bridge_operator.validator_server -c './config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update --local_test
