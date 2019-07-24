@@ -37,17 +37,6 @@ def deploy_bridge(
     aergo1.connect(config_data['networks'][net1]['ip'])
     aergo2.connect(config_data['networks'][net2]['ip'])
 
-    status1 = aergo1.get_status()
-    status2 = aergo2.get_status()
-    height1 = status1.best_block_height
-    height2 = status2.best_block_height
-    lib1 = status1.consensus_info.status['LibNo']
-    lib2 = status2.consensus_info.status['LibNo']
-    # net1 finalization time
-    t_final1 = height1 - lib1
-    # net2 finalization time
-    t_final2 = height2 - lib2
-
     print("------ Set Sender Account -----------")
     sender_priv_key1 = config_data['wallet'][privkey_name]['priv_key']
     sender_priv_key2 = config_data['wallet'][privkey_name]['priv_key']
@@ -124,9 +113,9 @@ def deploy_bridge(
     config_data['networks'][net1]['bridges'][net2]['id'] = sc_id1
     config_data['networks'][net2]['bridges'][net1]['id'] = sc_id2
     config_data['networks'][net1]['bridges'][net2]['t_anchor'] = t_anchor1
-    config_data['networks'][net1]['bridges'][net2]['t_final'] = t_final2
+    config_data['networks'][net1]['bridges'][net2]['t_final'] = t_final1
     config_data['networks'][net2]['bridges'][net1]['t_anchor'] = t_anchor2
-    config_data['networks'][net2]['bridges'][net1]['t_final'] = t_final1
+    config_data['networks'][net2]['bridges'][net1]['t_final'] = t_final2
     try:
         config_data['networks'][net1]['tokens']['aergo']
     except KeyError:
