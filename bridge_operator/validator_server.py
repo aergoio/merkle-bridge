@@ -16,6 +16,7 @@ import time
 
 from typing import (
     Optional,
+    Dict,
 )
 
 import aergo.herapy as herapy
@@ -52,34 +53,37 @@ class ValidatorService(BridgeOperatorServicer):
         aergo1 is considered to be the mainnet side of the bridge.
         Proposers should set anchor.is_from_mainnet accordingly
         """
-        with open(config_file_path, "r") as f:
-            config_data = json.load(f)
-        self.aergo1 = herapy.Aergo()
-        self.aergo2 = herapy.Aergo()
+        self.config_file_path = config_file_path
+        config_data = self.load_config_data()
+        self.aergo1 = aergo1
+        self.aergo2 = aergo2
+        self.hera1 = herapy.Aergo()
+        self.hera2 = herapy.Aergo()
+        self.auto_update = auto_update
 
         print("------ Connect AERGO -----------")
-        self.aergo1.connect(config_data['networks'][aergo1]['ip'])
-        self.aergo2.connect(config_data['networks'][aergo2]['ip'])
+        self.hera1.connect(config_data['networks'][aergo1]['ip'])
+        self.hera2.connect(config_data['networks'][aergo2]['ip'])
 
-        self._validator_index = validator_index
+        self.validator_index = validator_index
         self.addr1 = config_data['networks'][aergo1]['bridges'][aergo2]['addr']
         self.addr2 = config_data['networks'][aergo2]['bridges'][aergo1]['addr']
         self.id1 = config_data['networks'][aergo1]['bridges'][aergo2]['id']
         self.id2 = config_data['networks'][aergo2]['bridges'][aergo1]['id']
 
         # check validators are correct
-        validators1 = query_validators(self.aergo1, self.addr1)
-        validators2 = query_validators(self.aergo2, self.addr2)
+        validators1 = query_validators(self.hera1, self.addr1)
+        validators2 = query_validators(self.hera2, self.addr2)
         assert validators1 == validators2, \
             "Validators should be the same on both sides of bridge"
         print("Bridge validators : ", validators1)
 
         # get the current t_anchor and t_final for both sides of bridge
         self.t_anchor1, self.t_final1 = query_tempo(
-            self.aergo1, self.addr1, ["_sv_T_anchor", "_sv_T_final"]
+            self.hera1, self.addr1, ["_sv_T_anchor", "_sv_T_final"]
         )
         self.t_anchor2, self.t_final2 = query_tempo(
-            self.aergo2, self.addr2, ["_sv_T_anchor", "_sv_T_final"]
+            self.hera2, self.addr2, ["_sv_T_anchor", "_sv_T_final"]
         )
         print("{}             <- {} (t_final={}) : t_anchor={}"
               .format(aergo1, aergo2, self.t_final1, self.t_anchor1))
@@ -94,8 +98,9 @@ class ValidatorService(BridgeOperatorServicer):
                                   "Password: ".format(privkey_name))
         sender_priv_key = \
             config_data['wallet'][privkey_name]['priv_key']
-        self.aergo1.import_account(sender_priv_key, privkey_pwd)
-        self.address = str(self.aergo1.account.address)
+        self.hera1.import_account(sender_priv_key, privkey_pwd)
+        self.hera2.import_account(sender_priv_key, privkey_pwd)
+        self.address = str(self.hera1.account.address)
         print("  > Validator Address: {}".format(self.address))
 
     def GetAnchorSignature(self, anchor, context):
@@ -107,18 +112,16 @@ class ValidatorService(BridgeOperatorServicer):
         bridge_id = ""
         if anchor.is_from_mainnet:
             # aergo1 is considered to be mainnet side of bridge
-            err_msg = self.is_valid_anchor(anchor, self.aergo1,
+            err_msg = self.is_valid_anchor(anchor, self.hera1,
                                            self.addr1,
-                                           self.aergo2, self.addr2,
-                                           self.t_anchor2)
+                                           self.hera2, self.addr2)
             tab = "\t"*5
             destination = "sidechain"
             bridge_id = self.id2
         else:
-            err_msg = self.is_valid_anchor(anchor, self.aergo2,
+            err_msg = self.is_valid_anchor(anchor, self.hera2,
                                            self.addr2,
-                                           self.aergo1, self.addr1,
-                                           self.t_anchor1)
+                                           self.hera1, self.addr1)
             destination = "mainnet"
             bridge_id = self.id1
         if err_msg is not None:
@@ -126,15 +129,15 @@ class ValidatorService(BridgeOperatorServicer):
 
         # sign anchor and return approval
         msg = bytes(
-            anchor.root + ',' + anchor.height + ',' + anchor.destination_nonce
-            + ',' + bridge_id + "R", 'utf-8'
+            anchor.root + ',' + anchor.height + anchor.destination_nonce
+            + bridge_id + "R", 'utf-8'
         )
         h = hashlib.sha256(msg).digest()
-        sig = self.aergo1.account.private_key.sign_msg(h)
+        sig = self.hera1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)
         print("{0}Validator {1} signed a new anchor for {2},\n"
               "{0}with nonce {3}"
-              .format(tab, self._validator_index, destination,
+              .format(tab, self.validator_index, destination,
                       anchor.destination_nonce))
         return approval
 
@@ -145,7 +148,6 @@ class ValidatorService(BridgeOperatorServicer):
         bridge_from: str,
         aergo_to: herapy.Aergo,
         bridge_to: str,
-        t_anchor: int
     ) -> Optional[str]:
         """ An anchor is valid if :
             1- it's height is finalized
@@ -170,10 +172,11 @@ class ValidatorService(BridgeOperatorServicer):
             print("root to sign doesnt match expected root\n", anchor)
             return "root to sign doesnt match expected root"
 
-        merge_info = aergo_to.query_sc_state(bridge_to, ["_sv_Nonce",
-                                                         "_sv_Height"])
-        last_nonce_to, last_merged_height_from = \
-            [int(proof.value) for proof in merge_info.var_proofs]
+        status = aergo_to.query_sc_state(bridge_to, ["_sv_Nonce",
+                                                     "_sv_Height",
+                                                     "_sv_T_anchor"])
+        last_nonce_to, last_merged_height_from, t_anchor = \
+            [int(proof.value) for proof in status.var_proofs]
 
         # 3- check merkle bridge nonces are correct
         if last_nonce_to != int(anchor.destination_nonce):
@@ -187,6 +190,150 @@ class ValidatorService(BridgeOperatorServicer):
                   "must be higher than previous merge + t_anchor\n", anchor)
             return "root update height is invalid"
         return None
+
+    def load_config_data(self) -> Dict:
+        with open(self.config_file_path, "r") as f:
+            config_data = json.load(f)
+        return config_data
+
+    def GetTAnchorSignature(self, tempo_msg, context):
+        """Get a vote(signature) from the validator to update the t_anchor
+        setting in the Aergo bridge contract
+
+        """
+        if tempo_msg.is_from_mainnet:
+            current_tempo = query_tempo(self.hera2, self.addr2,
+                                        ["_sv_T_final"])
+            return self.get_tempo(
+                self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
+                tempo_msg, 't_anchor', "A", current_tempo, "\t"*5)
+        else:
+            current_tempo = query_tempo(self.hera1, self.addr1,
+                                        ["_sv_T_final"])
+            return self.get_tempo(
+                self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
+                tempo_msg, 't_anchor', "A", current_tempo, "")
+
+    def GetTFinalSignature(self, tempo_msg, context):
+        """Get a vote(signature) from the validator to update the t_final
+        setting in the Aergo bridge contract
+
+        """
+        if tempo_msg.is_from_mainnet:
+            current_tempo = query_tempo(self.hera2, self.addr2,
+                                        ["_sv_T_final"])
+            return self.get_tempo(
+                self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
+                tempo_msg, 't_final', "F", current_tempo, "\t"*5)
+        else:
+            current_tempo = query_tempo(self.hera1, self.addr1,
+                                        ["_sv_T_final"])
+            return self.get_tempo(
+                self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
+                tempo_msg, 't_final', "F", current_tempo, "")
+
+    def get_tempo(
+        self,
+        hera: herapy.Aergo,
+        aergo_from: str,
+        aergo_to: str,
+        bridge_to: str,
+        id_to: str,
+        tempo_msg,
+        tempo_str,
+        tempo_id,
+        current_tempo,
+        tab
+    ):
+        if not self.auto_update:
+            return Approval(error="Voting not enabled")
+        # check destination nonce is correct
+        nonce = int(hera.query_sc_state(
+            bridge_to, ["_sv_Nonce"]
+        ).var_proofs[0].value)
+        if nonce != tempo_msg.destination_nonce:
+            return Approval(error="Incorrect Nonce on {}".format(aergo_to))
+        config_data = self.load_config_data()
+        tempo = (config_data['networks'][aergo_to]['bridges']
+                 [aergo_from][tempo_str])
+        # check new tempo is different from current one to prevent
+        # update spamming
+        if current_tempo == tempo:
+            return Approval(
+                error="New {} is same as current one on {}"
+                      .format(tempo_str, aergo_to))
+        # check tempo matches the one in config
+        if tempo != tempo_msg.tempo:
+            return Approval(
+                error="Refused to vote for this {}: {} on {}"
+                      .format(tempo_str, tempo_msg.tempo, aergo_to)
+            )
+        # sign anchor and return approval
+        msg = bytes(
+            str(tempo) + str(nonce) + id_to + tempo_id,
+            'utf-8'
+        )
+        h = hashlib.sha256(msg).digest()
+        sig = hera.account.private_key.sign_msg(h)
+        approval = Approval(address=self.address, sig=sig)
+        print("{0}{1} Validator {2} signed a new {3} for {4},\n"
+              "{0}with nonce {5}"
+              .format(tab, u'\u231B', self.validator_index, tempo_str,
+                      aergo_to, tempo_msg.destination_nonce))
+        return approval
+
+    def GetValidatorsSignature(self, val_msg, context):
+        if val_msg.is_from_mainnet:
+            return self.get_validators(
+                self.hera2, self.addr2, self.id2,
+                val_msg, "\t"*5)
+        else:
+            return self.get_validators(
+                self.hera1, self.addr1, self.id1,
+                val_msg, "")
+
+    def get_validators(
+        self,
+        hera: herapy.Aergo,
+        bridge_to: str,
+        id_to: str,
+        val_msg,
+        tab
+    ):
+        if not self.auto_update:
+            return Approval(error="Voting not enabled")
+        # check destination nonce is correct
+        nonce = int(
+            hera.query_sc_state(
+                bridge_to, ["_sv_Nonce"]).var_proofs[0].value
+        )
+        if nonce != val_msg.destination_nonce:
+            return Approval(error="Incorrect Nonce")
+        config_data = self.load_config_data()
+        config_vals = [val['addr'] for val in config_data['validators']]
+        # check new validators are different from current ones to prevent
+        # update spamming
+        current_validators = query_validators(hera, bridge_to)
+        if current_validators == config_vals:
+            return Approval(error="New validators are same as current ones")
+        # check validators are same in config file
+        if config_vals != val_msg.validators:
+            return Approval(error="Refused to vote for this validator "
+                                  "set: {}".format(val_msg.validators))
+        # sign validators
+        data = ""
+        for val in config_vals:
+            data += val
+        data += str(nonce) + id_to + "V"
+        data_bytes = bytes(data, 'utf-8')
+        h = hashlib.sha256(data_bytes).digest()
+        sig = hera.account.private_key.sign_msg(h)
+        approval = Approval(address=self.address, sig=sig)
+        print("{0}{1} Validator {2} signed a new validator set for {3},\n"
+              "{0}with nonce {4}"
+              .format(tab, u'\U0001f58b', self.validator_index, "Aergo",
+                      val_msg.destination_nonce))
+        return approval
 
 
 class ValidatorServer:
@@ -237,7 +384,7 @@ def _serve_all(config_file_path, aergo1, aergo2,
         config_data = json.load(f)
     validator_indexes = [i for i in range(len(config_data['validators']))]
     servers = [ValidatorServer(config_file_path, aergo1, aergo2,
-                               privkey_name, privkey_pwd, index)
+                               privkey_name, privkey_pwd, index, True)
                for index in validator_indexes]
     worker = partial(_serve_worker, servers)
     pool = Pool(len(validator_indexes))

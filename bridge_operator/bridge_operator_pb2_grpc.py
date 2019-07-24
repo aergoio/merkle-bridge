@@ -19,6 +19,21 @@ class BridgeOperatorStub(object):
         request_serializer=bridge__operator_dot_bridge__operator__pb2.Anchor.SerializeToString,
         response_deserializer=bridge__operator_dot_bridge__operator__pb2.Approval.FromString,
         )
+    self.GetTAnchorSignature = channel.unary_unary(
+        '/BridgeOperator/GetTAnchorSignature',
+        request_serializer=bridge__operator_dot_bridge__operator__pb2.NewTempo.SerializeToString,
+        response_deserializer=bridge__operator_dot_bridge__operator__pb2.Approval.FromString,
+        )
+    self.GetTFinalSignature = channel.unary_unary(
+        '/BridgeOperator/GetTFinalSignature',
+        request_serializer=bridge__operator_dot_bridge__operator__pb2.NewTempo.SerializeToString,
+        response_deserializer=bridge__operator_dot_bridge__operator__pb2.Approval.FromString,
+        )
+    self.GetValidatorsSignature = channel.unary_unary(
+        '/BridgeOperator/GetValidatorsSignature',
+        request_serializer=bridge__operator_dot_bridge__operator__pb2.NewValidators.SerializeToString,
+        response_deserializer=bridge__operator_dot_bridge__operator__pb2.Approval.FromString,
+        )
 
 
 class BridgeOperatorServicer(object):
@@ -32,12 +47,48 @@ class BridgeOperatorServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def GetTAnchorSignature(self, request, context):
+    """Get signature to update anchoring periode
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def GetTFinalSignature(self, request, context):
+    """Get signature to update finality
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
+  def GetValidatorsSignature(self, request, context):
+    """Get signature to update validators of anchors
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
 
 def add_BridgeOperatorServicer_to_server(servicer, server):
   rpc_method_handlers = {
       'GetAnchorSignature': grpc.unary_unary_rpc_method_handler(
           servicer.GetAnchorSignature,
           request_deserializer=bridge__operator_dot_bridge__operator__pb2.Anchor.FromString,
+          response_serializer=bridge__operator_dot_bridge__operator__pb2.Approval.SerializeToString,
+      ),
+      'GetTAnchorSignature': grpc.unary_unary_rpc_method_handler(
+          servicer.GetTAnchorSignature,
+          request_deserializer=bridge__operator_dot_bridge__operator__pb2.NewTempo.FromString,
+          response_serializer=bridge__operator_dot_bridge__operator__pb2.Approval.SerializeToString,
+      ),
+      'GetTFinalSignature': grpc.unary_unary_rpc_method_handler(
+          servicer.GetTFinalSignature,
+          request_deserializer=bridge__operator_dot_bridge__operator__pb2.NewTempo.FromString,
+          response_serializer=bridge__operator_dot_bridge__operator__pb2.Approval.SerializeToString,
+      ),
+      'GetValidatorsSignature': grpc.unary_unary_rpc_method_handler(
+          servicer.GetValidatorsSignature,
+          request_deserializer=bridge__operator_dot_bridge__operator__pb2.NewValidators.FromString,
           response_serializer=bridge__operator_dot_bridge__operator__pb2.Approval.SerializeToString,
       ),
   }
