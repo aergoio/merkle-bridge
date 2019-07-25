@@ -404,6 +404,7 @@ class Wallet:
         tx_hash = transfer(value, to, asset_addr, aergo, sender, fee_limit,
                            self.fee_price)
         aergo.disconnect()
+        print("Transfer success: ", tx_hash)
         return tx_hash
 
     def _d_transfer(
@@ -798,6 +799,7 @@ class Wallet:
     ) -> Tuple[int, str]:
         """ Initiate a transfer to a sidechain by locking the asset.
         """
+        print('\n' + from_chain + ' -> ' + to_chain)
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
         sender = str(aergo_from.account.address)
         if receiver is None:
@@ -829,17 +831,17 @@ class Wallet:
                 err = "not enough aer balance to pay tx fee"
                 raise InsufficientBalanceError(err)
 
-        print("{} balance on origin before transfer: {}"
+        print("\U0001f4b0 {} balance on origin before transfer: {}"
               .format(asset_name, balance/10**18))
 
-        print("\n\n------ Lock {} -----------".format(asset_name))
         lock_height, tx_hash = lock(aergo_from, bridge_from,
                                     receiver, amount, asset_address, fee_limit,
                                     self.fee_price, signed_transfer)
+        print('\U0001f512 Lock success: ', tx_hash)
 
         # remaining balance on origin : aer or asset
         balance = get_balance(sender, asset_address, aergo_from)
-        print("remaining {} balance on origin after transfer: {}"
+        print("\U0001f4b0 remaining {} balance on origin after transfer: {}"
               .format(asset_name, balance/10**18))
 
         aergo_from.disconnect()
@@ -863,6 +865,7 @@ class Wallet:
         already minted amount.
         Bridge tempo is taken from config_data
         """
+        print('\n' + from_chain + ' -> ' + to_chain)
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self.get_aergo(to_chain, privkey_name, privkey_pwd)
         tx_sender = str(aergo_to.account.address)
@@ -879,7 +882,7 @@ class Wallet:
             token_pegged = self.config_data(
                 'networks', from_chain, 'tokens', asset_name, 'pegs', to_chain)
             balance = get_balance(receiver, token_pegged, aergo_to)
-            print("{} balance on destination before transfer : {}"
+            print("\U0001f4b0 {} balance on destination before transfer : {}"
                   .format(asset_name, balance/10**18))
         except KeyError:
             print("Pegged token unknow by wallet")
@@ -891,20 +894,19 @@ class Wallet:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
-        print("\n------ Get lock proof -----------")
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
                                       asset_address)
-        print("\n\n------ Mint {} on destination blockchain -----------"
-              .format(asset_name))
+        print("\u2699 Built lock proof")
         token_pegged, tx_hash = mint(
             aergo_to, receiver, lock_proof, asset_address, bridge_to,
             fee_limit, self.fee_price
         )
+        print('\u26cf Mint success: ', tx_hash)
 
         # new balance on sidechain
         balance = get_balance(receiver, token_pegged, aergo_to)
-        print("{} balance on destination after transfer : {}"
+        print("\U0001f4b0 {} balance on destination after transfer : {}"
               .format(asset_name, balance/10**18))
 
         aergo_from.disconnect()
@@ -931,6 +933,7 @@ class Wallet:
     ) -> Tuple[int, str]:
         """ Initiate a transfer from a sidechain by burning the assets.
         """
+        print('\n' + from_chain + ' -> ' + to_chain)
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
         sender = str(aergo_from.account.address)
         if receiver is None:
@@ -940,7 +943,7 @@ class Wallet:
         token_pegged = self.config_data(
             'networks', to_chain, 'tokens', asset_name, 'pegs', from_chain)
         balance = get_balance(sender, token_pegged, aergo_from)
-        print("{} balance on sidechain before transfer: {}"
+        print("\U0001f4b0 {} balance on sidechain before transfer: {}"
               .format(asset_name, balance/10**18))
         if balance < amount:
             raise InsufficientBalanceError("not enough balance")
@@ -951,13 +954,13 @@ class Wallet:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
-        print("\n\n------ Burn {}-----------".format(asset_name))
         burn_height, tx_hash = burn(aergo_from, bridge_from, receiver, amount,
                                     token_pegged, fee_limit, self.fee_price)
+        print('\U0001f525 Burn success: ', tx_hash)
 
         # remaining balance on sidechain
         balance = get_balance(sender, token_pegged, aergo_from)
-        print("remaining {} balance on sidechain after transfer: {}"
+        print("\U0001f4b0 remaining {} balance on sidechain after transfer: {}"
               .format(asset_name, balance/10**18))
 
         aergo_from.disconnect()
@@ -982,6 +985,7 @@ class Wallet:
         already unlocked amount.
         Bridge tempo is taken from config_data
         """
+        print('\n' + from_chain + ' -> ' + to_chain)
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self.get_aergo(to_chain, privkey_name, privkey_pwd)
         tx_sender = str(aergo_to.account.address)
@@ -994,15 +998,13 @@ class Wallet:
         asset_address = self.config_data(
             'networks', to_chain, 'tokens', asset_name, 'addr')
 
-        print("\n------ Get burn proof -----------")
         burn_proof = build_burn_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, burn_height,
                                       asset_address)
+        print("\u2699 Built burn proof")
 
-        print("\n\n------ Unlock {} on origin blockchain -----------"
-              .format(asset_name))
         balance = get_balance(receiver, asset_address, aergo_to)
-        print("{} balance on destination before transfer: {}"
+        print("\U0001f4b0 {} balance on destination before transfer: {}"
               .format(asset_name, balance/10**18))
 
         fee_limit = 0
@@ -1013,10 +1015,11 @@ class Wallet:
 
         tx_hash = unlock(aergo_to, receiver, burn_proof, asset_address,
                          bridge_to, fee_limit, self.fee_price)
+        print('\U0001f513 Unlock success: ', tx_hash)
 
         # new balance on origin
         balance = get_balance(receiver, asset_address, aergo_to)
-        print("{} balance on destination after transfer: {}"
+        print("\U0001f4b0 {} balance on destination after transfer: {}"
               .format(asset_name, balance/10**18))
 
         aergo_to.disconnect()
