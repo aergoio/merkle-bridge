@@ -1036,6 +1036,10 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None
     ) -> None:
+        if asset_name == 'aergo':
+            print("It is not safe to transfer aergo this way as 'aergo' exists "
+                  "on both sides of the bridge")
+            return
         try:
             self.config_data(
                 'networks', to_chain, "tokens", asset_name, "pegs", from_chain)
@@ -1060,6 +1064,10 @@ class Wallet:
         privkey_pwd: str = None,
         execute_before: int = 30
     ):
+        if token_name == 'aergo':
+            print("It is not safe to transfer aergo this way as 'aergo' exists "
+                  "on both sides of the bridge")
+            return
         try:
             self.config_data(
                 'networks', to_chain, "tokens", token_name, "pegs", from_chain)
