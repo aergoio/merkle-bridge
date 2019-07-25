@@ -1,4 +1,4 @@
-from bridge_operator.bridge_settings import BridgeSettingsManager
+from aergo_bridge_operator.bridge_settings import BridgeSettingsManager
 
 import aergo.herapy as herapy
 import pytest

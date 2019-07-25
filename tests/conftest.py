@@ -1,4 +1,4 @@
-from wallet.wallet import Wallet
+from aergo_wallet.wallet import Wallet
 
 import pytest
 

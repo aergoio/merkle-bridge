@@ -12,7 +12,7 @@ from aergo.herapy.utils.signature import (
     verify_sig,
 )
 
-from bridge_operator.op_utils import (
+from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
 )

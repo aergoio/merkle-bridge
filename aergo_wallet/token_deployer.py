@@ -2,7 +2,7 @@ from getpass import getpass
 import json
 import aergo.herapy as herapy
 
-from wallet.exceptions import (
+from aergo_wallet.exceptions import (
     TxError,
 )
 

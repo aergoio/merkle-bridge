@@ -21,14 +21,14 @@ from typing import (
 
 import aergo.herapy as herapy
 
-from bridge_operator.bridge_operator_pb2_grpc import (
+from aergo_bridge_operator.bridge_operator_pb2_grpc import (
     BridgeOperatorServicer,
     add_BridgeOperatorServicer_to_server,
 )
-from bridge_operator.bridge_operator_pb2 import (
+from aergo_bridge_operator.bridge_operator_pb2 import (
     Approval,
 )
-from bridge_operator.op_utils import (
+from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
 )

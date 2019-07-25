@@ -6,12 +6,12 @@ from typing import (
 
 import aergo.herapy as herapy
 
-from wallet.exceptions import (
+from aergo_wallet.exceptions import (
     TxError,
     InvalidArgumentsError,
 )
 
-from wallet.wallet_utils import (
+from aergo_wallet.wallet_utils import (
     build_deposit_proof,
     is_aergo_address
 )

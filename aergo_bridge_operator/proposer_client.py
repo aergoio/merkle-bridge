@@ -25,15 +25,15 @@ from aergo.herapy.utils.signature import (
     verify_sig,
 )
 
-from bridge_operator.bridge_operator_pb2_grpc import (
+from aergo_bridge_operator.bridge_operator_pb2_grpc import (
     BridgeOperatorStub,
 )
-from bridge_operator.bridge_operator_pb2 import (
+from aergo_bridge_operator.bridge_operator_pb2 import (
     Anchor,
     NewValidators,
     NewTempo
 )
-from bridge_operator.op_utils import (
+from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
 )

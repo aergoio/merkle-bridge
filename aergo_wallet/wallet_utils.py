@@ -15,7 +15,7 @@ from aergo.herapy.utils.signature import (
     verify_sig,
 )
 
-from wallet.exceptions import (
+from aergo_wallet.exceptions import (
     InvalidArgumentsError,
     TxError,
     InvalidMerkleProofError,

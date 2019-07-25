@@ -4,16 +4,16 @@ import json
 import os
 from pyfiglet import Figlet
 
-from wallet.wallet import (
+from aergo_wallet.wallet import (
     Wallet,
 )
-from wallet.exceptions import (
+from aergo_wallet.exceptions import (
     InvalidArgumentsError,
     TxError,
     InsufficientBalanceError,
 )
 
-from cli.utils import (
+from aergo_cli.utils import (
     confirm_transfer,
     prompt_amount,
     prompt_deposit_height,

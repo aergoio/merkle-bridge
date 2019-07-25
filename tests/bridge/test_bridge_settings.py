@@ -2,7 +2,7 @@ import time
 
 import aergo.herapy as herapy
 
-from bridge_operator.op_utils import (
+from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
 )

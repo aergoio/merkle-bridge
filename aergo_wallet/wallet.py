@@ -14,22 +14,22 @@ from aergo.herapy.errors.general_exception import (
     GeneralException,
 )
 
-from wallet.transfer_to_sidechain import (
+from aergo_wallet.transfer_to_sidechain import (
     lock,
     build_lock_proof,
     mint,
 )
-from wallet.transfer_from_sidechain import (
+from aergo_wallet.transfer_from_sidechain import (
     burn,
     build_burn_proof,
     unlock,
 )
-from wallet.exceptions import (
+from aergo_wallet.exceptions import (
     InvalidArgumentsError,
     InsufficientBalanceError,
     BroadcasterError,
 )
-from wallet.wallet_utils import (
+from aergo_wallet.wallet_utils import (
     get_balance,
     transfer,
     get_signed_transfer,
@@ -39,7 +39,7 @@ from wallet.wallet_utils import (
     bridge_withdrawable_balance,
     wait_finalization
 )
-from wallet.token_deployer import (
+from aergo_wallet.token_deployer import (
     deploy_token,
 )
 

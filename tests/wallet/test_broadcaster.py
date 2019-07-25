@@ -1,7 +1,7 @@
-from wallet.wallet_utils import (
+from aergo_wallet.wallet_utils import (
     transfer
 )
-from wallet.exceptions import (
+from aergo_wallet.exceptions import (
     TxError
 )
 import pytest

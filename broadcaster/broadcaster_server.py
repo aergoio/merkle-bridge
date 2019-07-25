@@ -22,25 +22,25 @@ from broadcaster.broadcaster_pb2 import (
     ExecutionStatus,
 )
 
-from bridge_operator.op_utils import (
+from aergo_bridge_operator.op_utils import (
     query_tempo,
 )
-from wallet.wallet_utils import (
+from aergo_wallet.wallet_utils import (
     verify_signed_transfer,
     transfer,
     wait_finalization
 )
-from wallet.transfer_to_sidechain import (
+from aergo_wallet.transfer_to_sidechain import (
     lock,
     build_lock_proof,
     mint,
 )
-from wallet.transfer_from_sidechain import (
+from aergo_wallet.transfer_from_sidechain import (
     burn,
     build_burn_proof,
     unlock,
 )
-from wallet.exceptions import (
+from aergo_wallet.exceptions import (
     InvalidMerkleProofError,
     TxError,
 )

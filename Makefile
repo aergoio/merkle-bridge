@@ -9,13 +9,13 @@ compile_token:
 	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/standard_token.lua > contracts/token_bytecode.txt
 
 deploy_bridge:
-	python3 -m bridge_operator.bridge_deployer -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --t_anchor1 6 --t_final1 4 --t_anchor2 7 --t_final2 5 --privkey_name "proposer"
+	python3 -m aergo_bridge_operator.bridge_deployer -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --t_anchor1 6 --t_final1 4 --t_anchor2 7 --t_final2 5 --privkey_name "proposer"
 
 proposer:
-	python3 -m bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update
+	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update
 
 validator:
-	python3 -m bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update --local_test
+	python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update --local_test
 
 broadcaster:
 	python3 -m broadcaster.broadcaster_server
@@ -25,7 +25,7 @@ protoc:
 		-I proto \
 		--python_out=. \
 		--grpc_python_out=. \
-		./proto/bridge_operator/*.proto
+		./proto/aergo_bridge_operator/*.proto
 	python3 -m grpc_tools.protoc \
 		-I proto \
 		--python_out=. \
@@ -33,7 +33,7 @@ protoc:
 		./proto/broadcaster/*.proto
 
 deploy_token:
-	python3 -m wallet.token_deployer
+	python3 -m aergo_wallet.token_deployer
 
 docker:
 	docker build --build-arg GIT_TAG=5a16373a3c535f77304709f725e10284dccfbea1 -t aergo/node ./docker
