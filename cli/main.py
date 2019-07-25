@@ -197,6 +197,10 @@ class MerkleBridgeCli():
                             print("{}{} balance: {}{}"
                                   .format('\t'*6, addr, balance/10**18,
                                           u'\U0001f4b0'))
+                aer_balance, _ = self.wallet.get_balance('aergo', net_name,
+                                                         account_name=wallet)
+                print("{}Aergo balance: {}{}"
+                      .format('\t'*3, aer_balance/10**18, u'\U0001f4b0'))
 
     def edit_settings(self):
         """Menu for editing the config file of the currently loaded wallet"""
@@ -269,17 +273,18 @@ class MerkleBridgeCli():
         # Register 2 networks
         answers = prompt_new_network()
         net1 = answers['name']
-        new_config['networks'] = {net1: {'ip': answers['ip'],
-                                         'tokens': {},
-                                         'bridges': {}
-                                         }
-                                  }
+        new_config['networks'] = {net1: {
+            'ip': answers['ip'],
+            'tokens': {},
+            'bridges': {}
+        }}
         answers = prompt_new_network()
         net2 = answers['name']
-        new_config['networks'][net2] = {'ip': answers['ip'],
-                                        'tokens': {},
-                                        'bridges': {}
-                                        }
+        new_config['networks'][net2] = {
+            'ip': answers['ip'],
+            'tokens': {},
+            'bridges': {}
+        }
         # Register bridge contracts on each network
         if promptYN('Would you like to register a bridge ? '
                     '(needed if already deployed)', 'Yes', 'No'):
@@ -352,24 +357,18 @@ class MerkleBridgeCli():
         """
         networks = self.get_registered_networks()
         name, origin, origin_addr, pegs, peg_addrs = prompt_new_asset(networks)
-        try:
-            self.wallet.config_data('networks', origin, 'tokens', name)
-            questions = [
-                {
-                    'type': 'list',
-                    'name': 'YN',
-                    'message': 'Warning: '
-                               'override existing asset with same name',
-                    'choices': ['Yes', 'No']
-                }
-            ]
-            if inquirer.prompt(questions, style=aergo_style)['YN'] == 'No':
+        if name == 'aergo':
+            print('Not allowed : aergo is reserved for aer native asset')
+            return
+        for net in networks:
+            try:
+                self.wallet.config_data('networks', net, 'tokens', name)
+                print("Asset name already used")
                 return
-            self.wallet.config_data('networks', origin, 'tokens', name,
-                                    value={'pegs': {}})
-        except KeyError:
-            self.wallet.config_data('networks', origin, 'tokens', name,
-                                    value={'pegs': {}})
+            except KeyError:
+                pass
+        self.wallet.config_data('networks', origin, 'tokens', name,
+                                value={'addr': {}, 'pegs': {}})
         self.wallet.config_data(
             'networks', origin, 'tokens', name, 'addr', value=origin_addr)
         for i, peg_net in enumerate(pegs):
@@ -721,11 +720,11 @@ class MerkleBridgeCli():
         """Get the list of registered assets on each network."""
         from_assets = [
             asset for asset in self.wallet.config_data(
-                'networks', from_chain, 'tokens') if asset != 'aergo'
+                'networks', from_chain, 'tokens')
         ]
         to_assets = [
             asset for asset in self.wallet.config_data(
-                'networks', to_chain, 'tokens') if asset != 'aergo'
+                'networks', to_chain, 'tokens')
         ]
         return from_assets, to_assets
 

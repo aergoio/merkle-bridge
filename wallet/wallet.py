@@ -239,8 +239,11 @@ class Wallet:
         if account_addr is None:
             account_addr = self.get_wallet_address(account_name)
         aergo = self._connect_aergo(network_name)
-        asset_addr = self.get_asset_address(asset_name, network_name,
-                                            asset_origin_chain)
+        if asset_name == 'aergo':
+            asset_addr = 'aergo'
+        else:
+            asset_addr = self.get_asset_address(asset_name, network_name,
+                                                asset_origin_chain)
         balance = get_balance(account_addr, asset_addr, aergo)
         aergo.disconnect()
         return balance, asset_addr
@@ -811,25 +814,19 @@ class Wallet:
         balance = 0
         signed_transfer: Optional[Union[Tuple[int, str],
                                         Tuple[int, str, str, int]]] = None
-        if asset_name == 'aergo':
-            # transfer aer
-            fee_limit = 0
-            balance = get_balance(sender, asset_address, aergo_from)
-            if balance < amount + fee_limit*self.fee_price:
-                raise InsufficientBalanceError("not enough balance")
-        else:
-            # sign transfer so bridge can pull tokens to lock.
-            fee_limit = 0
-            signed_transfer, balance = \
-                get_signed_transfer(amount, bridge_from, asset_address,
-                                    aergo_from)
-            signed_transfer = signed_transfer[:2]  # only nonce, sig are needed
-            if balance < amount:
-                raise InsufficientBalanceError("not enough token balance")
-            aer_balance = get_balance(sender, 'aergo', aergo_from)
-            if aer_balance < fee_limit*self.fee_price:
-                err = "not enough aer balance to pay tx fee"
-                raise InsufficientBalanceError(err)
+
+        # sign transfer so bridge can pull tokens to lock.
+        fee_limit = 0
+        signed_transfer, balance = \
+            get_signed_transfer(amount, bridge_from, asset_address,
+                                aergo_from)
+        signed_transfer = signed_transfer[:2]  # only nonce, sig are needed
+        if balance < amount:
+            raise InsufficientBalanceError("not enough token balance")
+        aer_balance = get_balance(sender, 'aergo', aergo_from)
+        if aer_balance < fee_limit*self.fee_price:
+            err = "not enough aer balance to pay tx fee"
+            raise InsufficientBalanceError(err)
 
         print("\U0001f4b0 {} balance on origin before transfer: {}"
               .format(asset_name, balance/10**18))
@@ -1036,10 +1033,6 @@ class Wallet:
         privkey_name: str = 'default',
         privkey_pwd: str = None
     ) -> None:
-        if asset_name == 'aergo':
-            print("It is not safe to transfer aergo this way as 'aergo' exists "
-                  "on both sides of the bridge")
-            return
         try:
             self.config_data(
                 'networks', to_chain, "tokens", asset_name, "pegs", from_chain)
@@ -1064,10 +1057,6 @@ class Wallet:
         privkey_pwd: str = None,
         execute_before: int = 30
     ):
-        if token_name == 'aergo':
-            print("It is not safe to transfer aergo this way as 'aergo' exists "
-                  "on both sides of the bridge")
-            return
         try:
             self.config_data(
                 'networks', to_chain, "tokens", token_name, "pegs", from_chain)

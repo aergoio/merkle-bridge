@@ -201,7 +201,7 @@ def prompt_new_asset(networks):
             'type': 'input',
             'name': 'name',
             'message': "Asset name ('aergo' is "
-                       "used for the real Aergo)"
+                       "reserved for the real Aergo)"
         },
         {
             'type': 'list',

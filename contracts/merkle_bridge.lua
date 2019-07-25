@@ -161,6 +161,7 @@ function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
     assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
     assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
     assert(bamount > b0, "amount must be positive")
+    assert(system.getAmount() == "0", "cannot lock aer, must be wrapped in token")
 
     -- Add locked amount to total
     local account_ref = receiver .. token_address
@@ -174,27 +175,21 @@ function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
     end
     Locks[account_ref] = bignum.tostring(locked_balance)
 
-    -- Lock assets/aer in the bridge
-    if system.getAmount() ~= "0" then
-        assert(token_address == "aergo", "for safety and clarity don't provide a token address when locking aergo bits")
-        assert(system.getAmount() == bignum.tostring(bamount), "for safety and clarity, amount must match the amount sent in the tx")
+    -- Lock assets in the bridge
+    this_contract = system.getContractID()
+    if fee == nil then
         sender = system.getSender()
-    else
-        this_contract = system.getContractID()
-        if fee == nil then
-            sender = system.getSender()
-            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, "0", 0) then
-                error("failed to receive token to lock")
-            end
-        else
-            sender = receiver
-            -- the owner of tokens doesn't pay aer fees, lock is called by a broadcaster
-            if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, fee, deadline) then
-                error("failed to receive token to lock")
-            end
-            -- hack : take the token signature from lock tx and create a new tx with a different receiver, include that tx before the first one. 
-            -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
+        if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, "0", 0) then
+            error("failed to receive token to lock")
         end
+    else
+        sender = receiver
+        -- the owner of tokens doesn't pay aer fees, lock is called by a broadcaster
+        if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, fee, deadline) then
+            error("failed to receive token to lock")
+        end
+        -- hack : take the token signature from lock tx and create a new tx with a different receiver, include that tx before the first one. 
+        -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
     end
     contract.event("lock", sender, receiver, amount, token_address)
     return token_address, bamount
@@ -319,13 +314,9 @@ function unlock(receiver, balance, token_address, merkle_proof)
     -- Record total amount unlocked so far
     Unlocks[account_ref] = bignum.tostring(bbalance)
 
-    -- Unlock tokens/aer
-    if token_address == "aergo" then
-        contract.send(receiver, to_transfer)
-    else
-        if not contract.call(token_address, "transfer", receiver, bignum.tostring(to_transfer)) then
-            error("failed to unlock token")
-        end
+    -- Unlock tokens
+    if not contract.call(token_address, "transfer", receiver, bignum.tostring(to_transfer)) then
+        error("failed to unlock token")
     end
     contract.event("unlock", system.getSender(), receiver, to_transfer, token_address)
     return token_address, to_transfer

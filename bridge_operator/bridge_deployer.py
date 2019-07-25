@@ -81,7 +81,7 @@ def deploy_bridge(
         aergo1.disconnect()
         aergo2.disconnect()
         return
-    result2 = aergo2.get_tx_result(tx2.tx_hash)
+    result2 = aergo2.wait_tx_result(tx2.tx_hash)
     if result2.status != herapy.TxResultStatus.CREATED:
         print("  > ERROR[{0}]:{1}: {2}"
               .format(result2.contract_address, result2.status,
