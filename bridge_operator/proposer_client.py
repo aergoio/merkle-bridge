@@ -38,8 +38,6 @@ from bridge_operator.op_utils import (
     query_validators,
 )
 
-COMMIT_TIME = 3
-
 
 class ValidatorMajorityError(Exception):
     pass
@@ -248,8 +246,7 @@ class ProposerClient(threading.Thread):
                   .format(self.tab, result))
             return
 
-        time.sleep(COMMIT_TIME)
-        result = self.hera_to.get_tx_result(tx.tx_hash)
+        result = self.hera_to.wait_tx_result(tx.tx_hash)
         if result.status != herapy.TxResultStatus.SUCCESS:
             print("{}Anchor failed: already anchored, or invalid "
                   "signature: {}".format(self.tab, result))

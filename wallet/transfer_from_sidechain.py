@@ -1,5 +1,3 @@
-import time
-
 from typing import (
     Tuple,
 )
@@ -15,8 +13,6 @@ from wallet.wallet_utils import (
     build_deposit_proof,
     is_aergo_address,
 )
-
-COMMIT_TIME = 3
 
 
 def burn(
@@ -43,10 +39,9 @@ def burn(
 
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Burn asset Tx commit failed : {}".format(result))
-    time.sleep(COMMIT_TIME)
 
     # Check burn success
-    result = aergo_from.get_tx_result(tx.tx_hash)
+    result = aergo_from.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Burn asset Tx execution failed : {}".format(result))
     # get precise burn height
@@ -96,9 +91,8 @@ def unlock(
                                         token_origin, ap])
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Unlock asset Tx commit failed : {}".format(result))
-    time.sleep(COMMIT_TIME)
 
-    result = aergo_to.get_tx_result(tx.tx_hash)
+    result = aergo_to.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Unlock asset Tx execution failed : {}".format(result))
     return str(tx.tx_hash)

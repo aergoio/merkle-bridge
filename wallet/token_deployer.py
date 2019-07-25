@@ -1,15 +1,10 @@
 from getpass import getpass
 import json
-import time
-
 import aergo.herapy as herapy
 
 from wallet.exceptions import (
     TxError,
 )
-
-
-COMMIT_TIME = 3
 
 
 def deploy_token(
@@ -33,10 +28,8 @@ def deploy_token(
     print("    > result[{0}] : {1}"
           .format(result.tx_id, result.status.name))
 
-    time.sleep(COMMIT_TIME)
-
     print("------ Check deployment of SC -----------")
-    result = aergo.get_tx_result(tx.tx_hash)
+    result = aergo.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.CREATED:
         raise TxError("Token deployment Tx execution failed : {}"
                       .format(result))

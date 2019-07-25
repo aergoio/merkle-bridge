@@ -1,7 +1,5 @@
 from getpass import getpass
 import hashlib
-import time
-
 from typing import (
     Tuple,
     List,
@@ -18,8 +16,6 @@ from bridge_operator.op_utils import (
     query_tempo,
     query_validators,
 )
-
-COMMIT_TIME = 3
 
 
 class ValidatorMajorityError(Exception):
@@ -306,8 +302,7 @@ class BridgeSettingsManager:
         # update tempo on network_to
         tx_hash = self._update_tempo_tx(aergo, bridge_addr, function, tempo,
                                         verified_signers, verified_sigs)
-        time.sleep(COMMIT_TIME)
-        result = aergo.get_tx_result(tx_hash)
+        result = aergo.wait_tx_result(tx_hash)
         if result.status != herapy.TxResultStatus.SUCCESS:
             raise TxError("{} Tx execution failed : {}"
                           .format(function, result))
@@ -424,9 +419,8 @@ class BridgeSettingsManager:
                                               verified_sigs2, bridge_addr2,
                                               aergo2)
 
-        time.sleep(COMMIT_TIME)
-        result1 = aergo1.get_tx_result(tx_hash1)
-        result2 = aergo2.get_tx_result(tx_hash2)
+        result1 = aergo1.wait_tx_result(tx_hash1)
+        result2 = aergo2.wait_tx_result(tx_hash2)
         if result1.status != herapy.TxResultStatus.SUCCESS:
             raise TxError("Set new validators Tx execution failed : {}"
                           .format(result1))

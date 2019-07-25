@@ -28,9 +28,6 @@ from broadcaster.broadcaster_pb2 import (
     SignedTransfer,
 )
 
-COMMIT_TIME = 3
-
-
 # Wallet utils are made to be used with a custom herapy provider
 
 
@@ -107,9 +104,8 @@ def transfer(
         raise TxError("Transfer asset Tx commit failed : {}"
                       .format(result))
 
-    time.sleep(COMMIT_TIME)
     # Check lock success
-    result = aergo.get_tx_result(tx.tx_hash)
+    result = aergo.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Transfer asset Tx execution failed : {}"
                       .format(result))

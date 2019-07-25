@@ -1,12 +1,7 @@
 import argparse
 from getpass import getpass
 import json
-import time
-
 import aergo.herapy as herapy
-
-
-COMMIT_TIME = 3
 
 
 def deploy_bridge(
@@ -77,10 +72,8 @@ def deploy_bridge(
     print("    > result[{0}] : {1}"
           .format(result2.tx_id, result2.status.name))
 
-    time.sleep(COMMIT_TIME)
-
     print("------ Check deployment of SC -----------")
-    result1 = aergo1.get_tx_result(tx1.tx_hash)
+    result1 = aergo1.wait_tx_result(tx1.tx_hash)
     if result1.status != herapy.TxResultStatus.CREATED:
         print("  > ERROR[{0}]:{1}: {2}"
               .format(result1.contract_address, result1.status,

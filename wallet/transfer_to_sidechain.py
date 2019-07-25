@@ -1,6 +1,4 @@
 import json
-import time
-
 from typing import (
     Tuple,
     Union,
@@ -17,8 +15,6 @@ from wallet.wallet_utils import (
     build_deposit_proof,
     is_aergo_address
 )
-
-COMMIT_TIME = 3
 
 
 def lock(
@@ -53,10 +49,9 @@ def lock(
                                         amount=0)
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Lock asset Tx commit failed : {}".format(result))
-    time.sleep(COMMIT_TIME)
 
     # Check lock success
-    result = aergo_from.get_tx_result(tx.tx_hash)
+    result = aergo_from.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Lock asset Tx execution failed : {}".format(result))
     # get precise lock height
@@ -106,9 +101,8 @@ def mint(
                                         token_origin, ap])
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Mint asset Tx commit failed : {}".format(result))
-    time.sleep(COMMIT_TIME)
 
-    result = aergo_to.get_tx_result(tx.tx_hash)
+    result = aergo_to.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Mint asset Tx execution failed : {}".format(result))
     token_pegged = json.loads(result.detail)[0]
