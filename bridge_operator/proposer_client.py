@@ -79,12 +79,10 @@ class ProposerClient(threading.Thread):
         auto_update: bool = False
     ) -> None:
         threading.Thread.__init__(self)
+        self.config_file_path = config_file_path
+        self.config_data = self.load_config_data()
         self.tab = tab
         self.is_from_mainnet = is_from_mainnet
-        with open(config_file_path, "r") as f:
-            config_data = json.load(f)
-        self._config_data = config_data
-        self.config_file_path = config_file_path
         self.auto_update = auto_update
         self.aergo_from = aergo_from
         self.aergo_to = aergo_to
@@ -93,12 +91,12 @@ class ProposerClient(threading.Thread):
         self.hera_from = herapy.Aergo()
         self.hera_to = herapy.Aergo()
 
-        self.hera_from.connect(self._config_data['networks'][aergo_from]['ip'])
-        self.hera_to.connect(self._config_data['networks'][aergo_to]['ip'])
+        self.hera_from.connect(self.config_data['networks'][aergo_from]['ip'])
+        self.hera_to.connect(self.config_data['networks'][aergo_to]['ip'])
 
-        self.bridge_from = config_data['networks'][aergo_from]['bridges'][aergo_to]['addr']
-        self.bridge_to = config_data['networks'][aergo_to]['bridges'][aergo_from]['addr']
-        self.bridge_to_id = config_data['networks'][aergo_to]['bridges'][aergo_from]['id']
+        self.bridge_from = self.config_data['networks'][aergo_from]['bridges'][aergo_to]['addr']
+        self.bridge_to = self.config_data['networks'][aergo_to]['bridges'][aergo_from]['addr']
+        self.bridge_to_id = self.config_data['networks'][aergo_to]['bridges'][aergo_from]['id']
 
         print("------ Connect to Validators -----------")
         validators = query_validators(self.hera_to, self.bridge_to)
@@ -106,10 +104,15 @@ class ProposerClient(threading.Thread):
         # create all channels with validators
         self.channels: List[grpc._channel.Channel] = []
         self.stubs: List[BridgeOperatorStub] = []
-        for i, validator in enumerate(self._config_data['validators']):
+        assert len(validators) == len(self.config_data['validators']), \
+            "Validators in config file must match bridge validators " \
+            "when starting (current validators connection needed to make "\
+            "updates).\nExpected validators: {}".format(validators)
+        for i, validator in enumerate(self.config_data['validators']):
             assert validators[i] == validator['addr'], \
-                "Validators in config file do not match bridge validators"\
-                "Expected validators: {}".format(validators)
+                "Validators in config file must match bridge validators " \
+                "when starting (current validators connection needed to make "\
+                "updates).\nExpected validators: {}".format(validators)
             ip = validator['ip']
             channel = grpc.insecure_channel(ip)
             stub = BridgeOperatorStub(channel)
@@ -131,7 +134,7 @@ class ProposerClient(threading.Thread):
         if privkey_pwd is None:
             privkey_pwd = getpass("Decrypt exported private key '{}'\n"
                                   "Password: ".format(privkey_name))
-        sender_priv_key = self._config_data['wallet'][privkey_name]['priv_key']
+        sender_priv_key = self.config_data['wallet'][privkey_name]['priv_key']
         self.hera_to.import_account(sender_priv_key, privkey_pwd)
         print(" > Proposer Address: {}".format(self.hera_to.account.address))
 
@@ -179,7 +182,7 @@ class ProposerClient(threading.Thread):
         if approval.error:
             print("{}{}".format(self.tab, approval.error))
             return None
-        if approval.address != self._config_data['validators'][index]['addr']:
+        if approval.address != self.config_data['validators'][index]['addr']:
             # check nothing is wrong with validator address
             print("{}Unexpected validator {} address : {}"
                   .format(self.tab, index, approval.address))
@@ -202,7 +205,7 @@ class ProposerClient(threading.Thread):
                 # convert to hex string for lua
                 sigs.append('0x' + approval.sig.hex())
                 validator_indexes.append(i+1)
-        total_validators = len(self._config_data['validators'])
+        total_validators = len(self.config_data['validators'])
         if 3 * len(sigs) < 2 * total_validators:
             raise ValidatorMajorityError()
         # slice 2/3 of total validators
@@ -220,7 +223,8 @@ class ProposerClient(threading.Thread):
         lib = self.hera_from.get_status().consensus_info.status['LibNo']
         wait = (merged_height + self.t_anchor) - lib + 1
         while wait > 0:
-            print("waiting new anchor time :", wait, "s ...")
+            print("{}{} waiting new anchor time : {}s ..."
+                  .format(self.tab, u'\u23F0', wait))
             self.monitor_settings_and_sleep(wait)
             # Wait lib > last merged block height + t_anchor
             lib = self.hera_from.get_status().consensus_info.status['LibNo']
@@ -250,8 +254,10 @@ class ProposerClient(threading.Thread):
             print("{}Anchor failed: already anchored, or invalid "
                   "signature: {}".format(self.tab, result))
         else:
-            print("{0}Anchor success,\n{0}wait until next anchor "
-                  "time: {1}s...".format(self.tab, self.t_anchor))
+            print("{0}{1} Anchor success,\n{0}{2} wait until next anchor "
+                  "time: {3}s..."
+                  .format(self.tab, u'\u2693', u'\u23F0',
+                          self.t_anchor))
 
     def run(
         self,
@@ -275,11 +281,12 @@ class ProposerClient(threading.Thread):
             self.t_anchor = int(t_anchor)
             self.t_final = int(t_final)
 
-            print("{0} __\n"
-                  "{0}| last merged height: {1}\n"
-                  "{0}| last merged contract trie root: {2}...\n"
-                  "{0}| current update nonce: {3}\n"
-                  .format(self.tab, merged_height_from,
+            print("\n{0}| Last anchor from {1}:\n"
+                  "{0}| --------------------------\n"
+                  "{0}| height: {2}\n"
+                  "{0}| contract trie root: {3}...\n"
+                  "{0}| current update nonce: {4}\n"
+                  .format(self.tab, self.aergo_from, merged_height_from,
                           root_from.decode('utf-8')[1:20], nonce_to))
 
             # Wait for the next anchor time
@@ -304,8 +311,8 @@ class ProposerClient(threading.Thread):
 
             print("{}anchoring new root :'0x{}...'"
                   .format(self.tab, root[:17]))
-            print("{}Gathering signatures from validators ..."
-                  .format(self.tab))
+            print("{}{} Gathering signatures from validators ..."
+                  .format(self.tab, u'\U0001f58b'))
 
             try:
                 sigs, validator_indexes = self.get_anchor_signatures(
@@ -313,8 +320,8 @@ class ProposerClient(threading.Thread):
                 )
             except ValidatorMajorityError:
                 print("{0}Failed to gather 2/3 validators signatures,\n"
-                      "{0}waiting for next anchor..."
-                      .format(self.tab))
+                      "{0}{1} waiting for next anchor..."
+                      .format(self.tab, u'\u23F0'))
                 self.monitor_settings_and_sleep(self.t_anchor)
                 continue
 

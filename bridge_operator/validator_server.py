@@ -79,16 +79,60 @@ class ValidatorService(BridgeOperatorServicer):
         print("Bridge validators : ", validators1)
 
         # get the current t_anchor and t_final for both sides of bridge
-        self.t_anchor1, self.t_final1 = query_tempo(
+        t_anchor1, t_final1 = query_tempo(
             self.hera1, self.addr1, ["_sv_T_anchor", "_sv_T_final"]
         )
-        self.t_anchor2, self.t_final2 = query_tempo(
+        t_anchor2, t_final2 = query_tempo(
             self.hera2, self.addr2, ["_sv_T_anchor", "_sv_T_final"]
         )
         print("{}             <- {} (t_final={}) : t_anchor={}"
-              .format(aergo1, aergo2, self.t_final1, self.t_anchor1))
+              .format(aergo1, aergo2, t_final1, t_anchor1))
         print("{} (t_final={}) -> {}              : t_anchor={}"
-              .format(aergo1, self.t_final2, aergo2, self.t_anchor2))
+              .format(aergo1, t_final2, aergo2, t_anchor2))
+        if auto_update:
+            print("WARNING: This validator will vote for settings update in "
+                  "config.json")
+            if validators1 != validators2:
+                print("WARNING: different validators on both sides "
+                      "of the bridge")
+            if len(config_data['validators']) != len(validators1):
+                print("WARNING: This validator is voting for a new set of "
+                      "aergo validators")
+            if len(config_data['validators']) != len(validators2):
+                print("WARNING: This validator is voting for a new set of "
+                      "aergo validators")
+            try:
+                for i, validator in enumerate(config_data['validators']):
+                    if validator['addr'] != validators1[i]:
+                        print("WARNING: This validator is voting for a new "
+                              "set of validators\n")
+                    if validator['addr'] != validators2[i]:
+                        print("WARNING: This validator is voting for a new "
+                              "set of validators\n")
+                    break
+            except IndexError:
+                pass
+
+            t_anchor1_c = (config_data['networks'][self.aergo1]
+                           ['bridges'][self.aergo2]['t_anchor'])
+            t_final1_c = (config_data['networks'][self.aergo1]
+                          ['bridges'][self.aergo2]['t_final'])
+            t_anchor2_c = (config_data['networks'][self.aergo2]['bridges']
+                           [self.aergo1]['t_anchor'])
+            t_final2_c = (config_data['networks'][self.aergo2]['bridges']
+                          [self.aergo1]['t_final'])
+            if t_anchor1_c != t_anchor1:
+                print("WARNING: This validator is voting to update anchoring "
+                      "periode on mainnet")
+            if t_final1_c != t_final1:
+                print("WARNING: This validator is voting to update finality "
+                      "of sidechain on mainnet")
+            if t_anchor2_c != t_anchor2:
+                print("WARNING: This validator is voting to update anchoring "
+                      "periode on sidechain")
+            if t_final2_c != t_final2:
+                print("WARNING: This validator is voting to update finality "
+                      "of mainnet on sidechain")
 
         print("------ Set Signer Account -----------")
         if privkey_name is None:
@@ -135,9 +179,9 @@ class ValidatorService(BridgeOperatorServicer):
         h = hashlib.sha256(msg).digest()
         sig = self.hera1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)
-        print("{0}Validator {1} signed a new anchor for {2},\n"
-              "{0}with nonce {3}"
-              .format(tab, self.validator_index, destination,
+        print("{0}{1} Validator {2} signed a new anchor for {3},\n"
+              "{0}with nonce {4}"
+              .format(tab, u'\u2693', self.validator_index, destination,
                       anchor.destination_nonce))
         return approval
 
