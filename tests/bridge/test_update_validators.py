@@ -15,7 +15,7 @@ def deploy_bridge():
     sidechain = 'sidechain2'
     t_anchor = 10
     t_final = 10
-    path = "./tests/bridge/config.json"
+    path = "./tests/bridge/test_config.json"
     with open(path, "r") as f:
         config_data = json.load(f)
     with open("./contracts/bridge_bytecode.txt", "r") as f:
@@ -81,14 +81,14 @@ def deploy_bridge():
 
 
 def test_update_validators():
-    with open("./tests/bridge/config.json", "r") as f:
+    with open("./tests/bridge/test_config.json", "r") as f:
         config_data = json.load(f)
 
     # use the default wallet so it doesnt double spend a nonce if the proposer
     # is running
     sender_priv_key = 'default2'
 
-    assert len(config_data['validators']) == 3, "fix config.json for tests"
+    assert len(config_data['validators']) == 3, "fix test_config.json for tests"
 
     new_validators = ["AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
                       "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
@@ -140,7 +140,7 @@ def test_update_validators():
 
 
 def test_update_t_anchor():
-    with open("./tests/bridge/config.json", "r") as f:
+    with open("./tests/bridge/test_config.json", "r") as f:
         config_data = json.load(f)
     # use the default wallet so it doesnt double spend a nonce if the proposer
     # is running
@@ -177,7 +177,7 @@ def test_update_t_anchor():
 
 
 def test_update_t_final():
-    with open("./tests/bridge/config.json", "r") as f:
+    with open("./tests/bridge/test_config.json", "r") as f:
         config_data = json.load(f)
     # use the default wallet so it doesnt double spend a nonce if the proposer
     # is running

@@ -1,29 +1,17 @@
 {
-    "broadcasters": {
-        "mainnet": {
-            "ip": "localhost:9850",
-            "sidechain2": {
-                "ip": "localhost:9850"
-            }
-        },
-        "sidechain2": {
-            "ip": "localhost:9850"
-        }
-    },
     "networks": {
         "mainnet": {
             "bridges": {
                 "": {
                     "addr": "bridge address on mainnet",
-                    "id": "bridge ContractID variable",
                     "t_anchor": "t_anchor of sidechain on mainnet",
                     "t_final": "t_final of sidechain"
                 },
                 "sidechain2": {
-                    "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
-                    "id": "5291aa1bd80ba801c652f7591128f389",
-                    "t_anchor": 25,
-                    "t_final": 4
+                    "addr": "AmgnoVVoP1GyApmCFWXxKcviF6HBXr2ahamMQp2Q9dgGDZYfwepp",
+                    "id": "9131b112e91f54714e8369467730caba",
+                    "t_anchor": 10,
+                    "t_final": 10
                 }
             },
             "ip": "localhost:7845",
@@ -31,23 +19,17 @@
                 "aergo": {
                     "addr": "aergo",
                     "pegs": {
-                        "sidechain2": "AmhoYqbizfrTLCx1QCXKoQuyuwtjyWQRwVEfVPMPLkZJEcAY2nSa"
-                    }
-                },
-                "tok": {
-                    "addr": "Address",
-                    "pegs": {
-                        "side": "sideaddr"
+                        "sidechain2": "AmgC9rtBgZfWQnDgpeDh35o4cmCecZBYRpUmKBpYhDutk9xtVGaM"
                     }
                 },
                 "token1": {
-                    "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
+                    "addr": "AmfwvF9M9Gox1c9fqDFDwuy6yy4L2KwWnHV5P8BQcVfuz7gpdjtH",
                     "pegs": {
-                        "sidechain2": "AmhiUx2hZ9phVDMZoBShEWD2sCFXPJ5BZpagNC8WfssPuZg7wzZS"
+                        "sidechain2": "AmgT6GTDrSAgsjnQWq377gQDVDPY2jGiqDthbySt8Y2MfrC3NV4H"
                     }
                 },
-                "token_name": {
-                    "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
+                "token2": {
+                    "addr": "AmgNW29Q8yGSyw3aUJaaTaLaGjVYLDNuuTMWcsq6vyQgubefs5Hw",
                     "pegs": {}
                 }
             }
@@ -56,24 +38,17 @@
             "bridges": {
                 "": {
                     "addr": "bridge address on sidechain",
-                    "id": "bridge ContractID variable",
                     "t_anchor": "t_anchor of mainnet on sidechain",
                     "t_final": "t_final of mainnet"
                 },
                 "mainnet": {
-                    "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
-                    "id": "6b1b8f852ba3936a850de19a359250fa",
+                    "addr": "AmgYHr3Ao993NcHxmxgmMGYKg2PpDdzMdDr7KdHEYWKEvPbG9ZvC",
+                    "id": "e7e15715c170d6809f44adeb6f151c4a",
                     "t_anchor": 10,
-                    "t_final": 4
+                    "t_final": 10
                 }
             },
-            "ip": "localhost:7848",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
-                }
-            }
+            "ip": "localhost:7848"
         }
     },
     "validators": [
@@ -91,10 +66,6 @@
         }
     ],
     "wallet": {
-        "broadcaster": {
-            "addr": "AmPiFGxLvETrs13QYrHUiYoFqAqqWv7TKYXG21zC8TJfJTDHc7HJ",
-            "priv_key": "47T5iXRL4M9mhCZqzxzbWUxhwnE7oDvreBkJuNRADL2DppJDroz1TcEiJF4p9qh6X6Z2ynEMo"
-        },
         "default": {
             "addr": "AmNMFbiVsqy6vg4njsTjgy7bKPFHFYhLV4rzQyrENUS9AM1e3tw5",
             "priv_key": "47CLj29W96rS9SsizUz4pueeuTT2GcSpkoAsvVC3USLzQ5kKTWKmz1WLKnqor2ET7hPd73TC9"

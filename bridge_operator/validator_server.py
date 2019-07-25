@@ -392,7 +392,7 @@ class ValidatorServer:
         auto_update: bool = False,
     ) -> None:
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        with open("./config.json", "r") as f:
+        with open(config_file_path, "r") as f:
             config_data = json.load(f)
         add_BridgeOperatorServicer_to_server(
             ValidatorService(config_file_path, aergo1, aergo2, privkey_name,

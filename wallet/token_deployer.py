@@ -42,7 +42,7 @@ def deploy_token(
 
 
 if __name__ == '__main__':
-    with open("./config.json", "r") as f:
+    with open("./test_config.json", "r") as f:
         config_data = json.load(f)
     with open("./contracts/token_bytecode.txt", "r") as f:
         payload_str = f.read()[:-1]
@@ -73,5 +73,5 @@ if __name__ == '__main__':
     config_data['networks']['mainnet']['tokens']['token1'] = {}
     config_data['networks']['mainnet']['tokens']['token1']['addr'] = sc_address
     config_data['networks']['mainnet']['tokens']['token1']['pegs'] = {}
-    with open("./config.json", "w") as f:
+    with open("./test_config.json", "w") as f:
         json.dump(config_data, f, indent=4, sort_keys=True)

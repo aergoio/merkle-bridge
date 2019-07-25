@@ -5,5 +5,5 @@ import pytest
 
 @pytest.fixture(scope="session")
 def wallet():
-    wallet = Wallet("./config.json")
+    wallet = Wallet("./test_config.json")
     return wallet
