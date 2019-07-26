@@ -44,7 +44,7 @@ from aergo_wallet.token_deployer import (
 )
 
 
-class Wallet:
+class AergoWallet:
     """ A wallet loads it's private key from config.json and
     implements the functionality to transfer tokens to sidechains
     """

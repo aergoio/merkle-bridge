@@ -1,9 +1,9 @@
-from aergo_wallet.wallet import Wallet
+from aergo_wallet.wallet import AergoWallet
 
 import pytest
 
 
 @pytest.fixture(scope="session")
 def wallet():
-    wallet = Wallet("./test_config.json")
+    wallet = AergoWallet("./test_config.json")
     return wallet

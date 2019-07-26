@@ -5,7 +5,7 @@ import os
 from pyfiglet import Figlet
 
 from aergo_wallet.wallet import (
-    Wallet,
+    AergoWallet,
 )
 from aergo_wallet.exceptions import (
     InvalidArgumentsError,
@@ -104,7 +104,7 @@ class MerkleBridgeCli():
             config_file_path = inquirer.prompt(
                 questions, style=aergo_style)['config_file_path']
             try:
-                self.wallet = Wallet(config_file_path)
+                self.wallet = AergoWallet(config_file_path)
                 break
             except (IsADirectoryError, FileNotFoundError):
                 print("Invalid path/to/config.json")
@@ -224,7 +224,11 @@ class MerkleBridgeCli():
                             'value': 'B'
                         },
                         {
-                            'name': 'Register new set of validators',
+                            'name': 'Register new encrypted private key',
+                            'value': 'K'
+                        },
+                        {
+                            'name': 'Update validators set',
                             'value': 'V'
                         },
                         {
@@ -251,6 +255,8 @@ class MerkleBridgeCli():
                     self.register_new_validators()
                 elif answers['action'] == 'B':
                     self.register_bridge()
+                elif answers['action'] == 'K':
+                    self.register_key()
                 elif answers['action'] == 'UA':
                     self.update_t_anchor()
                 elif answers['action'] == 'UF':
@@ -385,6 +391,19 @@ class MerkleBridgeCli():
         self.wallet.config_data(
             'networks', net, value={'ip': ip, 'tokens': {}, 'bridges': {}}
         )
+        self.wallet.save_config()
+
+    def register_key(self):
+        """Register new key in wallet's config."""
+        name, addr, privkey = prompt_aergo_privkey()
+        try:
+            self.wallet.config_data('wallet', name)
+            print("Key name already used")
+            return
+        except KeyError:
+            pass
+        self.wallet.config_data(
+            'wallet', name, value={'addr': addr, 'priv_key': privkey})
         self.wallet.save_config()
 
     def register_new_validators(self):
