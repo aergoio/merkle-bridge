@@ -362,7 +362,8 @@ class MerkleBridgeCli():
 
         """
         networks = self.get_registered_networks()
-        name, origin, origin_addr, pegs, peg_addrs = prompt_new_asset(networks)
+        name, origin, origin_addr, pegs, peg_addrs = prompt_new_asset(
+            networks.copy())
         if name == 'aergo':
             print('Not allowed : aergo is reserved for aer native asset')
             return
