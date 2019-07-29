@@ -3,80 +3,19 @@ Python wallet
 
 The Python wallet can be used as a python command line tool for making simple transfers, 
 bridge transfers, quering balances ...
-The merkle-bridge/wallet repository can also be used as a module for other applications 
+The merkle-bridge/aergo_wallet repository can also be used as a module for other applications 
 as the tools are separate and don't need config.json to be used. 
-
-Configuration
--------------
-Configuration file for using the wallet (config.json)
-
-.. code-block:: json
- 
-    {
-        "broadcasters": {
-            "mainnet": {
-                "ip": "localhost:9850",
-                "sidechain2": {
-                    "ip": "localhost:9850"
-                }
-            },
-            "sidechain2": {
-                "ip": "localhost:9850"
-            }
-        },
-        "mainnet": {
-            "bridges": {
-                "sidechain2": {
-                    "addr": "AmgkVksed7GcPTnMNKs1pojtEXio2nd58cXMMwfe7CY6j7bKz7jU"
-                }
-            },
-            "ip": "localhost:7845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
-                },
-            }
-        },
-        "sidechain2": {
-            "bridges": {
-                "mainnet": {
-                    "addr": "Amg4xbhuQcj73eHvQtV4U26yyRe9TiWrKX8qGs5SWXG7N4yAcLyB"
-                }
-            },
-            "ip": "localhost:8845",
-            "tokens": {
-                "aergo": {
-                    "addr": "aergo",
-                    "pegs": {}
-                }
-            }
-        },
-        "wallet": {
-            "default": {
-                "addr": "AmNMFbiVsqy6vg4njsTjgy7bKPFHFYhLV4rzQyrENUS9AM1e3tw5",
-                "priv_key": "47CLj29W96rS9SsizUz4pueeuTT2GcSpkoAsvVC3USLzQ5kKTWKmz1WLKnqor2ET7hPd73TC9"
-            }
-        }
-    }
-
-
-Three items need to be registered in the config.json:
-
-- The node ip address of the 'mainnet' and 'sidechain2' blockchains being bridged
-- The address of bridge contracts to other blockchains
-- The ip of broadcaster services (for paying fees in tokens instead of AER)
 
 
 Create / Register a new account
-----------------------
+-------------------------------
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     # create a new account (new private key), 
     # you will be requested to create a password 
@@ -92,10 +31,10 @@ Balance query
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     # get Aer balance of the default account on 'mainnet'
     balance, _ = wallet.get_balance('aergo', 'mainnet')
@@ -109,35 +48,33 @@ Deploy a test token
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # load the compiled bytecode
     with open("./contracts/token_bytecode.txt", "r") as f:
         bytecode = f.read()[:-1]
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     total_supply = 500*10**18
     token_name = "my_token"
-    # deploy the token and stored the address in config.json
+    # deploy the token and store the address in config.json
     wallet.deploy_token(bytecode, token_name, total_supply, "mainnet")
 
 
 Register an already deployed token
 ----------------------------------
-This can be done by editing config.json directly.
+This can be done with aergo_cli
+
+.. image:: images/register_asset.png
+
+or by editing config.json directly.
 
 .. code-block:: json
 
     {
         "tokens": {
-            "aergo": {
-                "addr": "aergo",
-                "pegs": {
-                    "sidechain2": "AmhtCQgBeHFVMTDNGup8UFZTgr3Soj2zMeGhEaRs5UD6SzyUhqxm"
-                }
-            },
             "my_token": {
                 "addr": "AmgY8WARSNfjgCnFhFJBv145wkHJRTC7YR5MeJGAMvKzVD9kKeFz",
                 "pegs": {
@@ -151,10 +88,10 @@ or with the wallet:
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     " Register a 'mainnet' token and it's pegged self on 'sidechain2'
     wallet.register_asset("my_token", "mainnet", "Address on mainnet",
@@ -166,10 +103,10 @@ Simple Transfers
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     # simple asset transfer on 'mainnet'
     wallet.transfer(2*10**18, to_address, asset_name="my_token", network_name="mainnet")
@@ -187,13 +124,13 @@ depending whether the token was minted or not.
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     amount = 1*10**18
-    asset = 'aergo'
+    asset = 'token1'
     # transfer aergo from 'mainnet' to 'sidechain2'
     wallet.bridge_transfer('mainnet',
                            'sidechain2',
@@ -217,13 +154,13 @@ The transfer_from_sidechain method performs the following:
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     amount = 1*10**18
-    asset = 'aergo'
+    asset = 'token1'
     # transfer aergo from 'mainnet' to 'sidechain2'
     wallet.transfer_to_sidechain('mainnet',
                                  'sidechain2',
@@ -241,13 +178,13 @@ It is also possible to perform the lock/burn and mint/unlock operations individu
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     amount = 1*10**18
-    asset = 'aergo'
+    asset = 'token1'
     # lock asset in the bridge contract to 'sidechain2'
     lock_height, tx_hash = wallet.initiate_transfer_lock('mainnet', 'sidechain2',
                                                          asset, amount)
@@ -276,6 +213,8 @@ It is also possible to perform the lock/burn and mint/unlock operations individu
 Using a Broadcaster
 -------------------
 
+Deprecation WARNING : broadcaster functionality will be removed with next release.
+
 When using a broadcaster to transfer tokens, the user pre-signs the nonce of a standard token
 transfer with a fee in tokens for the broadcaster.
 The broadcaster collects the token fee for executing the transactions, and the user doesn't
@@ -284,10 +223,10 @@ The broadcaster's ip address should be registered in the wallet's config.json
 
 .. code-block:: python
 
-    from wallet.wallet import Wallet
+    from aergo_wallet.wallet import AergoWallet
 
     # create a wallet
-    wallet = Wallet("./config.json")
+    wallet = AergoWallet("./config.json")
 
     amount = 100*10**18
     fee = 2*10**18

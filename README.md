@@ -34,112 +34,34 @@ The operators and wallet both use a **config.json** file to operate. This file r
 $ cd merkle-bridge/
 $ virtualenv -p python3 venv
 $ source venv/bin/activate
-$ make install
+$ pip install -r requirements.txt
 ```
 
-## Operate the merkle bridge
-### Start aergo nodes
-Setup a node for each blockchain to bridge and update config.json.
-For a quickstart test, start two --testmode nodes locally with docker
+Optional dev dependencies (lint, testing...)
 ```sh
-$ make docker
+$ pip install -r dev-dependencies.txt
 ```
-### Compiling contracts (optional)
-The contracts are already compiled, but to recompile with a local aergoluac :
+
+## CLI
+The CLI can generate new config.json files, perform cross chain asset transfers and query balances and pending transfer amounts. 
 ```sh
-$ make compile_bridge
-$ make compile_token
+$ python3 -m aergo_cli.main
 ```
-### Deploy merkle bridge contracts
+
+## Bridge Operator
+### Proposer
+Start a proposer between 2 Aergo networks.
 ```sh
-$ make deploy_bridge
+$ python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update
 ```
-### Start the bridge operator
-#### Start the bridge proposer
+
+### Validator
+Start a validator between 2 Aergo networks.
 ```sh
-$ make proposer
-```
-or
-``` py
-import json
-from bridge_operator.proposer_client import ProposerClient
-
-with open("./config.json", "r") as f:
-    c = json.load(f)
-
-proposer = ProposerClient(c, 'mainnet', 'sidechain2')
-proposer.run()
-```
-#### Start the bridge validators
-```sh
-$ make validator
-```
-or
-``` py
-import json
-from bridge_operator.validator_server import ValidatorServer
-
-with open("./config.json", "r") as f:
-    c = json.load(f)
-
-validator = ValidatorServer(c, 'mainnet', 'sidechain2')
-validator.run()
+$ python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update
 ```
 
-### Deploy a new token contract
-```py
-from wallet.wallet import Wallet
-
-# load the compiled bytecode
-with open("./contracts/token_bytecode.txt", "r") as f:
-    b = f.read()[:-1]
-
-# create a wallet
-wallet = Wallet("./config.json")
-
-total_supply = 500*10**18
-# deploy the token and stored the address in config.json
-wallet.deploy_token(b, "token_name", total_supply, "mainnet")
-```
-
-### Transfer tokens from mainnet to sidechain and back again
-``` py
-from wallet.wallet import Wallet
-
-# create a wallet
-wallet = Wallet("./config.json")
-
-amount = 1*10**18
-asset = 'aergo'
-# transfer aergo from mainnet to sidechain2
-wallet.bridge_transfer('mainnet',
-                       'sidechain2',
-                       asset,
-                       amount)
-
-# transfer minted aergo from sidechain2 mainnet
-wallet.bridge_transfer('sidechain2',
-                       'mainnet',
-                       asset,
-                       amount)
-```
-
-### Get balance and transfer assets on a specific network
-``` py
-from wallet.wallet import Wallet
-
-# create a wallet
-wallet = Wallet("./config.json")
-
-asset = 'token1' # token name or 'aergo' in config.json
-balance = wallet.get_balance(account_address, asset_name=asset,
-                             network_name='mainnet')
-
-# transfer 2 assets, uses the 'wallet' priv_key by default
-wallet.transfer(2*10**18, to_address, asset_name=asset, network_name='mainnet')
-```
-
-### Running tests
+## Running tests
 Start 2 test networks
 ```sh
 $ make docker
