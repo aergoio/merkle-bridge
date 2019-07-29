@@ -36,6 +36,7 @@ from aergo_bridge_operator.bridge_operator_pb2 import (
 from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
+    query_id,
 )
 
 
@@ -94,7 +95,7 @@ class ProposerClient(threading.Thread):
 
         self.bridge_from = self.config_data['networks'][aergo_from]['bridges'][aergo_to]['addr']
         self.bridge_to = self.config_data['networks'][aergo_to]['bridges'][aergo_from]['addr']
-        self.bridge_to_id = self.config_data['networks'][aergo_to]['bridges'][aergo_from]['id']
+        self.bridge_to_id = query_id(self.hera_to, self.bridge_to)
 
         print("------ Connect to Validators -----------")
         validators = query_validators(self.hera_to, self.bridge_to)

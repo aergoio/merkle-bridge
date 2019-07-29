@@ -24,3 +24,9 @@ def query_validators(aergo: herapy.Aergo, bridge: str) -> List[str]:
     validators = [val.value.decode('utf-8')[1:-1]
                   for val in validators_q.var_proofs]
     return validators
+
+
+def query_id(aergo: herapy.Aergo, bridge: str) -> str:
+    id_q = aergo.query_sc_state(bridge, ["_sv_ContractID"])
+    id = id_q.var_proofs[0].value.decode('utf-8')[1:-1]
+    return id

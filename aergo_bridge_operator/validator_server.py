@@ -31,6 +31,7 @@ from aergo_bridge_operator.bridge_operator_pb2 import (
 from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
+    query_id,
 )
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
@@ -68,8 +69,8 @@ class ValidatorService(BridgeOperatorServicer):
         self.validator_index = validator_index
         self.addr1 = config_data['networks'][aergo1]['bridges'][aergo2]['addr']
         self.addr2 = config_data['networks'][aergo2]['bridges'][aergo1]['addr']
-        self.id1 = config_data['networks'][aergo1]['bridges'][aergo2]['id']
-        self.id2 = config_data['networks'][aergo2]['bridges'][aergo1]['id']
+        self.id1 = query_id(self.hera1, self.addr1)
+        self.id2 = query_id(self.hera2, self.addr2)
 
         # check validators are correct
         validators1 = query_validators(self.hera1, self.addr1)

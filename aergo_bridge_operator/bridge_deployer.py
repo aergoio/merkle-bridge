@@ -24,7 +24,8 @@ def deploy_bridge(
     payload = herapy.utils.decode_address(payload_str)
     with open(config_file_path, "r") as f:
         config_data = json.load(f)
-    print("------ DEPLOY BRIDGE BETWEEN CHAIN1 & CHAIN2 -----------")
+    print("------ DEPLOY BRIDGE BETWEEN {} & {} -----------".format(net1,
+                                                                    net2))
     aergo1 = herapy.Aergo()
     aergo2 = herapy.Aergo()
 
@@ -92,8 +93,6 @@ def deploy_bridge(
 
     sc_address1 = result1.contract_address
     sc_address2 = result2.contract_address
-    sc_id1 = result1.detail[1:-1]
-    sc_id2 = result2.detail[1:-1]
 
     print("  > SC Address CHAIN1: {}".format(sc_address1))
     print("  > SC Address CHAIN2: {}".format(sc_address2))
@@ -103,8 +102,6 @@ def deploy_bridge(
     config_data['networks'][net2]['bridges'][net1] = {}
     config_data['networks'][net1]['bridges'][net2]['addr'] = sc_address1
     config_data['networks'][net2]['bridges'][net1]['addr'] = sc_address2
-    config_data['networks'][net1]['bridges'][net2]['id'] = sc_id1
-    config_data['networks'][net2]['bridges'][net1]['id'] = sc_id2
     config_data['networks'][net1]['bridges'][net2]['t_anchor'] = t_anchor1
     config_data['networks'][net1]['bridges'][net2]['t_final'] = t_final1
     config_data['networks'][net2]['bridges'][net1]['t_anchor'] = t_anchor2

@@ -64,14 +64,10 @@ def deploy_bridge():
         assert 1 == 0
     bridge_addr1 = result1.contract_address
     bridge_addr2 = result2.contract_address
-    sc_id1 = result1.detail[1:-1]
-    sc_id2 = result2.detail[1:-1]
     config_data['networks'][mainnet]['bridges'][sidechain] = {}
     config_data['networks'][sidechain]['bridges'][mainnet] = {}
     config_data['networks'][mainnet]['bridges'][sidechain]['addr'] = bridge_addr1
     config_data['networks'][sidechain]['bridges'][mainnet]['addr'] = bridge_addr2
-    config_data['networks'][mainnet]['bridges'][sidechain]['id'] = sc_id1
-    config_data['networks'][sidechain]['bridges'][mainnet]['id'] = sc_id2
     config_data['networks'][mainnet]['bridges'][sidechain]['t_anchor'] = t_anchor
     config_data['networks'][mainnet]['bridges'][sidechain]['t_final'] = t_final
     config_data['networks'][sidechain]['bridges'][mainnet]['t_anchor'] = t_anchor
