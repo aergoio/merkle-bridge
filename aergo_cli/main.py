@@ -753,7 +753,7 @@ class MerkleBridgeCli():
         later.
 
         """
-        with open(self.root_path + 'cli/pending_transfers.json', 'w') as file:
+        with open(self.root_path + 'aergo_cli/pending_transfers.json', 'w') as file:
             json.dump(self.pending_transfers, file, indent=4)
 
 

@@ -1,4 +1,4 @@
-Using the EthAergo CLI
+Using the Aergo CLI
 ======================
 CLI for the proposer/validator
 ------------------------------
