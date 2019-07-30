@@ -43,14 +43,13 @@ class MerkleBridgeCli():
 
     """
 
-    def __init__(self):
+    def __init__(self, root_path: str = './'):
         """Load the pending transfers."""
-        file_path = os.path.dirname(os.path.realpath(__file__))
-        # root_path is the path/to/merkle-bridge from which files are
-        # tracked
-        self.root_path = os.path.dirname(file_path) + '/'
-        with open(file_path + '/pending_transfers.json', 'r') as file:
+        # root_path is the path from which files are tracked
+        with open(root_path
+                  + 'aergo_cli/pending_transfers.json', 'r') as file:
             self.pending_transfers = json.load(file)
+        self.root_path = root_path
 
     def start(self):
         """Entry point of cli : load a wallet configuration file of create a
@@ -758,7 +757,8 @@ class MerkleBridgeCli():
         later.
 
         """
-        with open(self.root_path + 'aergo_cli/pending_transfers.json', 'w') as file:
+        with open(self.root_path
+                  + 'aergo_cli/pending_transfers.json', 'w') as file:
             json.dump(self.pending_transfers, file, indent=4)
 
 
