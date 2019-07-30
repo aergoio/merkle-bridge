@@ -321,3 +321,22 @@ def prompt_new_validators():
                           )
         add_val = answers['add_val']
     return validators
+
+
+def print_balance_table_header():
+    print(' ' + '_' * 120)
+    print('|' + ' Name'.ljust(16) + '| Network'.ljust(24)
+          + '| Token Address'.ljust(55) + '| Balance'.ljust(25) + '|')
+
+
+def print_balance_table_lines(lines, token_name, col_widths):
+    if len(lines) > 0:
+        print('|' + '‾' * 16 + '|' + '‾' * 103 + '|')
+        print('| ' + token_name.ljust(15) + '|'.ljust(104) + '|')
+        for line in lines:
+            print(
+                '|' + '\t\t | '
+                + "".join(col.ljust(col_widths[i])
+                          for i, col in enumerate(line))
+                + '|'
+            )

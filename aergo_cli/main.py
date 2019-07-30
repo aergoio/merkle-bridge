@@ -25,6 +25,8 @@ from aergo_cli.utils import (
     prompt_number,
     aergo_style,
     promptYN,
+    print_balance_table_header,
+    print_balance_table_lines,
 )
 
 
@@ -173,34 +175,37 @@ class MerkleBridgeCli():
         balances.
 
         """
+        col_widths = [24, 55, 23]
         for wallet, info in self.wallet.config_data('wallet').items():
-            print('{}{}: {}'.format('\t', wallet, info['addr']))
+            print('\n' + wallet + ': ' + info['addr'])
+            print_balance_table_header()
             for net_name, net in self.wallet.config_data('networks').items():
-                print('{}network: {}'.format('\t'*2, net_name))
                 for token_name, token in net['tokens'].items():
-                    print('{}{}'.format('\t'*3, token_name))
+                    lines = []
                     balance, addr = self.wallet.get_balance(
                         token_name, net_name, account_name=wallet
                     )
                     if balance != 0:
-                        print("{}{} balance: {}{}"
-                              .format('\t'*4, addr, balance/10**18,
-                                      u'\U0001f4b0'))
-                    print("{}{} pegged on other chains:"
-                          .format('\t'*4, token_name))
+                        line = [net_name, addr,
+                                str(balance/10**18) + ' \U0001f4b0']
+                        lines.append(line)
                     for peg in token['pegs']:
-                        print('{}Pegged network: {}'.format('\t'*5, peg))
                         balance, addr = self.wallet.get_balance(
                             token_name, peg, net_name, wallet
                         )
                         if balance != 0:
-                            print("{}{} balance: {}{}"
-                                  .format('\t'*6, addr, balance/10**18,
-                                          u'\U0001f4b0'))
+                            line = [peg, addr,
+                                    str(balance/10**18) + ' \U0001f4b0']
+                            lines.append(line)
+                    print_balance_table_lines(lines, token_name,
+                                              col_widths)
                 aer_balance, _ = self.wallet.get_balance('aergo', net_name,
                                                          account_name=wallet)
-                print("{}Aergo balance: {}{}"
-                      .format('\t'*3, aer_balance/10**18, u'\U0001f4b0'))
+                if aer_balance != 0:
+                    line = [net_name, 'aergo',
+                            str(aer_balance/10**18) + ' \U0001f4b0']
+                    print_balance_table_lines([line], 'aergo', col_widths)
+            print(' ' + '‾' * 120)
 
     def edit_settings(self):
         """Menu for editing the config file of the currently loaded wallet"""
