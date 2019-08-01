@@ -1,4 +1,7 @@
 # merkle-bridge
+
+[![Build Status](https://travis-ci.org/aergoio/merkle-bridge.svg?branch=master)](https://travis-ci.org/aergoio/merkle-bridge)
+
 POC implementation of the Aergo Merkle Bridge
 
 https://merkle-bridge.readthedocs.io/en/latest/index.html

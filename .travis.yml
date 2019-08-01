@@ -12,7 +12,7 @@ install:
   - pip install -r requirements.txt
   - pip install -r dev-dependencies.txt
 
-script:
+before_script:
   - make docker&
   - docker_pid=$!
   - sleep 5
@@ -29,6 +29,7 @@ script:
   - make broadcaster&
   - broadcaster_pid=$!
 
+script:
   - make tests
 
 after_script: 
