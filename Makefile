@@ -1,4 +1,4 @@
-.PHONY: compile_bridge compile_token deploy_bridge proposer validator broadcaster protoc deploy_token docker clean
+.PHONY: compile_bridge compile_token deploy_bridge proposer validator broadcaster protoc deploy_token docker clean tests
 
 # Shortcuts for development and testing
 
@@ -42,3 +42,6 @@ docker:
 clean:
 	rm -fr docker/*/data
 	docker-compose -f ./docker/docker-compose.yml down
+
+tests:
+	python3 -m pytest -s tests

@@ -1,0 +1,39 @@
+language: python
+
+matrix:
+  include:
+    - python: 3.7
+      dist: xenial
+
+services:
+  - docker
+
+install:
+  - pip install -r requirements.txt
+  - pip install -r dev-dependencies.txt
+
+script:
+  - make docker&
+  - docker_pid=$!
+  - sleep 5
+
+  - make deploy_bridge
+  - make deploy_token
+
+  - make validator&
+  - validator_pid=$!
+
+  - make proposer&
+  - proposer_pid=$!
+
+  - make broadcaster&
+  - broadcaster_pid=$!
+
+  - make tests
+
+after_script: 
+  - kill $broadcaster_pid
+  - kill $proposer_pid
+  - kill $validator_pid
+  - kill $docker_pid
+  - make clean
