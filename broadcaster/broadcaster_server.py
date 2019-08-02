@@ -385,5 +385,6 @@ class BroadcasterServer:
 if __name__ == '__main__':
     with open("./test_config.json", "r") as f:
         config_data = json.load(f)
-    broadcaster = BroadcasterServer("./test_config.json", 'mainnet', 'sidechain2')
+    broadcaster = BroadcasterServer(
+        "./test_config.json", 'mainnet', 'sidechain2', privkey_pwd='1234')
     broadcaster.run()
