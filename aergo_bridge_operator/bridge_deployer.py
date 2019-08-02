@@ -153,9 +153,21 @@ if __name__ == '__main__':
     parser.add_argument(
         '--privkey_name', type=str, help='Name of account in config file '
         'to sign anchors', required=False)
+    parser.add_argument(
+        '--local_test', dest='local_test', action='store_true',
+        help='Start all validators locally for convenient testing')
 
+    parser.set_defaults(local_test=False)
     args = parser.parse_args()
 
-    deploy_bridge(args.config_file_path, payload_str,
-                  args.t_anchor1, args.t_final1, args.t_anchor2, args.t_final2,
-                  args.net1, args.net2, privkey_name=args.privkey_name)
+    if args.local_test:
+        deploy_bridge(args.config_file_path, payload_str,
+                      args.t_anchor1, args.t_final1, args.t_anchor2,
+                      args.t_final2, args.net1, args.net2,
+                      privkey_name=args.privkey_name,
+                      privkey_pwd='1234')
+    else:
+        deploy_bridge(args.config_file_path, payload_str,
+                      args.t_anchor1, args.t_final1, args.t_anchor2,
+                      args.t_final2, args.net1, args.net2,
+                      privkey_name=args.privkey_name)

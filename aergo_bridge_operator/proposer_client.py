@@ -604,10 +604,23 @@ if __name__ == '__main__':
     parser.add_argument(
         '--auto_update', dest='auto_update', action='store_true',
         help='Update bridge contract when settings change in config file')
+    parser.add_argument(
+        '--local_test', dest='local_test', action='store_true',
+        help='Start proposer with password for testing')
     parser.set_defaults(auto_update=False)
+    parser.set_defaults(local_test=False)
+
     args = parser.parse_args()
-    proposer = BridgeProposerClient(
-        args.config_file_path, args.net1, args.net2,
-        privkey_name=args.privkey_name, auto_update=args.auto_update
-    )
-    proposer.run()
+    if args.local_test:
+        proposer = BridgeProposerClient(
+            args.config_file_path, args.net1, args.net2,
+            privkey_name=args.privkey_name, privkey_pwd='1234',
+            auto_update=args.auto_update
+        )
+        proposer.run()
+    else:
+        proposer = BridgeProposerClient(
+            args.config_file_path, args.net1, args.net2,
+            privkey_name=args.privkey_name, auto_update=args.auto_update
+        )
+        proposer.run()
