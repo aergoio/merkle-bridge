@@ -5,9 +5,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="merkle-bridge",
-    version="0.0.2",
+    version="0.0.3",
     author="Pierre-Alain Ouvrard",
-    author_email="pierrealain@blocko.io",
+    author_email="ouvrard.pierre.alain@gmail.com",
     description="POC implementation of the merkle-bridge",
     long_description=long_description,
     long_description_content_type="text/markdown",
