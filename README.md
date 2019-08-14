@@ -1,5 +1,7 @@
 # merkle-bridge
 
+This branch is for recording the version of merkle-bridge with Layer2 delegated standard token transfers which enable Broadcaster services. In futur releases on Master branch, the new standard token will be used and the broadcaster service deleted.
+
 [![Build Status](https://travis-ci.org/aergoio/merkle-bridge.svg?branch=master)](https://travis-ci.org/aergoio/merkle-bridge)
 
 POC implementation of the Aergo Merkle Bridge
