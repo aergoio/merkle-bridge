@@ -8,7 +8,7 @@
                     "t_final": "t_final of sidechain"
                 },
                 "sidechain2": {
-                    "addr": "AmhacjgSF9SpKPuCtmPviDPYMSZpkjukGphSELYAa9uGz4f4x9b2",
+                    "addr": "AmgQCa5Ys7YBqfqKtAvH3WQSCniALkopCgBiGDigBKNt6JLETZF3",
                     "t_anchor": 10,
                     "t_final": 10
                 }
@@ -41,7 +41,7 @@
                     "t_final": "t_final of mainnet"
                 },
                 "mainnet": {
-                    "addr": "AmgoYoKompfrBcBivKY9Abc8i6g1rgdF75Uqr2RjqQ88FXpY3Bsw",
+                    "addr": "AmgQCa5Ys7YBqfqKtAvH3WQSCniALkopCgBiGDigBKNt6JLETZF3",
                     "t_anchor": 10,
                     "t_final": 10
                 }

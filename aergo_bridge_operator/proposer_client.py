@@ -122,7 +122,7 @@ class ProposerClient(threading.Thread):
 
         # get the current t_anchor and t_final for both sides of bridge
         self.t_anchor, self.t_final = query_tempo(
-            self.hera_to, self.bridge_to, ["_sv_T_anchor", "_sv_T_final"]
+            self.hera_to, self.bridge_to, ["_sv__tAnchor", "_sv__tFinal"]
         )
         print("{} (t_final={}) -> {}  : t_anchor={}"
               .format(aergo_from, self.t_final, aergo_to, self.t_anchor))
@@ -230,7 +230,7 @@ class ProposerClient(threading.Thread):
             wait = (merged_height + self.t_anchor) - lib + 1
         return lib
 
-    def set_root(
+    def new_anchor(
         self,
         root: str,
         next_anchor_height: int,
@@ -239,7 +239,7 @@ class ProposerClient(threading.Thread):
     ) -> None:
         """Anchor a new root on chain"""
         tx, result = self.hera_to.call_sc(
-            self.bridge_to, "set_root",
+            self.bridge_to, "newAnchor",
             args=[root, next_anchor_height, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
@@ -266,11 +266,11 @@ class ProposerClient(threading.Thread):
         while True:  # anchor a new root
             # Get last merge information
             status = self.hera_to.query_sc_state(self.bridge_to,
-                                                 ["_sv_Height",
-                                                  "_sv_Root",
-                                                  "_sv_Nonce",
-                                                  "_sv_T_anchor",
-                                                  "_sv_T_final"
+                                                 ["_sv__anchorHeight",
+                                                  "_sv__anchorRoot",
+                                                  "_sv__nonce",
+                                                  "_sv__tAnchor",
+                                                  "_sv__tFinal"
                                                   ])
             height_from, root_from, nonce_to, t_anchor, t_final = \
                 [proof.value for proof in status.var_proofs]
@@ -304,7 +304,7 @@ class ProposerClient(threading.Thread):
                 time.sleep(5)
                 continue
             nonce_to = int(self.hera_to.query_sc_state(
-                self.bridge_to, ["_sv_Nonce"]
+                self.bridge_to, ["_sv__nonce"]
             ).var_proofs[0].value)
 
             print("{}anchoring new root :'0x{}...'"
@@ -325,7 +325,7 @@ class ProposerClient(threading.Thread):
 
             # don't broadcast if somebody else already did
             last_merge = self.hera_to.query_sc_state(self.bridge_to,
-                                                     ["_sv_Height"])
+                                                     ["_sv__anchorHeight"])
             merged_height = int(last_merge.var_proofs[0].value)
             if merged_height + self.t_anchor >= next_anchor_height:
                 print("{}Not yet anchor time"
@@ -335,7 +335,7 @@ class ProposerClient(threading.Thread):
                 continue
 
             # Broadcast finalised merge block
-            self.set_root(root, next_anchor_height, validator_indexes, sigs)
+            self.new_anchor(root, next_anchor_height, validator_indexes, sigs)
 
             # Wait t_anchor
             # counting commit time in t_anchor often leads to 'Next anchor not
@@ -371,7 +371,7 @@ class ProposerClient(threading.Thread):
         config_data = self.load_config_data()
         validators = query_validators(self.hera_to, self.bridge_to)
         t_anchor, t_final = query_tempo(self.hera_to, self.bridge_to,
-                                        ["_sv_T_anchor", "_sv_T_final"])
+                                        ["_sv__tAnchor", "_sv__tFinal"])
         config_validators = [val['addr']
                              for val in config_data['validators']]
         if validators != config_validators:
@@ -421,7 +421,7 @@ class ProposerClient(threading.Thread):
     def set_validators(self, new_validators, validator_indexes, sigs):
         """Update validators on chain"""
         tx, result = self.hera_to.call_sc(
-            self.bridge_to, "update_validators",
+            self.bridge_to, "validatorsUpdate",
             args=[new_validators, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
@@ -443,7 +443,7 @@ class ProposerClient(threading.Thread):
         """Request approvals of validators for the new validator set."""
         nonce = int(
             self.hera_to.query_sc_state(
-                self.bridge_to, ["_sv_Nonce"]).var_proofs[0].value
+                self.bridge_to, ["_sv__nonce"]).var_proofs[0].value
         )
         new_validators_msg = NewValidators(
             is_from_mainnet=self.is_from_mainnet, validators=validators,
@@ -477,7 +477,7 @@ class ProposerClient(threading.Thread):
                   .format(self.tab))
             return
         # broadcast transaction
-        self.set_tempo(t_anchor, validator_indexes, sigs, "update_t_anchor")
+        self.set_tempo(t_anchor, validator_indexes, sigs, "tAnchorUpdate")
 
     def set_tempo(
         self,
@@ -519,13 +519,13 @@ class ProposerClient(threading.Thread):
                   .format(self.tab))
             return
         # broadcast transaction
-        self.set_tempo(t_final, validator_indexes, sigs, "update_t_final")
+        self.set_tempo(t_final, validator_indexes, sigs, "tFinalUpdate")
 
     def get_tempo_signatures(self, tempo, rpc_service, tempo_id):
         """Request approvals of validators for the new t_anchor or t_final."""
         nonce = int(
             self.hera_to.query_sc_state(
-                self.bridge_to, ["_sv_Nonce"]).var_proofs[0].value
+                self.bridge_to, ["_sv__nonce"]).var_proofs[0].value
         )
         new_tempo_msg = NewTempo(
             is_from_mainnet=self.is_from_mainnet, tempo=tempo,

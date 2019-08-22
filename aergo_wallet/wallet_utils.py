@@ -1,5 +1,3 @@
-import grpc
-import hashlib
 import json
 import time
 from typing import (
@@ -11,21 +9,11 @@ import aergo.herapy as herapy
 from aergo.herapy.utils.encoding import (
     decode_b58_check,
 )
-from aergo.herapy.utils.signature import (
-    verify_sig,
-)
 
 from aergo_wallet.exceptions import (
     InvalidArgumentsError,
     TxError,
     InvalidMerkleProofError,
-)
-
-from broadcaster.broadcaster_pb2_grpc import (
-    BroadcasterStub,
-)
-from broadcaster.broadcaster_pb2 import (
-    SignedTransfer,
 )
 
 # Wallet utils are made to be used with a custom herapy provider
@@ -49,10 +37,9 @@ def get_balance(
         ret_account = aergo.get_account(address=account_addr)
         balance = ret_account.balance
     else:
-        balance_q = aergo.query_sc_state(asset_addr,
-                                         ["_sv_Balances-" +
-                                          account_addr]
-                                         )
+        balance_q = aergo.query_sc_state(
+            asset_addr, ["_sv__balances-" + account_addr]
+        )
         if not balance_q.account.state_proof.inclusion:
             raise InvalidArgumentsError(
                 "Contract doesnt exist in state, check contract deployed and "
@@ -70,7 +57,6 @@ def transfer(
     sender: str,
     fee_limit: int,
     fee_price: int,
-    signed_transfer: Tuple[int, str, str, int] = None
 ) -> str:
     """ Support 3 types of transfers : simple aer transfers, token transfer,
     and signed token transfers (token owner != tx signer)
@@ -82,23 +68,13 @@ def transfer(
     aergo.get_account()  # get the latest nonce for making tx
     if asset_addr == "aergo":
         # transfer aer on network_name
-        if signed_transfer is not None:
-            raise InvalidArgumentsError("cannot make aer signed transfer")
-
         tx, result = aergo.send_payload(to_address=to,
                                         amount=value, payload=None)
     else:
         # transfer token (issued or pegged) on network_name
-        if signed_transfer is not None:
-            nonce, sig, fee, deadline = signed_transfer
-            tx, result = aergo.call_sc(asset_addr, "signed_transfer",
-                                       args=[sender, to, str(value),
-                                             nonce, sig, fee, deadline],
-                                       amount=0)
-        else:
-            tx, result = aergo.call_sc(asset_addr, "transfer",
-                                       args=[to, str(value)],
-                                       amount=0)
+        tx, result = aergo.call_sc(asset_addr, "transfer",
+                                   args=[to, {"_bignum": str(value)}],
+                                   amount=0)
 
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Transfer asset Tx commit failed : {}"
@@ -112,164 +88,6 @@ def transfer(
 
     print("Transfer success")
     return str(tx.tx_hash)
-
-
-def get_signed_transfer(
-    value: int,
-    to: str,
-    asset_addr: str,
-    aergo: herapy.Aergo,
-    fee: int = 0,
-    execute_before: int = 0,
-) -> Tuple[Tuple[int, str, str, int], int]:
-    """Sign a standard token transfer to be broadcasted by a 3rd party"""
-    # calculate deadline
-    deadline = 0
-    if execute_before != 0:
-        _, block_height = aergo.get_blockchain_status()
-        deadline = block_height + execute_before
-    # get current balance and nonce
-    sender = str(aergo.account.address)
-    initial_state = aergo.query_sc_state(asset_addr,
-                                         ["_sv_Balances-" + sender,
-                                          "_sv_Nonces-" + sender,
-                                          "_sv_ContractID"
-                                          ])
-    if not initial_state.account.state_proof.inclusion:
-        raise InvalidArgumentsError(
-            "Contract doesnt exist in state, check contract deployed and "
-            "chain synced {}".format(initial_state))
-    balance_p, nonce_p, contractID_p = \
-        [item.value for item in initial_state.var_proofs]
-    try:
-        balance = int(json.loads(balance_p)["_bignum"])
-    except json.decoder.JSONDecodeError:
-        balance = 0
-
-    try:
-        nonce = int(nonce_p)
-    except ValueError:
-        nonce = 0
-
-    contractID = str(contractID_p[1:-1], 'utf-8')
-    msg = bytes(to + ',' + str(value) + ',' + str(nonce) + ',' + str(fee)
-                + ',' + str(deadline) + ',' + contractID, 'utf-8')
-    h = hashlib.sha256(msg).digest()
-    sig = aergo.account.private_key.sign_msg(h).hex()
-    signed_transfer = (nonce, sig, str(fee), deadline)
-    return signed_transfer, balance
-
-
-def verify_signed_transfer(
-    sender: str,
-    receiver: str,
-    asset_addr: str,
-    amount: int,
-    signed_transfer: Tuple[int, str, str, int],
-    aergo: herapy.Aergo,
-    deadline_margin: int
-) -> Tuple[bool, str]:
-    """ Verify a signed token transfer is valid:
-    - enough balance,
-    - nonce is not spent,
-    - signature is correct
-    - enough time remaining before deadline
-    """
-    nonce, sig, fee, deadline = signed_transfer
-    # get current balance and nonce
-    current_state = aergo.query_sc_state(asset_addr,
-                                         ["_sv_Balances-" + sender,
-                                          "_sv_Nonces-" + sender,
-                                          "_sv_ContractID"
-                                          ])
-    if not current_state.account.state_proof.inclusion:
-        raise InvalidArgumentsError(
-            "Contract doesnt exist in state, check contract deployed and "
-            "chain synced {}".format(current_state))
-    balance_p, nonce_p, contractID_p = \
-        [item.value for item in current_state.var_proofs]
-
-    # check balance
-    try:
-        balance = int(json.loads(balance_p)["_bignum"])
-    except json.decoder.JSONDecodeError:
-        balance = 0
-    if amount > balance:
-        err = "Insufficient balance"
-        return False, err
-    # check nonce
-    try:
-        expected_nonce = int(nonce_p)
-    except ValueError:
-        expected_nonce = 0
-    if expected_nonce != nonce:
-        err = "Invalid nonce"
-        return False, err
-    # check signature
-    contractID = str(contractID_p[1:-1], 'utf-8')
-    msg = bytes(receiver + ',' + str(amount) + ',' + str(nonce) + ',' + fee
-                + ',' + str(deadline) + ',' + contractID, 'utf-8')
-    h = hashlib.sha256(msg).digest()
-    sig_bytes = bytes.fromhex(sig)
-    if not verify_sig(h, sig_bytes, sender):
-        err = "Invalid signature"
-        return False, err
-    # check deadline
-    _, best_height = aergo.get_blockchain_status()
-    if best_height > deadline - deadline_margin:
-        err = "Deadline passed or not enough time to execute"
-        return False, err
-    return True, ""
-
-
-def broadcast_transfer(
-    broadcaster_ip: str,
-    rpc_service: str,
-    owner: str,
-    token_name: str,
-    amount: int,
-    signed_transfer: Tuple[int, str, str, int],
-    is_pegged: bool = False,
-    receiver: str = None
-):
-    channel = grpc.insecure_channel(broadcaster_ip)
-    stub = BroadcasterStub(channel)
-    nonce, signature, fee_str, deadline = signed_transfer
-    request = SignedTransfer(
-        owner=owner, token_name=token_name, amount=str(amount),
-        nonce=nonce, signature=signature, fee=fee_str, deadline=deadline,
-        is_pegged=is_pegged, receiver=receiver
-    )
-    return getattr(stub, rpc_service)(request)
-
-
-def broadcast_simple_transfer(
-    broadcaster_ip: str,
-    owner: str,
-    token_name: str,
-    amount: int,
-    signed_transfer: Tuple[int, str, str, int],
-    is_pegged: bool = False,
-    receiver: str = None
-):
-    return broadcast_transfer(
-        broadcaster_ip, "SimpleTransfer", owner, token_name, amount,
-        signed_transfer, is_pegged, receiver
-    )
-
-
-def broadcast_bridge_transfer(
-    broadcaster_ip: str,
-    owner: str,
-    token_name: str,
-    amount: int,
-    signed_transfer: Tuple[int, str, str, int],
-    is_pegged: bool = False,
-):
-    return broadcast_transfer(
-        broadcaster_ip, "BridgeTransfer", owner, token_name, amount,
-        signed_transfer, is_pegged
-    )
 
 
 def bridge_withdrawable_balance(
@@ -303,7 +121,7 @@ def bridge_withdrawable_balance(
 
     # get total withdrawn and last anchor height
     withdraw_proof = aergo_to.query_sc_state(
-        bridge_to, ["_sv_Height", withdraw_key + account_ref],
+        bridge_to, ["_sv__anchorHeight", withdraw_key + account_ref],
         compressed=False
     )
     if not withdraw_proof.account.state_proof.inclusion:
@@ -367,7 +185,7 @@ def build_deposit_proof(
             "Receiver {} must be an Aergo address".format(receiver)
         )
     # check last merged height
-    anchor_info = aergo_to.query_sc_state(bridge_to, ["_sv_Height"])
+    anchor_info = aergo_to.query_sc_state(bridge_to, ["_sv__anchorHeight"])
     if not anchor_info.account.state_proof.inclusion:
         raise InvalidArgumentsError(
             "Contract doesnt exist in state, check contract deployed and "
@@ -378,7 +196,7 @@ def build_deposit_proof(
     last_merged_height_to = int(anchor_info.var_proofs[0].value)
     _, current_height = aergo_to.get_blockchain_status()
     # waite for anchor containing our transfer
-    stream = aergo_to.receive_event_stream(bridge_to, "set_root",
+    stream = aergo_to.receive_event_stream(bridge_to, "newAnchor",
                                            start_block_no=current_height)
     while last_merged_height_to < deposit_height:
         print("deposit not recorded in current anchor, waiting new anchor "
@@ -387,8 +205,8 @@ def build_deposit_proof(
               "last anchor height : {} "
               .format(deposit_height, last_merged_height_to)
               )
-        set_root_event = next(stream)
-        last_merged_height_to = set_root_event.arguments[0]
+        new_anchor_event = next(stream)
+        last_merged_height_to = new_anchor_event.arguments[1]
     stream.stop()
     # get inclusion proof of lock in last merged block
     merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)

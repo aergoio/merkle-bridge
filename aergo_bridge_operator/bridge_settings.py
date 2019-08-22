@@ -145,7 +145,7 @@ class BridgeSettingsManager:
         network_to: str
     ) -> int:
         """ Query the anchoring periode of network_from onto network_to."""
-        return self.get_tempo(network_from, network_to, "_sv_T_anchor")[0]
+        return self.get_tempo(network_from, network_to, "_sv__tAnchor")[0]
 
     def get_t_final(
         self,
@@ -155,7 +155,7 @@ class BridgeSettingsManager:
         """ Query when network_from should be considered final by validators
         before it can be anchored on network_to
         """
-        return self.get_tempo(network_from, network_to, "_sv_T_final")[0]
+        return self.get_tempo(network_from, network_to, "_sv__tFinal")[0]
 
     def get_tempo(
         self,
@@ -165,7 +165,7 @@ class BridgeSettingsManager:
     ) -> List[int]:
         """ Query t_final or t_achor depending on the tempo argument."""
         if tempo is None:
-            args = ["_sv_T_anchor", "_sv_T_final"]
+            args = ["_sv__tAnchor", "_sv__tFinal"]
         else:
             args = [tempo]
         aergo = herapy.Aergo()
@@ -213,7 +213,7 @@ class BridgeSettingsManager:
         """
         # get bridge nonce
         current_nonce, id = aergo.query_sc_state(
-            bridge_addr, ["_sv_Nonce", "_sv_ContractID"]).var_proofs
+            bridge_addr, ["_sv__nonce", "_sv__contractId"]).var_proofs
         current_nonce = int(current_nonce.value)
         bridge_id = id.value.decode('utf-8')[1:-1]
         data = str(tempo) + str(current_nonce) + bridge_id + letter
@@ -250,7 +250,7 @@ class BridgeSettingsManager:
         privkey_pwd: str = None
     ) -> None:
         """Update the anchoring periode of network_from -> network_to bridge"""
-        return self._update_tempo("update_t_anchor", "A", t_anchor, signers,
+        return self._update_tempo("tAnchorUpdate", "A", t_anchor, signers,
                                   sigs, network_from, network_to,
                                   privkey_name, privkey_pwd)
 
@@ -267,7 +267,7 @@ class BridgeSettingsManager:
         """Update the finality of network_from for the
         network_from -> network_to bridge
         """
-        return self._update_tempo("update_t_final", "F", t_final, signers,
+        return self._update_tempo("tFinalUpdate", "F", t_final, signers,
                                   sigs, network_from, network_to,
                                   privkey_name, privkey_pwd)
 
@@ -357,7 +357,7 @@ class BridgeSettingsManager:
         """
         # get bridge nonce
         current_nonce, id = aergo.query_sc_state(
-            bridge_addr, ["_sv_Nonce", "_sv_ContractID"]).var_proofs
+            bridge_addr, ["_sv__nonce", "_sv__contractId"]).var_proofs
         current_nonce = int(current_nonce.value)
         bridge_id = id.value.decode('utf-8')[1:-1]
         # format data to be signed
@@ -427,7 +427,7 @@ class BridgeSettingsManager:
         bridge_address: str,
         aergo: herapy.Aergo
     ) -> herapy.obj.tx_hash.TxHash:
-        tx, result = aergo.call_sc(bridge_address, "update_validators",
+        tx, result = aergo.call_sc(bridge_address, "validatorsUpdate",
                                    args=[new_validators, signers, signatures])
         if result.status != herapy.CommitStatus.TX_OK:
             raise TxError("Set new validators Tx commit failed : {}"

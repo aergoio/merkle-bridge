@@ -26,13 +26,13 @@ def auto_tempo_update(from_chain, to_chain, wallet):
         'networks', to_chain, 'bridges', from_chain, 't_final'
     )
     t_anchor, t_final = query_tempo(hera, aergo_bridge,
-                                    ["_sv_T_anchor", "_sv_T_final"])
+                                    ["_sv__tAnchor", "_sv__tFinal"])
     assert t_anchor == t_anchor_before
     assert t_final == t_final_before
 
     # increase tempo
     nonce_before = int(
-        hera.query_sc_state(aergo_bridge, ["_sv_Nonce"]).var_proofs[0].value
+        hera.query_sc_state(aergo_bridge, ["_sv__nonce"]).var_proofs[0].value
     )
     wallet.config_data(
         'networks', to_chain, 'bridges', from_chain, 't_anchor',
@@ -47,18 +47,18 @@ def auto_tempo_update(from_chain, to_chain, wallet):
     while nonce <= nonce_before + 2:
         time.sleep(t_anchor_before)
         nonce = int(
-            hera.query_sc_state(aergo_bridge, ["_sv_Nonce"])
+            hera.query_sc_state(aergo_bridge, ["_sv__nonce"])
             .var_proofs[0].value
         )
 
     t_anchor, t_final = query_tempo(hera, aergo_bridge,
-                                    ["_sv_T_anchor", "_sv_T_final"])
+                                    ["_sv__tAnchor", "_sv__tFinal"])
     assert t_anchor == t_anchor_before + 1
     assert t_final == t_final_before + 1
 
     # decrease tempo
     nonce_before = int(
-        hera.query_sc_state(aergo_bridge, ["_sv_Nonce"]).var_proofs[0].value
+        hera.query_sc_state(aergo_bridge, ["_sv__nonce"]).var_proofs[0].value
     )
     wallet.config_data(
         'networks', to_chain, 'bridges', from_chain, 't_anchor',
@@ -73,11 +73,11 @@ def auto_tempo_update(from_chain, to_chain, wallet):
     while nonce <= nonce_before + 2:
         time.sleep(t_anchor_before)
         nonce = int(
-            hera.query_sc_state(aergo_bridge, ["_sv_Nonce"])
+            hera.query_sc_state(aergo_bridge, ["_sv__nonce"])
             .var_proofs[0].value
         )
     t_anchor, t_final = query_tempo(hera, aergo_bridge,
-                                    ["_sv_T_anchor", "_sv_T_final"])
+                                    ["_sv__tAnchor", "_sv__tFinal"])
     assert t_anchor == t_anchor_before
     assert t_final == t_final_before
 
@@ -103,7 +103,7 @@ def auto_update_validators(from_chain, to_chain, wallet):
 
     # add a validator
     aergo_nonce_before = int(
-        hera.query_sc_state(aergo_bridge, ["_sv_Nonce"]).var_proofs[0].value
+        hera.query_sc_state(aergo_bridge, ["_sv__nonce"]).var_proofs[0].value
     )
     new_validators = validators_before + [validators_before[0]]
     wallet.config_data('validators', value=new_validators)
@@ -114,7 +114,7 @@ def auto_update_validators(from_chain, to_chain, wallet):
     while nonce <= aergo_nonce_before + 2:
         time.sleep(t_anchor_aergo)
         nonce = int(
-            hera.query_sc_state(aergo_bridge, ["_sv_Nonce"])
+            hera.query_sc_state(aergo_bridge, ["_sv__nonce"])
             .var_proofs[0].value
         )
     aergo_validators = query_validators(hera, aergo_bridge)
@@ -124,7 +124,7 @@ def auto_update_validators(from_chain, to_chain, wallet):
 
     # remove added validator
     aergo_nonce_before = int(
-        hera.query_sc_state(aergo_bridge, ["_sv_Nonce"]).var_proofs[0].value
+        hera.query_sc_state(aergo_bridge, ["_sv__nonce"]).var_proofs[0].value
     )
     wallet.config_data('validators', value=new_validators[:-1])
     wallet.save_config()
@@ -133,7 +133,7 @@ def auto_update_validators(from_chain, to_chain, wallet):
     while nonce <= aergo_nonce_before + 2:
         time.sleep(t_anchor_aergo)
         nonce = int(
-            hera.query_sc_state(aergo_bridge, ["_sv_Nonce"])
+            hera.query_sc_state(aergo_bridge, ["_sv__nonce"])
             .var_proofs[0].value
         )
     aergo_validators = query_validators(hera, aergo_bridge)

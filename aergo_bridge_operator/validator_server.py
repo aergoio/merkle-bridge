@@ -81,10 +81,10 @@ class ValidatorService(BridgeOperatorServicer):
 
         # get the current t_anchor and t_final for both sides of bridge
         t_anchor1, t_final1 = query_tempo(
-            self.hera1, self.addr1, ["_sv_T_anchor", "_sv_T_final"]
+            self.hera1, self.addr1, ["_sv__tAnchor", "_sv__tFinal"]
         )
         t_anchor2, t_final2 = query_tempo(
-            self.hera2, self.addr2, ["_sv_T_anchor", "_sv_T_final"]
+            self.hera2, self.addr2, ["_sv__tAnchor", "_sv__tFinal"]
         )
         print("{}             <- {} (t_final={}) : t_anchor={}"
               .format(aergo1, aergo2, t_final1, t_anchor1))
@@ -217,9 +217,9 @@ class ValidatorService(BridgeOperatorServicer):
             print("root to sign doesnt match expected root\n", anchor)
             return "root to sign doesnt match expected root"
 
-        status = aergo_to.query_sc_state(bridge_to, ["_sv_Nonce",
-                                                     "_sv_Height",
-                                                     "_sv_T_anchor"])
+        status = aergo_to.query_sc_state(bridge_to, ["_sv__nonce",
+                                                     "_sv__anchorHeight",
+                                                     "_sv__tAnchor"])
         last_nonce_to, last_merged_height_from, t_anchor = \
             [int(proof.value) for proof in status.var_proofs]
 
@@ -248,13 +248,13 @@ class ValidatorService(BridgeOperatorServicer):
         """
         if tempo_msg.is_from_mainnet:
             current_tempo = query_tempo(self.hera2, self.addr2,
-                                        ["_sv_T_final"])
+                                        ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
                 tempo_msg, 't_anchor', "A", current_tempo, "\t"*5)
         else:
             current_tempo = query_tempo(self.hera1, self.addr1,
-                                        ["_sv_T_final"])
+                                        ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
                 tempo_msg, 't_anchor', "A", current_tempo, "")
@@ -266,13 +266,13 @@ class ValidatorService(BridgeOperatorServicer):
         """
         if tempo_msg.is_from_mainnet:
             current_tempo = query_tempo(self.hera2, self.addr2,
-                                        ["_sv_T_final"])
+                                        ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
                 tempo_msg, 't_final', "F", current_tempo, "\t"*5)
         else:
             current_tempo = query_tempo(self.hera1, self.addr1,
-                                        ["_sv_T_final"])
+                                        ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
                 tempo_msg, 't_final', "F", current_tempo, "")
@@ -294,7 +294,7 @@ class ValidatorService(BridgeOperatorServicer):
             return Approval(error="Voting not enabled")
         # check destination nonce is correct
         nonce = int(hera.query_sc_state(
-            bridge_to, ["_sv_Nonce"]
+            bridge_to, ["_sv__nonce"]
         ).var_proofs[0].value)
         if nonce != tempo_msg.destination_nonce:
             return Approval(error="Incorrect Nonce on {}".format(aergo_to))
@@ -350,7 +350,7 @@ class ValidatorService(BridgeOperatorServicer):
         # check destination nonce is correct
         nonce = int(
             hera.query_sc_state(
-                bridge_to, ["_sv_Nonce"]).var_proofs[0].value
+                bridge_to, ["_sv__nonce"]).var_proofs[0].value
         )
         if nonce != val_msg.destination_nonce:
             return Approval(error="Incorrect Nonce")

@@ -25,7 +25,6 @@ def lock(
     asset: str,
     fee_limit: int,
     fee_price: int,
-    signed_transfer: Union[Tuple[int, str], Tuple[int, str, str, int]] = None,
 ) -> Tuple[int, str]:
     """ Lock can be called to lock aer or tokens.
         it supports delegated transfers when tx broadcaster is not
@@ -35,18 +34,14 @@ def lock(
         raise InvalidArgumentsError(
             "Receiver {} must be an Aergo address".format(receiver)
         )
-    if asset == "aergo":
-        tx, result = aergo_from.call_sc(bridge_from, "lock",
-                                        args=[receiver, str(value), asset],
-                                        amount=value)
-    else:
-        if signed_transfer is None:
-            raise InvalidArgumentsError("""provide signature
-                                        and nonce for token transfers""")
-        args = (receiver, str(value), asset) + signed_transfer
-        tx, result = aergo_from.call_sc(bridge_from, "lock",
-                                        args=args,
-                                        amount=0)
+    if not is_aergo_address(asset):
+        raise InvalidArgumentsError(
+            "asset {} must be an Aergo address".format(asset)
+        )
+    args = (bridge_from, {"_bignum": str(value)}, receiver)
+    tx, result = aergo_from.call_sc(
+        asset, "transfer", args=args, amount=0
+    )
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Lock asset Tx commit failed : {}".format(result))
 
@@ -74,7 +69,7 @@ def build_lock_proof(
     """
     return build_deposit_proof(
         aergo_from, aergo_to, receiver, bridge_from, bridge_to, lock_height,
-        token_origin, "_sv_Locks-"
+        token_origin, "_sv__locks-"
     )
 
 
@@ -92,12 +87,13 @@ def mint(
         raise InvalidArgumentsError(
             "Receiver {} must be an Aergo address".format(receiver)
         )
-    balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = lock_proof.var_proofs[0].auditPath
     ap = [node.hex() for node in auditPath]
+    balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
+    ubig_balance = {'_bignum': str(balance)}
     # call mint on aergo_to with the lock proof from aergo_from
     tx, result = aergo_to.call_sc(bridge_to, "mint",
-                                  args=[receiver, balance,
+                                  args=[receiver, ubig_balance,
                                         token_origin, ap])
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Mint asset Tx commit failed : {}".format(result))

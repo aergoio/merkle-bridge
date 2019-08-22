@@ -1,133 +1,193 @@
-local type_check = {}
-function type_check.isValidAddress(address)
-    -- check existence of invalid alphabets
-    if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
-        return false
-    end
-    -- check lenght is in range
-    if 52 ~= string.len(address) then
-        return false
-    end
-    -- TODO add checksum verification?
-    return true
-end
-function type_check.isValidNumber(value)
-    if nil ~= string.match(value, '[^0123456789]') then
-        return false
-    end
-    return true
+------------------------------------------------------------------------------
+-- Aergo Standard Token Interface (Proposal) - 20190731
+------------------------------------------------------------------------------
+
+-- A internal type check function
+-- @type internal
+-- @param x variable to check
+-- @param t (string) expected type
+local function _typecheck(x, t)
+  if (x and t == 'address') then
+    assert(type(x) == 'string', "address must be string type")
+    -- check address length
+    assert(52 == #x, string.format("invalid address length: %s (%s)", x, #x))
+    -- check character
+    local invalidChar = string.match(x, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]')
+    assert(nil == invalidChar, string.format("invalid address format: %s contains invalid char %s", x, invalidChar or 'nil'))
+  elseif (x and t == 'ubig') then
+    -- check unsigned bignum
+    assert(bignum.isbignum(x), string.format("invalid type: %s != %s", type(x), t))
+    assert(x >= bignum.number(0), string.format("%s must be positive number", bignum.tostring(x)))
+  else
+    -- check default lua types
+    assert(type(x) == t, string.format("invalid type: %s != %s", type(x), t or 'nil'))
+  end
 end
 
+address0 = '1111111111111111111111111111111111111111111111111111'
 
 state.var {
-    Symbol = state.value(),
-    Name = state.value(),
-    Decimals = state.value(),
-    TotalSupply = state.value(),
-    Balances = state.map(),
-    Nonces = state.map(),
-    -- Contract ID is a unique id that cannot be shared by another contract, even one on a sidechain
-    -- This is neeeded for replay protection of signed transfer, because users might have the same private key
-    -- on different sidechains
-    ContractID = state.value(),
+  _balances = state.map(), -- address -> unsigned_bignum
+  _operators = state.map(), -- address/address -> bool
+
+  _totalSupply = state.value(),
+  _name = state.value(),
+  _symbol = state.value(),
+  _decimals = state.value(),
 }
 
-function constructor(total_supply, receiver) 
-    assert(type_check.isValidAddress(receiver), "invalid address format: "..receiver)
-    Symbol:set("TOKEN")
-    Name:set("Standard Token on Aergo")
-    Decimals:set(18)
-    total_supply = bignum.number(total_supply)
-    TotalSupply:set(total_supply)
-    Balances[receiver] = total_supply
-    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-    -- take the first 16 bytes to save size of signed message
-    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
-    id = string.sub(id, 3, 34)
-    ContractID:set(id)
-    return id
+local function _callTokensReceived(from, to, value, ...)
+  if to ~= address0 and system.isContract(to) then
+    contract.call(to, "tokensReceived", system.getSender(), from, value, ...)
+  end
 end
 
----------------------------------------
+local function _transfer(from, to, value, ...)
+  _typecheck(from, 'address')
+  _typecheck(to, 'address')
+  _typecheck(value, 'ubig')
+
+  assert(_balances[from] and _balances[from] >= value, "not enough balance")
+
+  _balances[from] = _balances[from] - value
+  _balances[to] = (_balances[to] or bignum.number(0)) + value
+
+  _callTokensReceived(from, to, value, ...)
+
+  contract.event("transfer", from, to, value)
+end
+
+local function _mint(to, value, ...)
+  _typecheck(to, 'address')
+  _typecheck(value, 'ubig')
+
+  _totalSupply:set((_totalSupply:get() or bignum.number(0)) + value)
+  _balances[to] = (_balances[to] or bignum.number(0)) + value
+
+  _callTokensReceived(address0, to, value, ...)
+
+  contract.event("transfer", address0, to, value)
+end
+
+local function _burn(from, value)
+  _typecheck(from, 'address')
+  _typecheck(value, 'ubig')
+
+  assert(_balances[from] and _balances[from] >= value, "not enough balance")
+
+  _totalSupply:set(_totalSupply:get() - value)
+  _balances[from] = _balances[from] - value
+
+  contract.event("transfer", from, address0, value)
+end
+
+-- call this at constructor
+local function _init(name, symbol, decimals)
+  _typecheck(name, 'string')
+  _typecheck(symbol, 'string')
+  _typecheck(decimals, 'number')
+  assert(decimals > 0)
+
+  _name:set(name)
+  _symbol:set(symbol)
+  _decimals:set(decimals)
+end
+
+------------  Main Functions ------------
+
+-- Get a total token supply.
+-- @type    query
+-- @return  (ubig) total supply of this token
+function totalSupply()
+  return _totalSupply:get()
+end
+
+-- Get a token name
+-- @type    query
+-- @return  (string) name of this token
+function name()
+  return _name:get()
+end
+
+-- Get a token symbol
+-- @type    query
+-- @return  (string) symbol of this token
+function symbol()
+  return _symbol:get()
+end
+
+-- Get a token decimals
+-- @type    query
+-- @return  (number) decimals of this token
+function decimals()
+  return _decimals:get()
+end
+
+-- Get a balance of an owner.
+-- @type    query
+-- @param   owner  (address) a target address
+-- @return  (ubig) balance of owner
+function balanceOf(owner)
+  return _balances[owner] or bignum.number(0)
+end
+
 -- Transfer sender's token to target 'to'
--- @type        call
--- @param to    a target address
--- @param value string amount of tokens to send
--- @return      success
----------------------------------------
-function transfer(to, value) 
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    local from = system.getSender()
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    assert(bvalue > b0, "invalid value")
-    assert(to ~= from, "same sender and receiver")
-    assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
-    Balances[from] = Balances[from] - bvalue
-    Nonces[from] = (Nonces[from] or 0) + 1
-    Balances[to] = (Balances[to] or b0) + bvalue
-    if system.isContract(to) then
-        -- prevent accidentally sending tokens to contracts that don't support them
-        success, is_payable = contract.pcall(contract.call, to, "token_payable")
-        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
-    end
-    contract.event("transfer", system.getSender(), to, value)
-    return true
+-- @type    call
+-- @param   to      (address) a target address
+-- @param   value   (ubig) an amount of token to send
+-- @param   ...     addtional data, MUST be sent unaltered in call to 'tokensReceived' on 'to'
+-- @event   transfer(from, to, value)
+function transfer(to, value, ...)
+  _transfer(system.getSender(), to, value, ...)
 end
 
----------------------------------------
--- Transfer tokens according to signed data from the owner
--- @type  call
--- @param from      sender's address
--- @param to        receiver's address
--- @param value     string amount of token to send in aer
--- @param nonce     string nonce of the sender to prevent replay
--- @param fee       string fee given to the tx broadcaster
--- @param deadline  block number before which the tx can be executed
--- @param signature signature proving sender's consent
--- @return          success
--- This function is intended for feeless token transfers with a tx broadcaster. Make sure that 'from' is the system.getSender() of the caller contract.
----------------------------------------
-function signed_transfer(from, to, value, nonce, signature, fee, deadline)
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
-    local bfee = bignum.number(fee)
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    -- check addresses
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
-    assert(to ~= from, "same sender and receiver")
-    -- check amounts, fee
-    assert(bfee >= b0, "fee must be positive")
-    assert(bvalue >= b0, "value must be positive")
-    assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
-    -- check deadline
-    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
-    -- check nonce
-    if Nonces[from] == nil then Nonces[from] = 0 end
-    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
-    -- construct signed transfer and verifiy signature
-    data = crypto.sha256(to..','..bignum.tostring(bvalue)..','..tostring(nonce)..','..bignum.tostring(bfee)..','..tostring(deadline)..','..ContractID:get())
-    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
-    -- execute transfer
-    Balances[from] = Balances[from] - bvalue - bfee
-    Balances[to] = (Balances[to] or b0) + bvalue
-    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
-    Nonces[from] = Nonces[from] + 1
-    if system.isContract(to) and to ~= system.getSender() then
-        -- if a signed transfer is made to a contract and that contract is not the caller, 
-        -- check that that contract can support standard token transfers
-        -- this prevents a malicious broadcaster from burning tokens by executing a signed transfer
-        -- directly without passing through the contract to record that transfer.
-        success, is_payable = contract.pcall(contract.call, to, "token_payable")
-        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
-    end
-    contract.event("signed_transfer", system.getSender(), from, to, value)
-    return true
+-- Get allowance from owner to spender
+-- @type    query
+-- @param   owner       (address) owner's address
+-- @param   operator    (address) allowed address
+-- @return  (bool) true/false
+function isApprovedForAll(owner, operator)
+  return (owner == operator) or (_operators[owner.."/".. operator] == true)
 end
 
+-- Allow operator to use all sender's token
+-- @type    call
+-- @param   operator  (address) a operator's address
+-- @param   approved  (boolean) true/false
+-- @event   approve(owner, operator, approved)
+function setApprovalForAll(operator, approved)
+  _typecheck(operator, 'address')
+  _typecheck(approved, 'boolean')
+  assert(system.getSender() ~= operator, "cannot set approve self as operator")
 
--- register functions to abi
-abi.register(transfer, signed_transfer)
+  _operators[system.getSender().."/".. operator] = approved
+
+  contract.event("approve", system.getSender(), operator, approved)
+end
+
+-- Transfer 'from's token to target 'to'.
+-- Tx sender have to be approved to spend from 'from'
+-- @type    call
+-- @param   from    (address) a sender's address
+-- @param   to      (address) a receiver's address
+-- @param   value   (ubig) an amount of token to send
+-- @param   ...     addtional data, MUST be sent unaltered in call to 'tokensReceived' on 'to'
+-- @event   transfer(from, to, value)
+function transferFrom(from, to, value, ...)
+  assert(isApprovedForAll(from, system.getSender()), "caller is not approved for holder")
+
+  _transfer(from, to, value, ...)
+end
+
+--------------- Custom constructor ---------------------
+--------------------------------------------------------
+function constructor(total_supply, receiver) 
+    _typecheck(receiver, 'address')
+    _init('Standard token on Aergo', 'TOKEN', 18)
+    _totalSupply:set(total_supply)
+    _balances[receiver] = total_supply
+end
+--------------------------------------------------------
+
+abi.register(transfer, transferFrom, setApprovalForAll)
+abi.register_view(name, symbol, decimals, totalSupply, balanceOf, isApprovedForAll)

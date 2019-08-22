@@ -23,19 +23,14 @@ def burn(
     token_pegged: str,
     fee_limit: int,
     fee_price: int,
-    signed_transfer: Tuple[int, str, str, int] = None,
 ) -> Tuple[int, str]:
     """ Burn a minted token on a sidechain. """
     if not is_aergo_address(receiver):
         raise InvalidArgumentsError(
             "Receiver {} must be an Aergo address".format(receiver)
         )
-    args = (receiver, str(value), token_pegged)
-    if signed_transfer is not None:
-        args = args + signed_transfer
-        tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
-    else:
-        tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
+    args = (receiver, {"_bignum": str(value)}, token_pegged)
+    tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
 
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Burn asset Tx commit failed : {}".format(result))
@@ -64,7 +59,7 @@ def build_burn_proof(
     """
     return build_deposit_proof(
         aergo_from, aergo_to, receiver, bridge_from, bridge_to, burn_height,
-        token_origin, "_sv_Burns-"
+        token_origin, "_sv__burns-"
     )
 
 
@@ -82,12 +77,13 @@ def unlock(
         raise InvalidArgumentsError(
             "Receiver {} must be an Aergo address".format(receiver)
         )
-    balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     auditPath = burn_proof.var_proofs[0].auditPath
     ap = [node.hex() for node in auditPath]
+    balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
+    ubig_balance = {'_bignum': str(balance)}
     # call unlock on aergo_to with the burn proof from aergo_from
     tx, result = aergo_to.call_sc(bridge_to, "unlock",
-                                  args=[receiver, balance,
+                                  args=[receiver, ubig_balance,
                                         token_origin, ap])
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Unlock asset Tx commit failed : {}".format(result))

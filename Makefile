@@ -26,11 +26,6 @@ protoc:
 		--python_out=. \
 		--grpc_python_out=. \
 		./proto/aergo_bridge_operator/*.proto
-	python3 -m grpc_tools.protoc \
-		-I proto \
-		--python_out=. \
-		--grpc_python_out=. \
-		./proto/broadcaster/*.proto
 
 deploy_token:
 	python3 -m aergo_wallet.token_deployer

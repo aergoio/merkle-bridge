@@ -1,150 +1,109 @@
-local address = {}
-function address.isValidAddress(address)
-  -- check existence of invalid alphabets
-  if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
-    return false
-  end
-  -- check lenght is in range
-  if 52 ~= string.len(address) then
-    return false
-  end
-  -- TODO add checksum verification
-  return true
-end
-
-
+------------------------------------------------------------------------------
 -- Merkle bridge contract
+------------------------------------------------------------------------------
+
+-- Internal type check function
+-- @type internal
+-- @param x variable to check
+-- @param t (string) expected type
+local function _typecheck(x, t)
+  if (x and t == 'address') then
+    assert(type(x) == 'string', "address must be string type")
+    -- check address length
+    assert(52 == #x, string.format("invalid address length: %s (%s)", x, #x))
+    -- check character
+    local invalidChar = string.match(x, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]')
+    assert(nil == invalidChar, string.format("invalid address format: %s contains invalid char %s", x, invalidChar or 'nil'))
+  elseif (x and t == 'ubig') then
+    -- check unsigned bignum
+    assert(bignum.isbignum(x), string.format("invalid type: %s != %s", type(x), t))
+    assert(x >= bignum.number(0), string.format("%s must be positive number", bignum.tostring(x)))
+  else
+    -- check default lua types
+    assert(type(x) == t, string.format("invalid type: %s != %s", type(x), t or 'nil'))
+  end
+end
 
 -- Stores latest finalised state root of connected blockchain at regular intervals.
 -- Enables Users to verify state information of the connected chain 
 -- using merkle proofs for the finalised state root.
 state.var {
-    -- Trie root of the opposit side bridge contract. Mints and Unlocks require a merkle proof
+    -- Trie root of the opposit side bridge contract. _mints and _unlocks require a merkle proof
     -- of state inclusion in this last Root.
-    Root = state.value(),
+    -- (hex string without 0x prefix)
+    _anchorRoot = state.value(),
     -- Height of the last block anchored
-    Height = state.value(),
-    -- Validators contains the addresses and 2/3 of them must sign a root update
+    -- (hex string without 0x prefix)
+    _anchorHeight = state.value(),
+    -- _validators contains the addresses and 2/3 of them must sign a root update
     -- The index of validators starts at 1.
-    Validators = state.map(),
+    -- (uint) -> (address) 
+    _validators = state.map(),
     -- Number of validators registered in the Validators map
-    Nb_Validators= state.value(),
+    -- (uint)
+    _validatorsCount= state.value(),
     -- Registers locked balances per account reference: user provides merkle proof of locked balance
-    Locks = state.map(),
+    -- (account ref string) -> (string uint)
+    _locks = state.map(),
     -- Registers unlocked balances per account reference: prevents unlocking more than was burnt
-    Unlocks = state.map(),
+    -- (account ref string) -> (string uint)
+    _unlocks = state.map(),
     -- Registers burnt balances per account reference : user provides merkle proof of burnt balance
-    Burns = state.map(),
+    -- (account ref string) -> (string uint)
+    _burns = state.map(),
     -- Registers minted balances per account reference : prevents minting more than what was locked
-    Mints = state.map(),
-    -- BridgeTokens keeps track of tokens that were received through the bridge
-    BridgeTokens = state.map(),
-    -- MintedTokens is the same as BridgeTokens but keys and values are swapped
-    -- MintedTokens is used for preventing a minted token from being locked instead of burnt.
-    MintedTokens = state.map(),
-    -- T_anchor is the anchoring periode of the bridge
-    T_anchor = state.value(),
-    -- T_final is the time after which the bridge operator consideres a block finalised
-    -- this value is only useful if the anchored chain doesn't have LIB
-    T_final = state.value(),
-    -- Nonce is a replay protection for validator and root updates.
-    Nonce = state.value(),
-    -- ContractID is a replay protection between sidechains as the same addresses can be validators
+    -- (account ref string) -> (string uint)
+    _mints = state.map(),
+    -- _bridgeTokens keeps track of tokens that were received through the bridge
+    -- (address) -> (address)
+    _bridgeTokens = state.map(),
+    -- _mintedTokens is the same as _bridgeTokens but keys and values are swapped
+    -- _mintedTokens is used for preventing a minted token from being locked instead of burnt.
+    -- (address) -> (address)
+    _mintedTokens = state.map(),
+    -- _tAnchor is the anchoring periode of the bridge
+    -- (uint)
+    _tAnchor = state.value(),
+    -- _tFinal is the time after which the bridge operator consideres a block finalised
+    -- this value is only useful if the anchored chain doesn't have LIB.
+    -- (uint)
+    _tFinal = state.value(),
+    -- _nonce is a replay protection for validator and root updates.
+    -- (uint)
+    _nonce = state.value(),
+    -- _contractId is a replay protection between sidechains as the same addresses can be validators
     -- on multiple chains.
-    ContractID = state.value(),
-
+    -- (string)
+    _contractId = state.value(),
 }
 
-function constructor(addresses, t_anchor, t_final)
-    T_anchor:set(t_anchor)
-    T_final:set(t_final)
-    Root:set("constructor")
-    Height:set(0)
-    Nonce:set(0)
-    Nb_Validators:set(#addresses)
-    for i, addr in ipairs(addresses) do
-        assert(address.isValidAddress(addr), "invalid address format: " .. addr)
-        Validators[i] = addr
-    end
-    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
-    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-    -- take the first 16 bytes to save size of signed message
-    id = string.sub(id, 3, 34)
-    ContractID:set(id)
-    return id
-end
-
--- signers is the index of signers in Validators
-function set_root(root, height, signers, signatures)
-    -- check Height so validator is not tricked by signing multiple anchors
-    -- users have t_anchor to finalize their transfer
-    -- (a malicious BP could commit a user's mint tx after set_root on purpose for user to lose tx fee.)
-    assert(height > Height:get() + T_anchor:get(), "Next anchor height not reached")
-    old_nonce = Nonce:get()
-    -- NOTE if length of root is no checked, ',' is necessary
-    message = crypto.sha256(root..','..tostring(height)..tostring(old_nonce)..ContractID:get().."R")
-    assert(validate_signatures(message, signers, signatures), "Failed signature validation")
-    Root:set("0x"..root)
-    Height:set(height)
-    Nonce:set(old_nonce + 1)
-    contract.event("set_root", height, root)
-end
-
-function validate_signatures(message, signers, signatures)
-    -- 2/3 of Validators must sign for the message to be valid
-    nb = Nb_Validators:get()
+--------------------- Utility Functions -------------------------
+-- Check 2/3 validators signed message hash
+-- @type    internal
+-- @param   hash (0x hex string) 0x hex string 
+-- @param   signers ([]uint) array of signer indexes
+-- @param   signatures ([]0x hex string) array of signatures matching signers indexes
+-- @return  (bool) 2/3 signarures are valid
+local function _validateSignatures(hash, signers, signatures)
+    -- 2/3 of _validators must sign for the hash to be valid
+    nb = _validatorsCount:get()
     assert(nb*2 <= #signers*3, "2/3 validators must sign")
     for i,signer in ipairs(signers) do
         if i > 1 then
             assert(signer > signers[i-1], "All signers must be different")
         end
-        assert(Validators[signer], "Signer index not registered")
-        assert(crypto.ecverify(message, signatures[i], Validators[signer]), "Invalid signature")
+        assert(_validators[signer], "Signer index not registered")
+        assert(crypto.ecverify(hash, signatures[i], _validators[signer]), "Invalid signature")
     end
     return true
 end
 
--- new_validators replaces the list of validators
--- signers is the index of signers in Validators
-function update_validators(addresses, signers, signatures)
-    old_nonce = Nonce:get()
-    message = crypto.sha256(join(addresses)..tostring(old_nonce)..ContractID:get().."V")
-    assert(validate_signatures(message, signers, signatures), "Failed signature validation")
-    old_size = Nb_Validators:get()
-    if #addresses < old_size then
-        diff = old_size - #addresses
-        for i = 1, diff+1, 1 do
-            -- delete validator slot
-            Validators:delete(old_size + i)
-        end
-    end
-    Nb_Validators:set(#addresses)
-    for i, addr in ipairs(addresses) do
-        -- NOTE if length of addresses is not checked with isValidAddress, than array item mus be separated by a separator
-        assert(address.isValidAddress(addr), "invalid address format: " .. addr)
-        Validators[i] = addr
-    end
-    Nonce:set(old_nonce + 1)
-end
-
-function update_t_anchor(t_anchor, signers, signatures)
-    old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_anchor)..tostring(old_nonce)..ContractID:get().."A")
-    assert(validate_signatures(message, signers, signatures), "Failed signature validation")
-    T_anchor:set(t_anchor)
-    Nonce:set(old_nonce + 1)
-end
-
-function update_t_final(t_final, signers, signatures)
-    old_nonce = Nonce:get()
-    message = crypto.sha256(tostring(t_final)..tostring(old_nonce)..ContractID:get().."F")
-    assert(validate_signatures(message, signers, signatures), "Failed signature validation")
-    T_final:set(t_final)
-    Nonce:set(old_nonce + 1)
-end
-
-function join(array)
-    -- not using a separator is safe for signing if the length of items is checked with isValidAddress for example
+-- Concatenate strings in array
+-- @type    internal
+-- @param   array ([]string)
+-- @return  (string)
+function _join(array)
+    -- not using a separator is safe for signing if the length of items is checked with _typecheck for example
     str = ""
     for i, data in ipairs(array) do
         str = str..data
@@ -152,449 +111,554 @@ function join(array)
     return str
 end
 
--- lock and burn must be distinct because tokens on both sides could have the same address. Also adds clarity because burning is only applicable to minted tokens.
--- nonce and signature are used when making a token lockup
--- the owner of tokens can use a broadcaster and pay fees in tokens instead of aer
-function lock(receiver, amount, token_address, nonce, signature, fee, deadline)
-    local bamount = bignum.number(amount)
-    local b0 = bignum.number(0)
-    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
-    assert(MintedTokens[token_address] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
-    assert(bamount > b0, "amount must be positive")
-    assert(system.getAmount() == "0", "cannot lock aer, must be wrapped in token")
 
-    -- Add locked amount to total
-    local account_ref = receiver .. token_address
-    local old = Locks[account_ref]
-    local locked_balance
-    local sender
-    if old == nil then
-        locked_balance = bamount
-    else
-        locked_balance = bignum.number(old) + bamount
-    end
-    Locks[account_ref] = bignum.tostring(locked_balance)
-
-    -- Lock assets in the bridge
-    this_contract = system.getContractID()
-    if fee == nil then
-        sender = system.getSender()
-        if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, "0", 0) then
-            error("failed to receive token to lock")
-        end
-    else
-        sender = receiver
-        -- the owner of tokens doesn't pay aer fees, lock is called by a broadcaster
-        if not contract.call(token_address, "signed_transfer", sender, this_contract, bignum.tostring(bamount), nonce, signature, fee, deadline) then
-            error("failed to receive token to lock")
-        end
-        -- hack : take the token signature from lock tx and create a new tx with a different receiver, include that tx before the first one. 
-        -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
-    end
-    contract.event("lock", sender, receiver, amount, token_address)
-    return token_address, bamount
+-- check if the ith bit is set in hex string bytes
+-- @type    internal
+-- @param   bits (hex string) hex string without 0x
+-- @param   i (uint) index of bit to check
+-- @return  (bool) true if ith bit is 1
+local function _bitIsSet(bits, i)
+    require "bit"
+    -- get the hex byte containing ith bit
+    local byteIndex = math.floor(i/8)*2 + 1
+    local byteHex = string.sub(bits, byteIndex, byteIndex + 1)
+    local byte = tonumber(byteHex, 16)
+    return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
 end
 
--- mint a foreign token. token_origin is the token address where it is transfered from.
--- anybody can mint, the receiver is the account who's locked balance is recorded
--- mint tx fees cannot be payed in tokens (let's the sidechain mint without user having to sign
--- a delegated mint : better UX if minting handled by sidechain.)
-function mint(receiver, balance, token_origin, merkle_proof)
-    local bbalance = bignum.number(balance)
-    local b0 = bignum.number(0)
-    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
-    assert(bbalance > b0, "minteable balance must be positive")
-
-    -- Verify merkle proof of locked balance
-    local account_ref = receiver .. token_origin
-    local balance_str = "\""..bignum.tostring(bbalance).."\""
-    if not _verify_mp(merkle_proof, "Locks", account_ref, balance_str, Root:get()) then
-        error("failed to verify deposit balance merkle proof")
+-- compute the merkle proof verification
+-- @type    internal
+-- @param   ap ([]0x hex string) merkle proof nodes (audit path)
+-- @param   keyIndex (uint) step counter in merkle proof iteration
+-- @param   key (hex string) key for which the merkle proof is created
+-- @param   leafHash (hex string) value stored in the smt
+-- @return  (0x hex string) hash of the smt root with given merkle proof
+local function _verifyProof(ap, keyIndex, key, leafHash)
+    if keyIndex == #ap then
+        return leafHash
     end
-
-    -- Calculate amount to mint
-    local to_transfer
-    minted_so_far = Mints[account_ref]
-    if minted_so_far == nil then
-        to_transfer = bbalance
-    else
-        to_transfer  = bbalance - bignum.number(minted_so_far)
+    if _bitIsSet(key, keyIndex) then
+        local right = _verifyProof(ap, keyIndex+1, key, leafHash)
+        return crypto.sha256("0x"..ap[#ap-keyIndex]..string.sub(right, 3, #right))
     end
-    assert(to_transfer > bignum.number(0), "make a deposit before minting")
-
-    -- Deploy or get the minted token
-    local mint_address
-    if BridgeTokens[token_origin] == nil then
-        -- Deploy new minteable token controlled by bridge
-        mint_address, success = _deploy_minteable_token()
-        if not success then error("failed to create token contract") end
-        BridgeTokens[token_origin] = mint_address
-        MintedTokens[mint_address] = token_origin
-    else
-        mint_address = BridgeTokens[token_origin]
-    end
-
-    -- Record total amount minted
-    Mints[account_ref] = bignum.tostring(bbalance)
-
-    -- Mint tokens
-    if not contract.call(mint_address, "mint", receiver, bignum.tostring(to_transfer)) then
-        error("failed to mint token")
-    end
-    contract.event("mint", system.getSender(), receiver, to_transfer, token_origin)
-    return mint_address, to_transfer
+    local left = _verifyProof(ap, keyIndex+1, key, leafHash)
+    return crypto.sha256(left..ap[#ap-keyIndex])
 end
-
--- burn a sidechain token
--- mint_address is the token address on the sidechain
--- the owner of tokens can use a broadcaster and pay fees in tokens instead of aer
-function burn(receiver, amount, mint_address, nonce, signature, fee, deadline)
-    local bamount = bignum.number(amount)
-    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
-    assert(bamount > bignum.number(0), "amount must be positive")
-    assert(system.getAmount() == "0", "burn function not payable, only tokens can be burned")
-    local origin_address = MintedTokens[mint_address]
-    assert(origin_address ~= nil, "cannot burn token : must have been minted by bridge")
-    -- Add burnt amount to total
-    local account_ref = receiver .. origin_address
-    local old = Burns[account_ref]
-    local burnt_balance
-    local sender
-    if old == nil then
-        burnt_balance = bamount
-    else
-        burnt_balance = bignum.number(old) + bamount
-    end
-    Burns[account_ref] = bignum.tostring(burnt_balance)
-    -- Burn token
-    if fee == nil then
-        sender = system.getSender()
-        if not contract.call(mint_address, "burn", sender, bignum.tostring(bamount)) then
-            error("failed to burn token")
-        end
-    else
-        sender = receiver
-        -- the owner of tokens doesn't pay aer fees, burn is called by a broadcaster
-        if not contract.call(mint_address, "signed_burn", sender, bignum.tostring(bamount), nonce, signature, fee, deadline) then
-            error("failed to burn token")
-        end
-        -- hack : take the token signature from burn tx and create a new tx with a different receiver, include that tx before the first one.
-        -- fix : the token sender should sign receiver (he does when sender=system.getSender() but doesnt if the tx is broadcasted, so sender should equal receiver in that case).
-    end
-    contract.event("burn", sender, receiver, amount, mint_address)
-    return origin_address, bamount
-end
-
--- unlock tokens returning from sidechain
--- anybody can unlock, the receiver is the account who's burnt balance is recorded
--- unlock tx fees cannot be payed in tokens (let's the sidechain unlock without user having to sign
--- a delegated unlock : better UX if unlocking handled by sidechain, fees can still be payed at burn time)
-function unlock(receiver, balance, token_address, merkle_proof)
-    local bbalance = bignum.number(balance)
-    assert(address.isValidAddress(receiver), "invalid address format: " .. receiver)
-    assert(bbalance > bignum.number(0), "unlockeable balance must be positive")
-
-    -- Verify merkle proof of burnt balance
-    local account_ref = receiver .. token_address
-    local balance_str = "\""..bignum.tostring(bbalance).."\""
-    if not _verify_mp(merkle_proof, "Burns", account_ref, balance_str, Root:get()) then
-        error("failed to verify burnt balance merkle proof")
-    end
-
-    -- Calculate amount to unlock
-    local unlocked_so_far = Unlocks[account_ref]
-    local to_transfer
-    if unlocked_so_far == nil then
-        to_transfer = bbalance
-    else
-        to_transfer = bbalance - bignum.number(unlocked_so_far)
-    end
-    assert(to_transfer > bignum.number(0), "burn minted tokens before unlocking")
-
-    -- Record total amount unlocked so far
-    Unlocks[account_ref] = bignum.tostring(bbalance)
-
-    -- Unlock tokens
-    if not contract.call(token_address, "transfer", receiver, bignum.tostring(to_transfer)) then
-        error("failed to unlock token")
-    end
-    contract.event("unlock", system.getSender(), receiver, to_transfer, token_address)
-    return token_address, to_transfer
-end
-
 
 -- We dont need to use compressed merkle proofs in lua because byte(0) is easilly 
 -- passed in the merkle proof array.
 -- (In solidity, only bytes32[] is supported, so byte(0) cannot be passed and it is
 -- more efficient to use a compressed proof)
-function _verify_mp(ap, map_name, key, value, root)
-    local var_id = "_sv_" .. map_name .. "-" .. key
-    local trie_key = crypto.sha256(var_id)
-    local trie_value = crypto.sha256(value)
-    local leaf_hash = crypto.sha256(trie_key..string.sub(trie_value, 3, #trie_value)..string.format('%02x', 256-#ap))
-    return root == _verify_proof(ap, 0, string.sub(trie_key, 3, #trie_key), leaf_hash)
+-- @type    internal
+-- @param   ap ([]0x hex string) merkle proof nodes (audit path)
+-- @param   mapName (string) name of mapping variable
+-- @param   key (string) key stored in mapName
+-- @param   value (string) value of key in mapName
+-- @return  (bool) merkle proof of inclusion is valid
+local function _verifyDepositProof(ap, mapName, key, value, root)
+    local varId = "_sv_" .. mapName .. "-" .. key
+    local trieKey = crypto.sha256(varId)
+    local trieValue = crypto.sha256(value)
+    local leafHash = crypto.sha256(trieKey..string.sub(trieValue, 3, #trieValue)..string.format('%02x', 256-#ap))
+    return root == _verifyProof(ap, 0, string.sub(trieKey, 3, #trieKey), leafHash)
 end
 
-function _verify_proof(ap, key_index, key, leaf_hash)
-    if key_index == #ap then
-        return leaf_hash
-    end
-    if _bit_is_set(key, key_index) then
-        local right = _verify_proof(ap, key_index+1, key, leaf_hash)
-        return crypto.sha256("0x"..ap[#ap-key_index]..string.sub(right, 3, #right))
-    end
-    local left = _verify_proof(ap, key_index+1, key, leaf_hash)
-    return crypto.sha256(left..ap[#ap-key_index])
+-- deploy new contract
+-- @type    internal
+-- @param   tokenOrigin (address) address of token locked used as pegged token name
+local function _deployMinteableToken(tokenOrigin)
+    addr, success = contract.deploy(mintedToken, tokenOrigin)
+    assert(success, "failed to create peg token contract")
+    return addr
 end
 
-function _bit_is_set(bits, i)
-    require "bit"
-    -- get the hex byte containing ith bit
-    local byte_index = math.floor(i/8)*2 + 1
-    local byte_hex = string.sub(bits, byte_index, byte_index + 1)
-    local byte = tonumber(byte_hex, 16)
-    return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
+-- lock tokens in the bridge contract
+-- @type    internal
+-- @param   tokenAddress (address) token locked
+-- @param   amount (ubig) amount of tokens to send
+-- @param   receiver (address) receiver accross the bridge
+-- @event   lock(receiver, amount, tokenAddress)
+local function _lock(tokenAddress, amount, receiver)
+    _typecheck(receiver, 'address')
+    _typecheck(amount, 'ubig')
+    assert(_mintedTokens[tokenAddress] == nil, "this token was minted by the bridge so it should be burnt to transfer back to origin, not locked")
+    assert(amount > bignum.number(0), "amount must be positive")
+
+    -- Add locked amount to total
+    local accountRef = receiver .. tokenAddress
+    local old = _locks[accountRef]
+    local lockedBalance
+    if old == nil then
+        lockedBalance = amount
+    else
+        lockedBalance = bignum.number(old) + amount
+    end
+    _locks[accountRef] = bignum.tostring(lockedBalance)
+    contract.event("lock", receiver, amount, tokenAddress)
 end
 
-function _deploy_minteable_token()
-    src = [[
-local type_check = {}
-function type_check.isValidAddress(address)
-    -- check existence of invalid alphabets
-    if nil ~= string.match(address, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]') then
-        return false
+-- Create a new bridge contract
+-- @type    __init__
+-- @param   validators ([]address) array of Aergo addresses
+-- @param   tAnchor (uint) anchoring periode
+-- @param   tFinal (uint) finality of anchored chain
+-- @return  (string) id of contract to prevent anchor replay on other contracts
+function constructor(validators, tAnchor, tFinal)
+    _tAnchor:set(tAnchor)
+    _tFinal:set(tFinal)
+    _anchorRoot:set("constructor")
+    _anchorHeight:set(0)
+    _nonce:set(0)
+    _validatorsCount:set(#validators)
+    for i, addr in ipairs(validators) do
+        _typecheck(addr, 'address')
+        _validators[i] = addr
     end
-    -- check lenght is in range
-    if 52 ~= string.len(address) then
-        return false
-    end
-    -- TODO add checksum verification?
-    return true
+    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
+    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
+    -- take the first 16 bytes to save size of signed message
+    id = string.sub(id, 3, 34)
+    _contractId:set(id)
+    return id
 end
-function type_check.isValidNumber(value)
-    if nil ~= string.match(value, '[^0123456789]') then
-        return false
+
+-- Register a new anchor
+-- @type    call
+-- @param   root (hex string) bytes of Aergo storage root
+-- @param   height (uint) block height of root
+-- @param   signers ([]uint) array of signer indexes
+-- @param   signatures ([]0x hex string) array of signatures matching signers indexes
+-- @event   newAnchor(proposer, height, root)
+function newAnchor(root, height, signers, signatures)
+    -- check Height so validator is not tricked by signing multiple anchors
+    -- users have tAnchor to finalize their transfer
+    -- (a malicious BP could commit a user's mint tx after newAnchor on purpose for user to lose tx fee.)
+    assert(height > _anchorHeight:get() + _tAnchor:get(), "Next anchor height not reached")
+    oldNonce = _nonce:get()
+    -- NOTE if length of root is no checked, ',' is necessary
+    message = crypto.sha256(root..','..tostring(height)..tostring(oldNonce).._contractId:get().."R")
+    assert(_validateSignatures(message, signers, signatures), "Failed signature validation")
+    _anchorRoot:set("0x"..root)
+    _anchorHeight:set(height)
+    _nonce:set(oldNonce + 1)
+    contract.event("newAnchor", system.getSender(), height, root)
+end
+
+-- Register a new set of validators
+-- @type    call
+-- @param   validators ([]address) array of Aergo addresses
+-- @param   signers ([]uint) array of signer indexes
+-- @param   signatures ([]0x hex string) array of signatures matching signers indexes
+-- @event   validatorsUpdate(proposer)
+function validatorsUpdate(validators, signers, signatures)
+    oldNonce = _nonce:get()
+    message = crypto.sha256(_join(validators)..tostring(oldNonce).._contractId:get().."V")
+    assert(_validateSignatures(message, signers, signatures), "Failed new validators signature validation")
+    oldCount = _validatorsCount:get()
+    if #validators < oldCount then
+        diff = oldCount - #validators
+        for i = 1, diff+1, 1 do
+            -- delete validator slot
+            _validators:delete(oldCount + i)
+        end
     end
-    return true
+    _validatorsCount:set(#validators)
+    for i, addr in ipairs(validators) do
+        -- NOTE if length of addresses is not checked with _typecheck, then array items must be separated by a separator
+        _typecheck(addr, 'address')
+        _validators[i] = addr
+    end
+    _nonce:set(oldNonce + 1)
+    contract.event("validatorsUpdate", system.getSender())
+end
+
+-- Register new anchoring periode
+-- @type    call
+-- @param   tAnchor (uint) new anchoring periode
+-- @param   signers ([]uint) array of signer indexes
+-- @param   signatures ([]0x hex string) array of signatures matching signers indexes
+-- @event   tAnchorUpdate(proposer, tAnchor)
+function tAnchorUpdate(tAnchor, signers, signatures)
+    oldNonce = _nonce:get()
+    message = crypto.sha256(tostring(tAnchor)..tostring(oldNonce).._contractId:get().."A")
+    assert(_validateSignatures(message, signers, signatures), "Failed signature validation")
+    _tAnchor:set(tAnchor)
+    _nonce:set(oldNonce + 1)
+    contract.event("tAnchorUpdate", system.getSender(), tAnchor)
+end
+
+-- Register new finality of anchored chain
+-- @type    call
+-- @param   tFinal (uint) new finality of anchored chain
+-- @param   signers ([]uint) array of signer indexes
+-- @param   signatures ([]0x hex string) array of signatures matching signers indexes
+-- @event   tFinalUpdate(proposer, tFinal)
+function tFinalUpdate(tFinal, signers, signatures)
+    oldNonce = _nonce:get()
+    message = crypto.sha256(tostring(tFinal)..tostring(oldNonce).._contractId:get().."F")
+    assert(_validateSignatures(message, signers, signatures), "Failed signature validation")
+    _tFinal:set(tFinal)
+    _nonce:set(oldNonce + 1)
+    contract.event("tFinalUpdate", system.getSender(), tFinal)
+end
+
+--------------------- User Transfer Functions -------------------------
+
+-- The ARC1 smart contract calls this function on the recipient after a 'transfer'
+-- @type    call
+-- @param   operator    (address) the address which called token 'transfer' function
+-- @param   from        (address) the sender's address
+-- @param   value       (ubig) an amount of token to send
+-- @param   receiver    (address) receiver accross the bridge
+function tokensReceived(operator, from, value, receiver)
+    return _lock(system.getSender(), value, receiver)
+end
+
+-- mint a token locked on a bidged chain
+-- anybody can mint, the receiver is the account who's locked balance is recorded
+-- @type    call
+-- @param   receiver (address) designated receiver in lock
+-- @param   balance (ubig) total balance of tokens locked
+-- @param   tokenOrigin (address) token locked address on origin
+-- @param   merkleProof ([]0x hex string) merkle proof of inclusion of locked balance
+-- @return  (address, uint) pegged token Aergo address, minted amount
+-- @event   mint(minter, receiver, amount, tokenOrigin)
+function mint(receiver, balance, tokenOrigin, merkleProof)
+    _typecheck(receiver, 'address')
+    _typecheck(balance, 'ubig')
+    _typecheck(tokenOrigin, 'address')
+    assert(balance > bignum.number(0), "minteable balance must be positive")
+
+    -- Verify merkle proof of locked balance
+    local accountRef = receiver .. tokenOrigin
+    local balanceStr = "\""..bignum.tostring(balance).."\""
+    if not _verifyDepositProof(merkleProof, "_locks", accountRef, balanceStr, _anchorRoot:get()) then
+        error("failed to verify deposit balance merkle proof")
+    end
+    -- Calculate amount to mint
+    local amountToTransfer
+    mintedSoFar = _mints[accountRef]
+    if mintedSoFar == nil then
+        amountToTransfer = balance
+    else
+        amountToTransfer  = balance - bignum.number(mintedSoFar)
+    end
+    assert(amountToTransfer > bignum.number(0), "make a deposit before minting")
+    -- Deploy or get the minted token
+    local mintAddress
+    if _bridgeTokens[tokenOrigin] == nil then
+        -- Deploy new minteable token controlled by bridge
+        mintAddress = _deployMinteableToken(tokenOrigin)
+        _bridgeTokens[tokenOrigin] = mintAddress
+        _mintedTokens[mintAddress] = tokenOrigin
+    else
+        mintAddress = _bridgeTokens[tokenOrigin]
+    end
+    -- Record total amount minted
+    _mints[accountRef] = bignum.tostring(balance)
+    -- Mint tokens
+    contract.call(mintAddress, "mint", receiver, amountToTransfer)
+    contract.event("mint", system.getSender(), receiver, amountToTransfer, tokenOrigin)
+    return mintAddress, amountToTransfer
+end
+
+-- burn a pegged token
+-- @type    call
+-- @param   receiver (address) receiver accross the bridge
+-- @param   amount (ubig) number of tokens to burn
+-- @param   mintAddress (address) pegged token to burn
+-- @return  (address) origin token to be unlocked
+-- @event   brun(owner, receiver, amount, mintAddress)
+function burn(receiver, amount, mintAddress)
+    _typecheck(receiver, 'address')
+    _typecheck(amount, 'ubig')
+    assert(amount > bignum.number(0), "amount must be positive")
+    local originAddress = _mintedTokens[mintAddress]
+    assert(originAddress ~= nil, "cannot burn token : must have been minted by bridge")
+    -- Add burnt amount to total
+    local accountRef = receiver .. originAddress
+    local old = _burns[accountRef]
+    local burntBalance
+    if old == nil then
+        burntBalance = amount
+    else
+        burntBalance = bignum.number(old) + amount
+    end
+    _burns[accountRef] = bignum.tostring(burntBalance)
+    -- Burn token
+    contract.call(mintAddress, "burn", system.getSender(), amount)
+    contract.event("burn", system.getSender(), receiver, amount, mintAddress)
+    return originAddress
+end
+
+-- unlock tokens
+-- anybody can unlock, the receiver is the account who's burnt balance is recorded
+-- @type    call
+-- @param   receiver (address) designated receiver in burn
+-- @param   balance (ubig) total balance of tokens burnt
+-- @param   tokenAddress (address) token to unlock
+-- @param   merkleProof ([]0x hex string) merkle proof of inclusion of burnt balance
+-- @return  (uint) unlocked amount
+-- @event   unlock(unlocker, receiver, amount, tokenAddress)
+function unlock(receiver, balance, tokenAddress, merkleProof)
+    _typecheck(receiver, 'address')
+    _typecheck(tokenAddress, 'address')
+    _typecheck(balance, 'ubig')
+    assert(balance > bignum.number(0), "unlockeable balance must be positive")
+
+    -- Verify merkle proof of burnt balance
+    local accountRef = receiver .. tokenAddress
+    local balanceStr = "\""..bignum.tostring(balance).."\""
+    if not _verifyDepositProof(merkleProof, "_burns", accountRef, balanceStr, _anchorRoot:get()) then
+        error("failed to verify burnt balance merkle proof")
+    end
+
+    -- Calculate amount to unlock
+    local unlockedSoFar = _unlocks[accountRef]
+    local amountToTransfer
+    if unlockedSoFar == nil then
+        amountToTransfer = balance
+    else
+        amountToTransfer = balance - bignum.number(unlockedSoFar)
+    end
+    assert(amountToTransfer > bignum.number(0), "burn minted tokens before unlocking")
+
+    -- Record total amount unlocked so far
+    _unlocks[accountRef] = bignum.tostring(balance)
+
+    -- Unlock tokens
+    contract.call(tokenAddress, "transfer", receiver, amountToTransfer)
+    contract.event("unlock", system.getSender(), receiver, amountToTransfer, tokenAddress)
+    return amountToTransfer
 end
 
 
--- The a bridge token is a mintable and burnable token controlled by
--- the bridge contract. It represents all tokens locked on the other side of the 
+mintedToken = [[
+------------------------------------------------------------------------------
+-- Aergo Standard Token Interface (Proposal) - 20190731
+------------------------------------------------------------------------------
+
+-- A internal type check function
+-- @type internal
+-- @param x variable to check
+-- @param t (string) expected type
+local function _typecheck(x, t)
+  if (x and t == 'address') then
+    assert(type(x) == 'string', "address must be string type")
+    -- check address length
+    assert(52 == #x, string.format("invalid address length: %s (%s)", x, #x))
+    -- check character
+    local invalidChar = string.match(x, '[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]')
+    assert(nil == invalidChar, string.format("invalid address format: %s contains invalid char %s", x, invalidChar or 'nil'))
+  elseif (x and t == 'ubig') then
+    -- check unsigned bignum
+    assert(bignum.isbignum(x), string.format("invalid type: %s != %s", type(x), t))
+    assert(x >= bignum.number(0), string.format("%s must be positive number", bignum.tostring(x)))
+  else
+    -- check default lua types
+    assert(type(x) == t, string.format("invalid type: %s != %s", type(x), t or 'nil'))
+  end
+end
+
+address0 = '1111111111111111111111111111111111111111111111111111'
+
+-- The bridge token is a mintable and burnable token controlled by
+-- the bridge contract. It represents tokens pegged on the other side of the 
 -- bridge with a 1:1 ratio.
 -- This contract is depoyed by the merkle bridge when a new type of token 
 -- is transfered
 state.var {
-    Symbol = state.value(),
-    Name = state.value(),
-    Decimals = state.value(),
-    TotalSupply = state.value(),
-    Balances = state.map(),
-    Nonces = state.map(),
-    -- Contract ID is a unique id that cannot be shared by another contract, even one on a sidechain
-    -- This is neeeded for replay protection of signed transfer, because users might have the same private key
-    -- on different sidechains
-    ContractID = state.value(),
-    Owner = state.value(),
+    _balances = state.map(), -- address -> unsigned_bignum
+    _operators = state.map(), -- address/address -> bool
+
+    _totalSupply = state.value(),
+    _name = state.value(),
+    _symbol = state.value(),
+    _decimals = state.value(),
+
+    _master = state.value(),
 }
 
-function constructor() 
-    Symbol:set("TOKEN")
-    Name:set("Standard Token on Aergo")
-    Decimals:set(18)
-    TotalSupply:set(bignum.number(0))
-    Owner:set(system.getSender())
-    -- contractID is the hash of system.getContractID (prevent replay between contracts on the same chain) and system.getPrevBlockHash (prevent replay between sidechains).
-    -- take the first 16 bytes to save size of signed message
-    local id = crypto.sha256(system.getContractID()..system.getPrevBlockHash())
-    id = string.sub(id, 3, 34)
-    ContractID:set(id)
-    return true
+local function _callTokensReceived(from, to, value, ...)
+  if to ~= address0 and system.isContract(to) then
+    contract.call(to, "tokensReceived", system.getSender(), from, value, ...)
+  end
 end
 
----------------------------------------
+local function _transfer(from, to, value, ...)
+  _typecheck(from, 'address')
+  _typecheck(to, 'address')
+  _typecheck(value, 'ubig')
+
+  assert(_balances[from] and _balances[from] >= value, "not enough balance")
+
+  _balances[from] = _balances[from] - value
+  _balances[to] = (_balances[to] or bignum.number(0)) + value
+
+  _callTokensReceived(from, to, value, ...)
+
+  contract.event("transfer", from, to, value)
+end
+
+local function _mint(to, value, ...)
+  _typecheck(to, 'address')
+  _typecheck(value, 'ubig')
+
+  _totalSupply:set((_totalSupply:get() or bignum.number(0)) + value)
+  _balances[to] = (_balances[to] or bignum.number(0)) + value
+
+  _callTokensReceived(address0, to, value, ...)
+
+  contract.event("transfer", address0, to, value)
+end
+
+local function _burn(from, value)
+  _typecheck(from, 'address')
+  _typecheck(value, 'ubig')
+
+  assert(_balances[from] and _balances[from] >= value, "not enough balance")
+
+  _totalSupply:set(_totalSupply:get() - value)
+  _balances[from] = _balances[from] - value
+
+  contract.event("transfer", from, address0, value)
+end
+
+-- call this at constructor
+local function _init(name, symbol, decimals)
+  _typecheck(name, 'string')
+  _typecheck(symbol, 'string')
+  _typecheck(decimals, 'number')
+  assert(decimals > 0)
+
+  _name:set(name)
+  _symbol:set(symbol)
+  _decimals:set(decimals)
+end
+
+------------  Main Functions ------------
+
+-- Get a total token supply.
+-- @type    query
+-- @return  (ubig) total supply of this token
+function totalSupply()
+  return _totalSupply:get()
+end
+
+-- Get a token name
+-- @type    query
+-- @return  (string) name of this token
+function name()
+  return _name:get()
+end
+
+-- Get a token symbol
+-- @type    query
+-- @return  (string) symbol of this token
+function symbol()
+  return _symbol:get()
+end
+
+-- Get a token decimals
+-- @type    query
+-- @return  (number) decimals of this token
+function decimals()
+  return _decimals:get()
+end
+
+-- Get a balance of an owner.
+-- @type    query
+-- @param   owner  (address) a target address
+-- @return  (ubig) balance of owner
+function balanceOf(owner)
+  return _balances[owner] or bignum.number(0)
+end
+
 -- Transfer sender's token to target 'to'
--- @type        call
--- @param to    a target address
--- @param value string amount of tokens to send
--- @return      success
----------------------------------------
-function transfer(to, value) 
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    local from = system.getSender()
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    assert(bvalue > b0, "invalid value")
-    assert(to ~= from, "same sender and receiver")
-    assert(Balances[from] and bvalue <= Balances[from], "not enough balance")
-    Balances[from] = Balances[from] - bvalue
-    Nonces[from] = (Nonces[from] or 0) + 1
-    Balances[to] = (Balances[to] or b0) + bvalue
-    if system.isContract(to) then
-        -- prevent accidentally sending tokens to contracts that don't support them
-        success, is_payable = contract.pcall(contract.call, to, "token_payable")
-        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
-    end
-    contract.event("transfer", system.getSender(), to, value)
-    return true
+-- @type    call
+-- @param   to      (address) a target address
+-- @param   value   (ubig) an amount of token to send
+-- @param   ...     addtional data, MUST be sent unaltered in call to 'tokensReceived' on 'to'
+-- @event   transfer(from, to, value)
+function transfer(to, value, ...)
+  _transfer(system.getSender(), to, value, ...)
 end
 
----------------------------------------
--- Transfer tokens according to signed data from the owner
--- @type  call
--- @param from      sender's address
--- @param to        receiver's address
--- @param value     string amount of token to send in aer
--- @param nonce     nonce of the sender to prevent replay
--- @param fee       string fee given to the tx broadcaster
--- @param deadline  block number before which the tx can be executed
--- @param signature signature proving sender's consent
--- @return          success
----------------------------------------
-function signed_transfer(from, to, value, nonce, signature, fee, deadline)
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
-    local bfee = bignum.number(fee)
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    -- check addresses
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
-    assert(to ~= from, "same sender and receiver")
-    -- check amounts, fee
-    assert(bfee >= b0, "fee must be positive")
-    assert(bvalue >= b0, "value must be positive")
-    assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
-    -- check deadline
-    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
-    -- check nonce
-    if Nonces[from] == nil then Nonces[from] = 0 end
-    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
-    -- construct signed transfer and verifiy signature
-    data = crypto.sha256(to..','..bignum.tostring(bvalue)..','..tostring(nonce)..','..bignum.tostring(bfee)..','..tostring(deadline)..','..ContractID:get())
-    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
-    -- execute transfer
-    Balances[from] = Balances[from] - bvalue - bfee
-    Balances[to] = (Balances[to] or b0) + bvalue
-    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
-    Nonces[from] = Nonces[from] + 1
-    if system.isContract(to) and to ~= system.getSender() then
-        -- if a signed transfer is made to a contract and that contract is not the call, 
-        -- check that that contract can support standard token transfers
-        -- this prevents a malicious broadcaster from burning tokens by executing a signed transfer
-        -- directly without passing through the contract to record that transfer.
-        success, is_payable = contract.pcall(contract.call, to, "token_payable")
-        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
-    end
-    contract.event("signed_transfer", system.getSender(), from, to, value)
-    return true
+-- Get allowance from owner to spender
+-- @type    query
+-- @param   owner       (address) owner's address
+-- @param   operator    (address) allowed address
+-- @return  (bool) true/false
+function isApprovedForAll(owner, operator)
+  return (owner == operator) or (_operators[owner.."/".. operator] == true)
 end
 
+-- Allow operator to use all sender's token
+-- @type    call
+-- @param   operator  (address) a operator's address
+-- @param   approved  (boolean) true/false
+-- @event   approve(owner, operator, approved)
+function setApprovalForAll(operator, approved)
+  _typecheck(operator, 'address')
+  _typecheck(approved, 'boolean')
+  assert(system.getSender() ~= operator, "cannot set approve self as operator")
 
----------------------------------------
--- mint, burn and signed_burn are specific to the token contract controlled by
--- the merkle bridge contract and representing transfered assets.
----------------------------------------
+  _operators[system.getSender().."/".. operator] = approved
 
----------------------------------------
+  contract.event("approve", system.getSender(), operator, approved)
+end
+
+-- Transfer 'from's token to target 'to'.
+-- Tx sender have to be approved to spend from 'from'
+-- @type    call
+-- @param   from    (address) a sender's address
+-- @param   to      (address) a receiver's address
+-- @param   value   (ubig) an amount of token to send
+-- @param   ...     addtional data, MUST be sent unaltered in call to 'tokensReceived' on 'to'
+-- @event   transfer(from, to, value)
+function transferFrom(from, to, value, ...)
+  assert(isApprovedForAll(from, system.getSender()), "caller is not approved for holder")
+
+  _transfer(from, to, value, ...)
+end
+
+-------------- Merkle Bridge functions -----------------
+--------------------------------------------------------
+
 -- Mint tokens to 'to'
 -- @type        call
 -- @param to    a target address
 -- @param value string amount of token to mint
 -- @return      success
----------------------------------------
 function mint(to, value)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can mint")
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    assert(type_check.isValidAddress(to), "invalid address format: " .. to)
-    local new_total = TotalSupply:get() + bvalue
-    TotalSupply:set(new_total)
-    Balances[to] = (Balances[to] or b0) + bvalue;
-    if system.isContract(to) then
-        -- prevent accidentally sending tokens to contracts that don't support them
-        success, is_payable = contract.pcall(contract.call, to, "token_payable")
-        assert(success and is_payable == "true", "receiver contract must pull tokens himself, not token payable")
-    end
-    contract.event("mint", to, value)
-    return true
+    assert(system.getSender() == _master:get(), "Only bridge contract can mint")
+    _mint(to, value)
 end
 
----------------------------------------
 -- burn the tokens of 'from'
 -- @type        call
 -- @param from  a target address
 -- @param value an amount of token to send
 -- @return      success
----------------------------------------
 function burn(from, value)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    assert(type_check.isValidAddress(from), "invalid address format: " ..from)
-    assert(Balances[from] and bvalue <= Balances[from], "Not enough funds to burn")
-    new_total = TotalSupply:get() - bvalue
-    TotalSupply:set(new_total)
-    Balances[from] = Balances[from] - bvalue
-    contract.event("burn", from, value)
+    assert(system.getSender() == _master:get(), "Only bridge contract can burn")
+    _burn(from, value)
+end
+
+--------------- Custom constructor ---------------------
+--------------------------------------------------------
+function constructor(originAddress) 
+    _init(originAddress, 'PEG', 18)
+    _totalSupply:set(bignum.number(0))
+    _master:set(system.getSender())
     return true
 end
+--------------------------------------------------------
 
----------------------------------------
--- signed_burn the tokens of 'from' according to signed data from the owner
--- @type            call
--- @param from      a target address
--- @param value     an amount of token to send
--- @param nonce     nonce of the sender to prevent replay
--- @param fee       string fee given to the tx broadcaster
--- @param deadline  block number before which the tx can be executed
--- @param signature signature proving sender's consent
--- @return          success
----------------------------------------
-function signed_burn(from, value, nonce, signature, fee, deadline)
-    assert(system.getSender() == Owner:get(), "Only bridge contract can burn")
-    assert(type_check.isValidNumber(value), "invalid value format (must be string)")
-    assert(type_check.isValidNumber(fee), "invalid fee format (must be string)")
-    local bfee = bignum.number(fee)
-    local bvalue = bignum.number(value)
-    local b0 = bignum.number(0)
-    -- check addresses
-    assert(type_check.isValidAddress(from), "invalid address format: " .. from)
-    -- check amounts, fee
-    assert(bfee >= b0, "fee must be positive")
-    assert(bvalue >= b0, "value must be positive")
-    assert(Balances[from] and (bvalue+bfee) <= Balances[from], "not enough balance")
-    -- check deadline
-    assert(deadline == 0 or system.getBlockheight() < deadline, "deadline has passed")
-    -- check nonce
-    if Nonces[from] == nil then Nonces[from] = 0 end
-    assert(Nonces[from] == nonce, "nonce is invalid or already spent")
-    -- construct signed transfer and verifiy signature
-    data = crypto.sha256(system.getSender()..','..bignum.tostring(bvalue)..','..tostring(nonce)..','..bignum.tostring(bfee)..','..tostring(deadline)..','..ContractID:get())
-    assert(crypto.ecverify(data, signature, from), "signature of signed transfer is invalid")
-    -- execute burn
-    new_total = TotalSupply:get() - bvalue
-    TotalSupply:set(new_total)
-    Balances[from] = Balances[from] - bvalue - bfee
-    Balances[system.getOrigin()] = (Balances[system.getOrigin()] or b0) + bfee
-    Nonces[from] = Nonces[from] + 1
-    contract.event("signed_burn", system.getSender(), from, value)
-    return true
-end
+abi.register(transfer, transferFrom, setApprovalForAll, mint, burn)
+abi.register_view(name, symbol, decimals, totalSupply, balanceOf, isApprovedForAll)
 
--- register functions to abi
-abi.register(transfer, signed_transfer, mint, burn, signed_burn)
-        ]]
-    addr, success = contract.deploy(src)
-    return addr, success
-end
 
-function token_payable()
-    error("Cannot receive tokens, must use Lock or Burn to send tokens to the bridge contract")
-end
+]]
 
-abi.register(set_root, update_validators, update_t_anchor, update_t_final, lock, unlock, mint, burn, token_payable)
-abi.payable(lock)
+abi.register(newAnchor, validatorsUpdate, tAnchorUpdate, tFinalUpdate, tokensReceived, unlock, mint, burn)

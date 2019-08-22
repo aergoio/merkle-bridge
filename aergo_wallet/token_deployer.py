@@ -1,4 +1,4 @@
-from getpass import getpass
+# from getpass import getpass
 import json
 import aergo.herapy as herapy
 
@@ -20,9 +20,10 @@ def deploy_token(
     """
     payload = herapy.utils.decode_address(payload_str)
     print("------ Deploy Token-----------")
-    tx, result = aergo.deploy_sc(amount=0,
-                                 payload=payload,
-                                 args=[str(total_supply), receiver])
+    tx, result = aergo.deploy_sc(
+        amount=0, payload=payload,
+        args=[{"_bignum": str(total_supply)}, receiver]
+    )
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Token deployment Tx commit failed : {}".format(result))
     print("    > result[{0}] : {1}"
