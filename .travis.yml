@@ -16,7 +16,7 @@ before_script:
   # - docker build --build-arg GIT_TAG=5a16373a3c535f77304709f725e10284dccfbea1 -t aergo/node ./docker
   - docker-compose -f ./docker/docker-compose.yml up&
   - docker_pid=$!
-  - sleep 10
+  - sleep 20
 
   - make deploy_bridge
   - make deploy_token
