@@ -31,7 +31,7 @@ deploy_token:
 	python3 -m aergo_wallet.token_deployer
 
 docker:
-	docker build --build-arg GIT_TAG=5a16373a3c535f77304709f725e10284dccfbea1 -t aergo/node ./docker
+	# docker build --build-arg GIT_TAG=5a16373a3c535f77304709f725e10284dccfbea1 -t aergo/node ./docker
 	docker-compose -f ./docker/docker-compose.yml up
 
 clean:
