@@ -27,14 +27,10 @@ before_script:
   - make proposer&
   - proposer_pid=$!
 
-  - make broadcaster&
-  - broadcaster_pid=$!
-
 script:
   - make tests
 
 after_script: 
-  - kill $broadcaster_pid
   - kill $proposer_pid
   - kill $validator_pid
   - kill $docker_pid

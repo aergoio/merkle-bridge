@@ -17,9 +17,6 @@ proposer:
 validator:
 	python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update --local_test
 
-broadcaster:
-	python3 -m broadcaster.broadcaster_server
-
 protoc:
 	python3 -m grpc_tools.protoc \
 		-I proto \
