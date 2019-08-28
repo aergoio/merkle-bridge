@@ -210,47 +210,6 @@ It is also possible to perform the lock/burn and mint/unlock operations individu
     # can be used to burn and unlock minted assets from a sidechain.
 
 
-Using a Broadcaster
--------------------
-
-Deprecation WARNING : broadcaster functionality will be removed with next release.
-
-When using a broadcaster to transfer tokens, the user pre-signs the nonce of a standard token
-transfer with a fee in tokens for the broadcaster.
-The broadcaster collects the token fee for executing the transactions, and the user doesn't
-need to hold Aer in his wallet to make transfers.
-The broadcaster's ip address should be registered in the wallet's config.json
-
-.. code-block:: python
-
-    from aergo_wallet.wallet import AergoWallet
-
-    # create a wallet
-    wallet = AergoWallet("./config.json")
-
-    amount = 100*10**18
-    fee = 2*10**18
-    # the name of the asset should be same as the name registered in the standard token's 
-    # Name state variable otherwise the broadcaster will say asset is not suported
-    asset = 'my_token'
-
-    # simple broadcasted transfer on 'mainnet'
-    wallet.d_transfer(amount, fee, to_address, asset, 'mainnet')
-
-    # simple broadcasted transfer of a 'mainnet' asset pegged on 'sidechain2'
-    wallet.d_transfer(amount, fee, to_address, asset, 'sidechain2',
-                      asset_origin_chain='mainnet')
-
-    # Transfer asset from 'mainnet' to 'sidechain2'
-    # The broadcaster collects the asset fee on 'mainnet' and mints on 'sidechain2'
-    # Note : nothing actually forces the broadcaster to mint on sidechain.
-    # If the broadcaster is not nice and doesn't mint, users can use another broadcaster next time
-    wallet.d_bridge_transfer('mainnet', 'sidechain2', asset, amount, fee)
-
-    # Transfer asset from 'sidechain2' to 'mainnet'
-    wallet.d_bridge_transfer('sidechain2', 'mainnet', asset, amount, fee)
-
-
 Wallet utils
 ------------
 

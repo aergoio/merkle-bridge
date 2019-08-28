@@ -32,7 +32,6 @@ it is possible use a large number of validators for best safety and sensorship r
    contracts
    config
    wallet
-   broadcaster
 
 .. toctree::
    :maxdepth: 2
