@@ -34,44 +34,21 @@ Starting a Proposer
 
     $ python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update
 
-        ------ Connect AERGO -----------
-        ------ Connect to Validators -----------
-        Validators:  ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']
-        sidechain2 (t_final=4) -> mainnet  : t_anchor=6
-        ------ Set Sender Account -----------
-        Decrypt exported private key 'proposer'
-        Password: 
-        > Proposer Address: AmPxVdu993eosN3UjnPDdN3wb7TNbHeiHDvn2dvZUcH8KXDK3RLU
-        ------ Connect AERGO -----------
-        ------ Connect to Validators -----------
-        Validators:  ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']
-        mainnet (t_final=5) -> sidechain2  : t_anchor=7
-        ------ Set Sender Account -----------
-        Decrypt exported private key 'proposer'
-        Password: 
-        > Proposer Address: AmPxVdu993eosN3UjnPDdN3wb7TNbHeiHDvn2dvZUcH8KXDK3RLU
+        proposer: MainThread: "mainnet Validators: ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']"
+        proposer: MainThread: "sidechain2 (t_final=4) -> mainnet  : t_anchor=7"
+        proposer: MainThread: "Set Sender Account"
+        proposer: MainThread: "mainnet Proposer Address: AmPxVdu993eosN3UjnPDdN3wb7TNbHeiHDvn2dvZUcH8KXDK3RLU"
+        proposer: MainThread: "sidechain2 Validators: ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']"
+        proposer: MainThread: "mainnet (t_final=5) -> sidechain2  : t_anchor=7"
+        proposer: MainThread: "Set Sender Account"
+        proposer: MainThread: "sidechain2 Proposer Address: AmPxVdu993eosN3UjnPDdN3wb7TNbHeiHDvn2dvZUcH8KXDK3RLU"
+        proposer: sidechain2: "Current mainnet -> sidechain2 ⚓ anchor: height: 3585, root: 0x0x4abe990463eeaf2ebb98971c5358bf0a1e8e33cbc8a75c05222cb324cd503705, nonce: 245"
+        proposer: mainnet: "Current sidechain2 -> mainnet ⚓ anchor: height: 3585, root: 0x0x5b5b2ebddf46829d05ba0efbc756c53dbd6603413c9557e3d720e8d5c37ccf94, nonce: 315"
+        proposer: sidechain2: "🖋 Gathering validator signatures for: root: 0x36b7ed1f97ff9fb4af052d3c36a80a00961f0e0be569d8012a08678dc8d27a98, height: 3604'"
+        proposer: mainnet: "🖋 Gathering validator signatures for: root: 0x3bd469d09fdc0e195063b811c59e88c4d72af53f69d85b783927c76aac34d4cc, height: 3605'"
+        proposer: mainnet: "⚓ Anchor success, ⏰ wait until next anchor time: 7s..."
+        proposer: sidechain2: "⚓ Anchor success, ⏰ wait until next anchor time: 7s..."
 
-                                                | Last anchor from mainnet:
-                                                | --------------------------
-                                                | height: 3263
-                                                | contract trie root: 0x0b714c1ea74bee1bd...
-                                                | current update nonce: 374
-
-
-        | Last anchor from sidechain2:
-        | --------------------------
-        | height: 3263
-        | contract trie root: 0x25512cabc208ac5f8...
-        | current update nonce: 437
-
-        anchoring new root :'0x84e73f87607b39196...'
-        🖋 Gathering signatures from validators ...
-                                                anchoring new root :'0xdc36b3b3fd7d57c51...'
-                                                🖋 Gathering signatures from validators ...
-                                                ⚓ Anchor success,
-                                                ⏰ wait until next anchor time: 7s...
-        ⚓ Anchor success,
-        ⏰ wait until next anchor time: 6s...
 
 
 .. code-block:: python
@@ -93,4 +70,9 @@ The proposer will then try to gather signatures from validators to make the upda
 If the new anchoring periode reached validator consensus, 
 it can then be automatically updated in the bridge contract by the proposer.
 
-.. image:: images/t_anchor_update_log.png
+
+.. code-block:: bash
+
+    proposer: mainnet: "Anchoring periode update requested: 7"
+    proposer: mainnet: "⌛ tAnchorUpdate success"
+    

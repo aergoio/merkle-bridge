@@ -18,7 +18,7 @@ Users can then independently mint assets on the destination bridge contract by v
 
 The proposers do not need to watch and validate user transfers: the benefit of the merkle bridge design comes from the fact that
 validators simply make sure that the state roots they sign are correct. Since onchain signature verification is only done once per root anchor,
-it is possible use a large number of validators for best safety and sensorship resistance. 
+it is possible to use a large number of validators for best safety and sensorship resistance. 
 
 .. toctree::
    :maxdepth: 2

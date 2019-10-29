@@ -1,8 +1,8 @@
 Deploying a new bridge
 ======================
 
-Before using the bridge deployer, a config file should be created to register network node connections and 
-validators.
+Before using the bridge deployer, a config file should be created to register network node connections,
+bridge tempos (anchoring periode and finality) and validators.
 
 .. image:: images/scratch.png
 
@@ -11,9 +11,7 @@ validators.
     $ python3 -m aergo_bridge_operator.bridge_deployer --help                                                                                                                                                                           18h17m ⚑ ◒  
 
         usage: bridge_deployer.py [-h] -c CONFIG_FILE_PATH --net1 NET1 --net2 NET2
-                                --t_anchor1 T_ANCHOR1 --t_final1 T_FINAL1
-                                --t_anchor2 T_ANCHOR2 --t_final2 T_FINAL2
-                                [--privkey_name PRIVKEY_NAME]
+                                [--privkey_name PRIVKEY_NAME] [--local_test]
 
         Deploy bridge contracts between 2 Aergo networks.
 
@@ -23,16 +21,9 @@ validators.
                                 Path to config.json
         --net1 NET1           Name of Aergo network in config file
         --net2 NET2           Name of Aergo network in config file
-        --t_anchor1 T_ANCHOR1
-                                Anchoring periode (in Aergo blocks) of net2 on net1
-        --t_final1 T_FINAL1   Finality of net2 (in Aergo blocks) root anchored on
-                                net1
-        --t_anchor2 T_ANCHOR2
-                                Anchoring periode (in Aergo blocks) of net1 on net2
-        --t_final2 T_FINAL2   Finality of net1 (in Aergo blocks) root anchored on
-                                net2
         --privkey_name PRIVKEY_NAME
                                 Name of account in config file to sign anchors
+        --local_test          Start all validators locally for convenient testing
 
 
     $ python3 -m bridge_operator.bridge_deployer -c './test_config.json' -a 'aergo-local' -e eth-poa-local --t_anchor_aergo 6 --t_final_aergo 4 --t_anchor_eth 7 --t_final_eth 5 --privkey_name "proposer"

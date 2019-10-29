@@ -38,21 +38,16 @@ Starting a Validator
 
     $ python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update
 
-        ------ Connect AERGO -----------
-        Bridge validators :  ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']
-        mainnet             <- sidechain2 (t_final=4) : t_anchor=6
-        mainnet (t_final=5) -> sidechain2              : t_anchor=7
-        WARNING: This validator will vote for settings update in config.json
-        ------ Set Signer Account -----------
+        "Bridge validators : ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']"
+        "mainnet <- sidechain2 (t_final=4) : t_anchor=6"
+        "mainnet (t_final=5) -> sidechain2 : t_anchor=7"
+        "WARNING: This validator will vote for settings update in config.json"
         Decrypt exported private key 'validator'
         Password: 
-        > Validator Address: AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ
-        server 1  started
-                MAINNET                         SIDECHAIN
-                                                ⚓ Validator 1 signed a new anchor for sidechain,
-                                                with nonce 376
-        ⚓ Validator 1 signed a new anchor for mainnet,
-        with nonce 439
+        "Validator Address: AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ"
+        server 1 started
+        {"val_index": 1, "signed": true, "type": "⚓ anchor", "value": {"root": "0xff7c55cba10790c3476cfe141b7579338fdc5ef623788ba634c958b8974c9109", "height": 3965}, "destination": "sidechain2", "nonce": 281}
+        {"val_index": 1, "signed": true, "type": "⚓ anchor", "value": {"root": "0x86a270e930624ffd614e211019c0d613320bedad4f3b464759a24b41120061df", "height": 3971}, "destination": "mainnet", "nonce": 358}
 
 
 .. code-block:: python

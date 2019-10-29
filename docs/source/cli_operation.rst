@@ -41,7 +41,11 @@ Updating bridge settings
 If the new anchoring periode reached validator consensus, 
 it can then be automatically updated in the bridge contract by the proposer.
 
-.. image:: images/t_anchor_update_log.png
+.. code-block:: bash
+
+    proposer: mainnet: "Anchoring periode update requested: 7"
+    proposer: mainnet: "⌛ tAnchorUpdate success"
+
 
 CLI for asset transfers
 -----------------------
