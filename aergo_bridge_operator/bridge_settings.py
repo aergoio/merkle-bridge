@@ -27,6 +27,10 @@ class TxError(Exception):
 
 
 class BridgeSettingsManager:
+    """ WARNING: Bridge settings update is now automated by proposer and
+        validator.
+    """
+
     def __init__(self, old_config_data: Dict):
         self._config_data = old_config_data
 

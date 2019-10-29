@@ -9,9 +9,11 @@ from getpass import getpass
 import grpc
 import hashlib
 import json
+import logging
 from multiprocessing.dummy import (
     Pool,
 )
+import os
 import time
 
 from typing import (
@@ -35,6 +37,32 @@ from aergo_bridge_operator.op_utils import (
 )
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
+
+logger = logging.getLogger("validator")
+logger.setLevel(logging.INFO)
+
+file_formatter = logging.Formatter(
+    '{"level": "%(levelname)s", "time": "%(asctime)s", '
+    '"service": "%(funcName)s", "message": %(message)s'
+)
+stream_formatter = logging.Formatter('%(message)s')
+
+
+root_dir = os.path.dirname(__file__)
+file_handler = logging.FileHandler(root_dir + '/logs/validator.log')
+file_handler.setFormatter(file_formatter)
+
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(stream_formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
+
+log_template = \
+    '{\"val_index\": %s, \"signed\": %s, \"type\": \"%s\", '\
+    '\"value\": %s, \"destination\": \"%s\"'
+success_log_template = log_template + ', \"nonce\": %s}'
+error_log_template = log_template + ', \"error\": \"%s\"}'
 
 
 class ValidatorService(BridgeOperatorServicer):
@@ -62,7 +90,6 @@ class ValidatorService(BridgeOperatorServicer):
         self.hera2 = herapy.Aergo()
         self.auto_update = auto_update
 
-        print("------ Connect AERGO -----------")
         self.hera1.connect(config_data['networks'][aergo1]['ip'])
         self.hera2.connect(config_data['networks'][aergo2]['ip'])
 
@@ -77,7 +104,7 @@ class ValidatorService(BridgeOperatorServicer):
         validators2 = query_validators(self.hera2, self.addr2)
         assert validators1 == validators2, \
             "Validators should be the same on both sides of bridge"
-        print("Bridge validators : ", validators1)
+        logger.info("\"Bridge validators : %s\"", validators1)
 
         # get the current t_anchor and t_final for both sides of bridge
         t_anchor1, t_final1 = query_tempo(
@@ -86,56 +113,83 @@ class ValidatorService(BridgeOperatorServicer):
         t_anchor2, t_final2 = query_tempo(
             self.hera2, self.addr2, ["_sv__tAnchor", "_sv__tFinal"]
         )
-        print("{}             <- {} (t_final={}) : t_anchor={}"
-              .format(aergo1, aergo2, t_final1, t_anchor1))
-        print("{} (t_final={}) -> {}              : t_anchor={}"
-              .format(aergo1, t_final2, aergo2, t_anchor2))
+        logger.info(
+            "\"%s <- %s (t_final=%s) : t_anchor=%s\"", aergo1, aergo2,
+            t_final1, t_anchor1
+        )
+        logger.info(
+            "\"%s (t_final=%s) -> %s : t_anchor=%s\"", aergo1, t_final2,
+            aergo2, t_anchor2
+        )
         if auto_update:
-            print("WARNING: This validator will vote for settings update in "
-                  "config.json")
-            if validators1 != validators2:
-                print("WARNING: different validators on both sides "
-                      "of the bridge")
+            logger.warning(
+                "\"WARNING: This validator will vote for settings update in "
+                "config.json\""
+            )
+            if len(validators1) != len(validators2):
+                logger.warning(
+                    "\"WARNING: different number of validators on both sides "
+                    "of the bridge\""
+                )
             if len(config_data['validators']) != len(validators1):
-                print("WARNING: This validator is voting for a new set of "
-                      "aergo validators")
+                logger.warning(
+                    "\"WARNING: This validator is voting for a new set of %s "
+                    "validators\"", aergo1
+                )
             if len(config_data['validators']) != len(validators2):
-                print("WARNING: This validator is voting for a new set of "
-                      "aergo validators")
-            try:
-                for i, validator in enumerate(config_data['validators']):
+                logger.warning(
+                    "\"WARNING: This validator is voting for a new set of %s "
+                    "validators\"", aergo2
+                )
+            for i, validator in enumerate(config_data['validators']):
+                try:
                     if validator['addr'] != validators1[i]:
-                        print("WARNING: This validator is voting for a new "
-                              "set of validators\n")
+                        logger.warning(
+                            "\"WARNING: This validator is voting for a new set"
+                            " of %s validators\"", aergo1
+                        )
+                except IndexError:
+                    # new validators index larger than current validators
+                    pass
+                try:
                     if validator['addr'] != validators2[i]:
-                        print("WARNING: This validator is voting for a new "
-                              "set of validators\n")
-                    break
-            except IndexError:
-                pass
+                        logger.warning(
+                            "\"WARNING: This validator is voting for a new set"
+                            " of %s validators\"", aergo2
+                        )
+                except IndexError:
+                    # new validators index larger than current validators
+                    pass
 
-            t_anchor1_c = (config_data['networks'][self.aergo1]
-                           ['bridges'][self.aergo2]['t_anchor'])
-            t_final1_c = (config_data['networks'][self.aergo1]
-                          ['bridges'][self.aergo2]['t_final'])
-            t_anchor2_c = (config_data['networks'][self.aergo2]['bridges']
-                           [self.aergo1]['t_anchor'])
-            t_final2_c = (config_data['networks'][self.aergo2]['bridges']
-                          [self.aergo1]['t_final'])
+            t_anchor1_c = (config_data['networks'][aergo1]
+                           ['bridges'][aergo2]['t_anchor'])
+            t_final1_c = (config_data['networks'][aergo1]
+                          ['bridges'][aergo2]['t_final'])
+            t_anchor2_c = (config_data['networks'][aergo2]['bridges']
+                           [aergo1]['t_anchor'])
+            t_final2_c = (config_data['networks'][aergo2]['bridges']
+                          [aergo1]['t_final'])
             if t_anchor1_c != t_anchor1:
-                print("WARNING: This validator is voting to update anchoring "
-                      "periode on mainnet")
+                logger.warning(
+                    "\"WARNING: This validator is voting to update anchoring"
+                    " periode of %s on %s\"", aergo2, aergo1
+                )
             if t_final1_c != t_final1:
-                print("WARNING: This validator is voting to update finality "
-                      "of sidechain on mainnet")
+                logger.warning(
+                    "\"WARNING: This validator is voting to update finality "
+                    " of %s on %s\"", aergo2, aergo1
+                )
             if t_anchor2_c != t_anchor2:
-                print("WARNING: This validator is voting to update anchoring "
-                      "periode on sidechain")
+                logger.warning(
+                    "\"WARNING: This validator is voting to update anchoring"
+                    " periode of %s on %s\"", aergo1, aergo2
+                )
             if t_final2_c != t_final2:
-                print("WARNING: This validator is voting to update finality "
-                      "of mainnet on sidechain")
+                logger.warning(
+                    "\"WARNING: This validator is voting to update finality "
+                    " of %s on %s\"", aergo1, aergo2
+                )
 
-        print("------ Set Signer Account -----------")
         if privkey_name is None:
             privkey_name = 'validator'
         if privkey_pwd is None:
@@ -146,13 +200,12 @@ class ValidatorService(BridgeOperatorServicer):
         self.hera1.import_account(sender_priv_key, privkey_pwd)
         self.hera2.import_account(sender_priv_key, privkey_pwd)
         self.address = str(self.hera1.account.address)
-        print("  > Validator Address: {}".format(self.address))
+        logger.info("\"Validator Address: %s\"", self.address)
 
     def GetAnchorSignature(self, anchor, context):
         """ Verifies the anchors are valid and signes them
             aergo1 and aergo2 must be trusted.
         """
-        tab = ""
         destination = ""
         bridge_id = ""
         if anchor.is_from_mainnet:
@@ -160,16 +213,19 @@ class ValidatorService(BridgeOperatorServicer):
             err_msg = self.is_valid_anchor(anchor, self.hera1,
                                            self.addr1,
                                            self.hera2, self.addr2)
-            tab = "\t"*5
-            destination = "sidechain"
+            destination = self.aergo2
             bridge_id = self.id2
         else:
             err_msg = self.is_valid_anchor(anchor, self.hera2,
                                            self.addr2,
                                            self.hera1, self.addr1)
-            destination = "mainnet"
+            destination = self.aergo1
             bridge_id = self.id1
         if err_msg is not None:
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\u2693 anchor", destination, err_msg
+            )
             return Approval(error=err_msg)
 
         # sign anchor and return approval
@@ -180,10 +236,13 @@ class ValidatorService(BridgeOperatorServicer):
         h = hashlib.sha256(msg).digest()
         sig = self.hera1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)
-        print("{0}{1} Validator {2} signed a new anchor for {3},\n"
-              "{0}with nonce {4}"
-              .format(tab, u'\u2693', self.validator_index, destination,
-                      anchor.destination_nonce))
+        logger.info(
+            success_log_template, self.validator_index, "true",
+            "\u2693 anchor",
+            "{{\"root\": \"0x{}\", \"height\": {}}}"
+            .format(anchor.root, anchor.height),
+            destination, anchor.destination_nonce
+        )
         return approval
 
     def is_valid_anchor(
@@ -204,8 +263,8 @@ class ValidatorService(BridgeOperatorServicer):
         # lib = best_height - finalized_from
         lib = aergo_from.get_status().consensus_info.status['LibNo']
         if int(anchor.height) > lib:
-            print("anchor not finalized\n", anchor)
-            return "anchor not finalized"
+            return ("anchor height not finalized, got: {}, expected: {}"
+                    .format(anchor.height, lib))
 
         # 2- get contract state root at origin_height
         # and check equals anchor root
@@ -214,8 +273,8 @@ class ValidatorService(BridgeOperatorServicer):
                                           root=block.blocks_root_hash)
         root = contract.state_proof.state.storageRoot.hex()
         if root != anchor.root:
-            print("root to sign doesnt match expected root\n", anchor)
-            return "root to sign doesnt match expected root"
+            return ("root doesn't match height {}, got: {}, expected: {}"
+                    .format(lib, anchor.root, root))
 
         status = aergo_to.query_sc_state(bridge_to, ["_sv__nonce",
                                                      "_sv__anchorHeight",
@@ -225,15 +284,14 @@ class ValidatorService(BridgeOperatorServicer):
 
         # 3- check merkle bridge nonces are correct
         if last_nonce_to != int(anchor.destination_nonce):
-            print("anchor nonce is invalid\n", anchor)
-            return "anchor nonce is invalid"
+            return ("anchor nonce invalid, got: {}, expected: {}"
+                    .format(anchor.destination_nonce, last_nonce_to))
 
         # 4- check anchored height comes after the previous one and t_anchor is
         # passed
         if last_merged_height_from + t_anchor > int(anchor.height):
-            print("root update height is invalid: "
-                  "must be higher than previous merge + t_anchor\n", anchor)
-            return "root update height is invalid"
+            return ("anchor height too soon, got: {}, expected: {}"
+                    .format(anchor.height, last_merged_height_from + t_anchor))
         return None
 
     def load_config_data(self) -> Dict:
@@ -251,13 +309,13 @@ class ValidatorService(BridgeOperatorServicer):
                                         ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
-                tempo_msg, 't_anchor', "A", current_tempo, "\t"*5)
+                tempo_msg, 't_anchor', "A", current_tempo)
         else:
             current_tempo = query_tempo(self.hera1, self.addr1,
                                         ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
-                tempo_msg, 't_anchor', "A", current_tempo, "")
+                tempo_msg, 't_anchor', "A", current_tempo)
 
     def GetTFinalSignature(self, tempo_msg, context):
         """Get a vote(signature) from the validator to update the t_final
@@ -269,13 +327,13 @@ class ValidatorService(BridgeOperatorServicer):
                                         ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
-                tempo_msg, 't_final', "F", current_tempo, "\t"*5)
+                tempo_msg, 't_final', "F", current_tempo)
         else:
             current_tempo = query_tempo(self.hera1, self.addr1,
                                         ["_sv__tFinal"])
             return self.get_tempo(
                 self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
-                tempo_msg, 't_final', "F", current_tempo, "")
+                tempo_msg, 't_final', "F", current_tempo)
 
     def get_tempo(
         self,
@@ -288,31 +346,42 @@ class ValidatorService(BridgeOperatorServicer):
         tempo_str,
         tempo_id,
         current_tempo,
-        tab
     ):
         if not self.auto_update:
-            return Approval(error="Voting not enabled")
-        # check destination nonce is correct
+            return Approval(error="Setting update not enabled")
+        # 1 - check destination nonce is correct
         nonce = int(hera.query_sc_state(
             bridge_to, ["_sv__nonce"]
         ).var_proofs[0].value)
         if nonce != tempo_msg.destination_nonce:
-            return Approval(error="Incorrect Nonce on {}".format(aergo_to))
+            err_msg = ("Incorrect Nonce, got: {}, expected: {}"
+                       .format(tempo_msg.destination_nonce, nonce))
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\u231B " + tempo_str, aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
         config_data = self.load_config_data()
         tempo = (config_data['networks'][aergo_to]['bridges']
                  [aergo_from][tempo_str])
-        # check new tempo is different from current one to prevent
+        # 2 - check new tempo is different from current one to prevent
         # update spamming
         if current_tempo == tempo:
-            return Approval(
-                error="New {} is same as current one on {}"
-                      .format(tempo_str, aergo_to))
-        # check tempo matches the one in config
-        if tempo != tempo_msg.tempo:
-            return Approval(
-                error="Refused to vote for this {}: {} on {}"
-                      .format(tempo_str, tempo_msg.tempo, aergo_to)
+            err_msg = "Not voting for a new {}".format(tempo_str)
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\u231B " + tempo_str, aergo_to, err_msg
             )
+            return Approval(error=err_msg)
+        # 3 - check tempo matches the one in config
+        if tempo != tempo_msg.tempo:
+            err_msg = ("Invalid {}, got: {}, expected: {}"
+                       .format(tempo_str, tempo_msg.tempo, tempo))
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\u231B " + tempo_str, aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
         # sign anchor and return approval
         msg = bytes(
             str(tempo) + str(nonce) + id_to + tempo_id,
@@ -321,50 +390,67 @@ class ValidatorService(BridgeOperatorServicer):
         h = hashlib.sha256(msg).digest()
         sig = hera.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)
-        print("{0}{1} Validator {2} signed a new {3} for {4},\n"
-              "{0}with nonce {5}"
-              .format(tab, u'\u231B', self.validator_index, tempo_str,
-                      aergo_to, tempo_msg.destination_nonce))
+        logger.info(
+            success_log_template, self.validator_index, "true",
+            "\u231B " + tempo_str, tempo_msg.tempo, aergo_to,
+            tempo_msg.destination_nonce
+        )
         return approval
 
     def GetValidatorsSignature(self, val_msg, context):
         if val_msg.is_from_mainnet:
             return self.get_validators(
-                self.hera2, self.addr2, self.id2,
-                val_msg, "\t"*5)
+                self.hera2, self.addr2, self.id2, self.aergo2,
+                val_msg)
         else:
             return self.get_validators(
-                self.hera1, self.addr1, self.id1,
-                val_msg, "")
+                self.hera1, self.addr1, self.id1, self.aergo2,
+                val_msg)
 
     def get_validators(
         self,
         hera: herapy.Aergo,
         bridge_to: str,
         id_to: str,
+        aergo_to,
         val_msg,
-        tab
     ):
         if not self.auto_update:
-            return Approval(error="Voting not enabled")
-        # check destination nonce is correct
+            return Approval(error="Setting update not enabled")
+        # 1 - check destination nonce is correct
         nonce = int(
             hera.query_sc_state(
                 bridge_to, ["_sv__nonce"]).var_proofs[0].value
         )
         if nonce != val_msg.destination_nonce:
-            return Approval(error="Incorrect Nonce")
+            err_msg = ("Incorrect Nonce, got: {}, expected: {}"
+                       .format(val_msg.destination_nonce, nonce))
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\U0001f58b validator set", aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
         config_data = self.load_config_data()
         config_vals = [val['addr'] for val in config_data['validators']]
-        # check new validators are different from current ones to prevent
+        # 2 - check new validators are different from current ones to prevent
         # update spamming
         current_validators = query_validators(hera, bridge_to)
         if current_validators == config_vals:
-            return Approval(error="New validators are same as current ones")
-        # check validators are same in config file
+            err_msg = "Not voting for a new validator set"
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\U0001f58b validator set", aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
+        # 3 - check validators are same in config file
         if config_vals != val_msg.validators:
-            return Approval(error="Refused to vote for this validator "
-                                  "set: {}".format(val_msg.validators))
+            err_msg = ("Invalid validator set, got: {}, expected: {}"
+                       .format(val_msg.validators, config_vals))
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\U0001f58b validator set", aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
         # sign validators
         data = ""
         for val in config_vals:
@@ -374,10 +460,11 @@ class ValidatorService(BridgeOperatorServicer):
         h = hashlib.sha256(data_bytes).digest()
         sig = hera.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)
-        print("{0}{1} Validator {2} signed a new validator set for {3},\n"
-              "{0}with nonce {4}"
-              .format(tab, u'\U0001f58b', self.validator_index, "Aergo",
-                      val_msg.destination_nonce))
+        logger.info(
+            success_log_template, self.validator_index, "true",
+            "\U0001f58b validator set", val_msg.validators, aergo_to,
+            val_msg.destination_nonce
+        )
         return approval
 
 
@@ -405,8 +492,7 @@ class ValidatorServer:
 
     def run(self):
         self.server.start()
-        print("server", self.validator_index, " started")
-        print("{}MAINNET{}SIDECHAIN".format("\t", "\t"*4))
+        logger.info("server %s started", self.validator_index)
         try:
             while True:
                 time.sleep(_ONE_DAY_IN_SECONDS)

@@ -6,15 +6,10 @@ POC implementation of the Aergo Merkle Bridge
 
 https://merkle-bridge.readthedocs.io/en/latest/index.html
 
-This repository contains :
-* Bridge contracts
-* A proposal for standard tokens on Aergo (necessary for bridge compatibility)
-
 
 * Bridge operator:
   * Proposer
   * Validator
-  * BridgeSettingsManager
   * Bridge deployer script
 
 
@@ -23,12 +18,9 @@ This repository contains :
   * Transfer tokens and aergo **between** Aergo networks
   * Query balances
   * Query pending sidechain withdrawals
-  * Sign delegated token transfers to use with a tx broadcaster
   * Deploy tokens
   * Handle encrypted private keys
 
-
-* Transaction broadcaster : allows users to make token transfers without paying aer fees.
 
 The operators and wallet both use a **config.json** file to operate. This file records, network names and ip, token addresses, pegged token addresses, bridge addresses, validators and proposer information (ip and address), wallet encrypted private keys.
 

@@ -6,9 +6,11 @@ from getpass import getpass
 import grpc
 import hashlib
 import json
+import logging
 from multiprocessing.dummy import (
     Pool,
 )
+import os
 import threading
 import time
 
@@ -38,6 +40,27 @@ from aergo_bridge_operator.op_utils import (
     query_validators,
     query_id,
 )
+
+logger = logging.getLogger("proposer")
+logger.setLevel(logging.INFO)
+
+file_formatter = logging.Formatter(
+    '{"level": "%(levelname)s", "time": "%(asctime)s", '
+    '"name": "%(name)s", "thread": "%(threadName)s", '
+    '"function": "%(funcName)s", "message": %(message)s'
+)
+stream_formatter = logging.Formatter('%(name)s: %(threadName)s: %(message)s')
+
+
+root_dir = os.path.dirname(__file__)
+file_handler = logging.FileHandler(root_dir + '/logs/proposer.log')
+file_handler.setFormatter(file_formatter)
+
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(stream_formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
 
 
 class ValidatorMajorityError(Exception):
@@ -74,32 +97,32 @@ class ProposerClient(threading.Thread):
         is_from_mainnet: bool,
         privkey_name: str = None,
         privkey_pwd: str = None,
-        tab: str = "",
         auto_update: bool = False
     ) -> None:
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, name=aergo_to)
         self.config_file_path = config_file_path
         self.config_data = self.load_config_data()
-        self.tab = tab
         self.is_from_mainnet = is_from_mainnet
         self.auto_update = auto_update
         self.aergo_from = aergo_from
         self.aergo_to = aergo_to
 
-        print("------ Connect AERGO -----------")
         self.hera_from = herapy.Aergo()
         self.hera_to = herapy.Aergo()
 
         self.hera_from.connect(self.config_data['networks'][aergo_from]['ip'])
         self.hera_to.connect(self.config_data['networks'][aergo_to]['ip'])
 
-        self.bridge_from = self.config_data['networks'][aergo_from]['bridges'][aergo_to]['addr']
-        self.bridge_to = self.config_data['networks'][aergo_to]['bridges'][aergo_from]['addr']
+        self.bridge_from = \
+            (self.config_data['networks'][aergo_from]['bridges'][aergo_to]
+             ['addr'])
+        self.bridge_to = \
+            (self.config_data['networks'][aergo_to]['bridges'][aergo_from]
+             ['addr'])
         self.bridge_to_id = query_id(self.hera_to, self.bridge_to)
 
-        print("------ Connect to Validators -----------")
         validators = query_validators(self.hera_to, self.bridge_to)
-        print("Validators: ", validators)
+        logger.info("\"%s Validators: %s\"", self.aergo_to, validators)
         # create all channels with validators
         self.channels: List[grpc._channel.Channel] = []
         self.stubs: List[BridgeOperatorStub] = []
@@ -124,10 +147,12 @@ class ProposerClient(threading.Thread):
         self.t_anchor, self.t_final = query_tempo(
             self.hera_to, self.bridge_to, ["_sv__tAnchor", "_sv__tFinal"]
         )
-        print("{} (t_final={}) -> {}  : t_anchor={}"
-              .format(aergo_from, self.t_final, aergo_to, self.t_anchor))
+        logger.info(
+            "\"%s (t_final=%s) -> %s  : t_anchor=%s\"", aergo_from,
+            self.t_final, aergo_to, self.t_anchor
+        )
 
-        print("------ Set Sender Account -----------")
+        logger.info("\"Set Sender Account\"")
         if privkey_name is None:
             privkey_name = 'proposer'
         if privkey_pwd is None:
@@ -135,7 +160,10 @@ class ProposerClient(threading.Thread):
                                   "Password: ".format(privkey_name))
         sender_priv_key = self.config_data['wallet'][privkey_name]['priv_key']
         self.hera_to.import_account(sender_priv_key, privkey_pwd)
-        print(" > Proposer Address: {}".format(self.hera_to.account.address))
+        logger.info(
+            "\"%s Proposer Address: %s\"", aergo_to,
+            self.hera_to.account.address
+        )
 
     def get_anchor_signatures(
         self,
@@ -175,21 +203,29 @@ class ProposerClient(threading.Thread):
         """ Get a validator's (index) signature and verify it"""
         try:
             approval = getattr(self.stubs[index], rpc_service)(request)
-        except grpc.RpcError as e:
-            print(e)
+        except grpc.RpcError:
+            logger.warning(
+                "\"%s on [is_from_mainnet=%s]: Failed to connect to validator "
+                "%s (RpcError)\"",
+                rpc_service, request.is_from_mainnet, index
+            )
             return None
         if approval.error:
-            print("{}{}".format(self.tab, approval.error))
+            logger.warning(
+                "\"%s on [is_from_mainnet=%s]: %s\"", rpc_service,
+                request.is_from_mainnet, approval.error
+            )
             return None
         if approval.address != self.config_data['validators'][index]['addr']:
             # check nothing is wrong with validator address
-            print("{}Unexpected validator {} address : {}"
-                  .format(self.tab, index, approval.address))
+            logger.warning(
+                "\"Unexpected validator %s address: %s\"", index,
+                approval.address
+            )
             return None
         # validate signature
         if not verify_sig(h, approval.sig, approval.address):
-            print("{}Invalid signature from validator {}"
-                  .format(self.tab, index))
+            logger.warning("\"Invalid signature from validator %s\"", index)
             return None
         return approval
 
@@ -222,8 +258,8 @@ class ProposerClient(threading.Thread):
         lib = self.hera_from.get_status().consensus_info.status['LibNo']
         wait = (merged_height + self.t_anchor) - lib + 1
         while wait > 0:
-            print("{}{} waiting new anchor time : {}s ..."
-                  .format(self.tab, u'\u23F0', wait))
+            logger.info(
+                "\"\u23F0 waiting new anchor time : %ss ...\"", wait)
             self.monitor_settings_and_sleep(wait)
             # Wait lib > last merged block height + t_anchor
             lib = self.hera_from.get_status().consensus_info.status['LibNo']
@@ -243,19 +279,21 @@ class ProposerClient(threading.Thread):
             args=[root, next_anchor_height, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
-            print("{}Anchor on aergo Tx commit failed : {}"
-                  .format(self.tab, result))
+            logger.warning(
+                "\"Anchor on aergo Tx commit failed : %s\"", result.json())
             return
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
         if result.status != herapy.TxResultStatus.SUCCESS:
-            print("{}Anchor failed: already anchored, or invalid "
-                  "signature: {}".format(self.tab, result))
+            logger.warning(
+                "\"Anchor failed: already anchored, or invalid "
+                "signature: %s\"", result.json()
+            )
         else:
-            print("{0}{1} Anchor success,\n{0}{2} wait until next anchor "
-                  "time: {3}s..."
-                  .format(self.tab, u'\u2693', u'\u23F0',
-                          self.t_anchor))
+            logger.info(
+                "\"\u2693 Anchor success, \u23F0 wait until next anchor "
+                "time: %ss...\"", self.t_anchor
+            )
 
     def run(
         self,
@@ -279,13 +317,12 @@ class ProposerClient(threading.Thread):
             self.t_anchor = int(t_anchor)
             self.t_final = int(t_final)
 
-            print("\n{0}| Last anchor from {1}:\n"
-                  "{0}| --------------------------\n"
-                  "{0}| height: {2}\n"
-                  "{0}| contract trie root: {3}...\n"
-                  "{0}| current update nonce: {4}\n"
-                  .format(self.tab, self.aergo_from, merged_height_from,
-                          root_from.decode('utf-8')[1:20], nonce_to))
+            logger.info(
+                "\"Current %s -> %s \u2693 anchor: "
+                "height: %s, root: 0x%s, nonce: %s\"",
+                self.aergo_from, self.aergo_to, merged_height_from,
+                root_from.decode('utf-8')[1:-1], nonce_to
+            )
 
             # Wait for the next anchor time
             next_anchor_height = self.wait_next_anchor(merged_height_from)
@@ -299,27 +336,27 @@ class ProposerClient(threading.Thread):
             )
             root = contract.state_proof.state.storageRoot.hex()
             if len(root) == 0:
-                print("{}waiting deployment finalization..."
-                      .format(self.tab))
+                logger.info("\"waiting deployment finalization...\"")
                 time.sleep(5)
                 continue
             nonce_to = int(self.hera_to.query_sc_state(
                 self.bridge_to, ["_sv__nonce"]
             ).var_proofs[0].value)
 
-            print("{}anchoring new root :'0x{}...'"
-                  .format(self.tab, root[:17]))
-            print("{}{} Gathering signatures from validators ..."
-                  .format(self.tab, u'\U0001f58b'))
+            logger.info(
+                "\"\U0001f58b Gathering validator signatures for: "
+                "root: 0x%s, height: %s'\"", root, next_anchor_height
+            )
 
             try:
                 sigs, validator_indexes = self.get_anchor_signatures(
                     root, next_anchor_height, nonce_to
                 )
             except ValidatorMajorityError:
-                print("{0}Failed to gather 2/3 validators signatures,\n"
-                      "{0}{1} waiting for next anchor..."
-                      .format(self.tab, u'\u23F0'))
+                logger.warning(
+                    "\"Failed to gather 2/3 validators signatures, "
+                    "\u23F0 waiting for next anchor...\""
+                )
                 self.monitor_settings_and_sleep(self.t_anchor)
                 continue
 
@@ -328,8 +365,10 @@ class ProposerClient(threading.Thread):
                                                      ["_sv__anchorHeight"])
             merged_height = int(last_merge.var_proofs[0].value)
             if merged_height + self.t_anchor >= next_anchor_height:
-                print("{}Not yet anchor time"
-                      "or another proposer already anchored".format(self.tab))
+                logger.warning(
+                    "\"Not yet anchor time, maybe another proposer already "
+                    "anchored\""
+                )
                 wait = merged_height + self.t_anchor - next_anchor_height
                 self.monitor_settings_and_sleep(wait)
                 continue
@@ -375,19 +414,21 @@ class ProposerClient(threading.Thread):
         config_validators = [val['addr']
                              for val in config_data['validators']]
         if validators != config_validators:
-            print('{}Validator set update requested'.format(self.tab))
+            logger.info(
+                '\"Validator set update requested: %s\"', config_validators)
             if self.update_validators(config_validators):
                 self.config_data = config_data
                 self.update_validator_connections()
         config_t_anchor = (config_data['networks'][self.aergo_to]['bridges']
                            [self.aergo_from]['t_anchor'])
         if t_anchor != config_t_anchor:
-            print('{}Anchoring periode update requested'.format(self.tab))
+            logger.info(
+                '\"Anchoring periode update requested: %s\"', config_t_anchor)
             self.update_t_anchor(config_t_anchor)
         config_t_final = (config_data['networks'][self.aergo_to]['bridges']
                           [self.aergo_from]['t_final'])
         if t_final != config_t_final:
-            print('{}Finality update requested'.format(self.tab))
+            logger.info('\"Finality update requested: %s\"', config_t_final)
             self.update_t_final(config_t_final)
 
     def update_validator_connections(self):
@@ -412,8 +453,7 @@ class ProposerClient(threading.Thread):
             sigs, validator_indexes = self.get_new_validators_signatures(
                 new_validators)
         except ValidatorMajorityError:
-            print("{0}Failed to gather 2/3 validators signatures"
-                  .format(self.tab))
+            logger.warning("\"Failed to gather 2/3 validators signatures\"")
             return False
         # broadcast transaction
         return self.set_validators(new_validators, validator_indexes, sigs)
@@ -425,18 +465,21 @@ class ProposerClient(threading.Thread):
             args=[new_validators, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
-            print("{}Set new validators Tx commit failed : {}"
-                  .format(self.tab, result))
+            logger.warning(
+                "\"Set new validators Tx commit failed : %s\"",
+                result.json()
+            )
             return False
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
         if result.status != herapy.TxResultStatus.SUCCESS:
-            print("{}Set new validators failed : nonce already used, or "
-                  "invalid signature: {}".format(self.tab, result))
+            logger.warning(
+                "\"Set new validators failed : nonce already used, or "
+                "invalid signature: %s\"", result.json()
+            )
             return False
         else:
-            print("{}{} New validators update success"
-                  .format(self.tab, u'\U0001f58b'))
+            logger.info("\"\U0001f58b New validators update success\"")
         return True
 
     def get_new_validators_signatures(self, validators):
@@ -473,8 +516,7 @@ class ProposerClient(threading.Thread):
             sigs, validator_indexes = self.get_tempo_signatures(
                 t_anchor, "GetTAnchorSignature", "A")
         except ValidatorMajorityError:
-            print("{0}Failed to gather 2/3 validators signatures"
-                  .format(self.tab))
+            logger.warning("\"Failed to gather 2/3 validators signatures\"")
             return
         # broadcast transaction
         self.set_tempo(t_anchor, validator_indexes, sigs, "tAnchorUpdate")
@@ -492,18 +534,23 @@ class ProposerClient(threading.Thread):
             args=[t_anchor, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
-            print("{}Set new validators Tx commit failed : {}"
-                  .format(self.tab, result))
+            logger.warning(
+                "\"Set %s Tx commit failed : %s\"",
+                contract_function, result.json()
+            )
             return False
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
         if result.status != herapy.TxResultStatus.SUCCESS:
-            print("{}Set {} failed: nonce already used, or invalid "
-                  "signature: {}".format(self.tab, contract_function, result))
+            logger.warning(
+                "\"Set %s failed: nonce already used, or invalid "
+                "signature: %s\"",
+                contract_function, result.json()
+            )
             return False
         else:
-            print("{}{} {} success"
-                  .format(self.tab, '\u231B', contract_function))
+            logger.info(
+                "\"\u231B %s success\"", contract_function)
         return True
 
     def update_t_final(self, t_final):
@@ -515,8 +562,7 @@ class ProposerClient(threading.Thread):
             sigs, validator_indexes = self.get_tempo_signatures(
                 t_final, "GetTFinalSignature", "F")
         except ValidatorMajorityError:
-            print("{0}Failed to gather 2/3 validators signatures"
-                  .format(self.tab))
+            logger.warning("\"Failed to gather 2/3 validators signatures\"")
             return
         # broadcast transaction
         self.set_tempo(t_final, validator_indexes, sigs, "tFinalUpdate")
@@ -550,10 +596,9 @@ class ProposerClient(threading.Thread):
         return config_data
 
     def shutdown(self):
-        print("\nDisconnecting AERGO")
+        logger.info("\"Shutting down %s proposer\"", self.aergo_to)
         self.hera_from.disconnect()
         self.hera_to.disconnect()
-        print("Closing channels")
         for channel in self.channels:
             channel.close()
 
@@ -573,11 +618,11 @@ class BridgeProposerClient:
     ) -> None:
         self.t_proposer1 = ProposerClient(
             config_file_path, aergo_sidechain, aergo_mainnet, False,
-            privkey_name, privkey_pwd, "", auto_update
+            privkey_name, privkey_pwd, auto_update
         )
         self.t_proposer2 = ProposerClient(
             config_file_path, aergo_mainnet, aergo_sidechain, True,
-            privkey_name, privkey_pwd, "\t"*5, auto_update
+            privkey_name, privkey_pwd, auto_update
         )
 
     def run(self):
