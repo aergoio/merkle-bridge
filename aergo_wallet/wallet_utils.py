@@ -15,6 +15,9 @@ from aergo_wallet.exceptions import (
     TxError,
     InvalidMerkleProofError,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Wallet utils are made to be used with a custom herapy provider
 
@@ -86,7 +89,6 @@ def transfer(
         raise TxError("Transfer asset Tx execution failed : {}"
                       .format(result))
 
-    print("Transfer success")
     return str(tx.tx_hash)
 
 
@@ -199,12 +201,11 @@ def build_deposit_proof(
     stream = aergo_to.receive_event_stream(bridge_to, "newAnchor",
                                            start_block_no=current_height)
     while last_merged_height_to < deposit_height:
-        print("deposit not recorded in current anchor, waiting new anchor "
-              "event... / "
-              "deposit height : {} / "
-              "last anchor height : {} "
-              .format(deposit_height, last_merged_height_to)
-              )
+        logger.info(
+            "deposit not recorded in current anchor, waiting new anchor "
+            "event... / deposit height : %s / last anchor height : %s ",
+            deposit_height, last_merged_height_to
+        )
         new_anchor_event = next(stream)
         last_merged_height_to = new_anchor_event.arguments[1]
     stream.stop()

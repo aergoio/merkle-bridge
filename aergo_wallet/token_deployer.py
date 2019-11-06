@@ -19,26 +19,19 @@ def deploy_token(
     total supply to the deployer
     """
     payload = herapy.utils.decode_address(payload_str)
-    print("------ Deploy Token-----------")
     tx, result = aergo.deploy_sc(
         amount=0, payload=payload,
         args=[{"_bignum": str(total_supply)}, receiver]
     )
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Token deployment Tx commit failed : {}".format(result))
-    print("    > result[{0}] : {1}"
-          .format(result.tx_id, result.status.name))
 
-    print("------ Check deployment of SC -----------")
     result = aergo.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.CREATED:
         raise TxError("Token deployment Tx execution failed : {}"
                       .format(result))
 
     sc_address = result.contract_address
-
-    print("  > Token Address : {}".format(sc_address))
-
     return sc_address
 
 
@@ -67,6 +60,7 @@ if __name__ == '__main__':
 
     sc_address = deploy_token(payload_str, aergo,
                               receiver, total_supply, 0, 0)
+    print("  > Token Address : {}".format(sc_address))
 
     print("------ Disconnect AERGO -----------")
     aergo.disconnect()

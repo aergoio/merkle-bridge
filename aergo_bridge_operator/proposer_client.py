@@ -46,7 +46,7 @@ logger.setLevel(logging.INFO)
 
 file_formatter = logging.Formatter(
     '{"level": "%(levelname)s", "time": "%(asctime)s", '
-    '"name": "%(name)s", "thread": "%(threadName)s", '
+    '"thread": "%(threadName)s", '
     '"function": "%(funcName)s", "message": %(message)s'
 )
 stream_formatter = logging.Formatter('%(threadName)s: %(message)s')

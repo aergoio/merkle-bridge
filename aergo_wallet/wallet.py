@@ -36,6 +36,9 @@ from aergo_wallet.wallet_utils import (
 from aergo_wallet.token_deployer import (
     deploy_token,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AergoWallet:
@@ -105,7 +108,7 @@ class AergoWallet:
                 confirm = getpass("Confirm password: ")
                 if password == confirm:
                     break
-                print("Passwords don't match, try again")
+                logger.info("Passwords don't match, try again")
         aergo = herapy.Aergo()
         aergo.new_account(skip_state=True)
         exported_privkey = aergo.export_account(password)
@@ -185,14 +188,14 @@ class AergoWallet:
         exported_privkey = self.config_data('wallet', privkey_name, 'priv_key')
         aergo = self._connect_aergo(network_name)
         if privkey_pwd is None:
-            print("Decrypt exported private key '{}'".format(privkey_name))
+            logger.info("Decrypt exported private key '%s'", privkey_name)
             while True:
                 try:
                     privkey_pwd = getpass("Password: ")
                     aergo.import_account(exported_privkey, privkey_pwd,
                                          skip_state=skip_state)
                 except GeneralException:
-                    print("Wrong password, try again")
+                    logger.info("Wrong password, try again")
                     continue
                 break
         else:
@@ -324,7 +327,8 @@ class AergoWallet:
             t_final = self.config_data(
                 'networks', to_chain, 'bridges', from_chain, "t_final")
             return t_anchor, t_final
-        print("\ngetting latest t_anchor and t_final from bridge contract...")
+        logger.info(
+            "getting latest t_anchor and t_final from bridge contract...")
         if aergo is None:
             aergo = self._connect_aergo(to_chain)
         if bridge_address is None:
@@ -401,7 +405,7 @@ class AergoWallet:
         tx_hash = transfer(value, to, asset_addr, aergo, sender, fee_limit,
                            self.fee_price)
         aergo.disconnect()
-        print("Transfer success: ", tx_hash)
+        logger.info("Transfer success: %s", tx_hash)
         return tx_hash
 
     def deploy_token(
@@ -420,13 +424,13 @@ class AergoWallet:
         aergo = self.get_aergo(network_name, privkey_name, privkey_pwd)
         if receiver is None:
             receiver = str(aergo.account.address)
-        print("  > Sender Address: {}".format(receiver))
+        logger.info("  > Sender Address: %s", receiver)
 
         fee_limit = 0
         sc_address = deploy_token(payload_str, aergo, receiver, total_supply,
                                   fee_limit, self.fee_price)
 
-        print("------ Store address in config.json -----------")
+        logger.info("------ Store address in config.json -----------")
         self.config_data(
             'networks', network_name, 'tokens', asset_name, value={})
         self.config_data(
@@ -463,8 +467,8 @@ class AergoWallet:
         mintable, pending = self.get_mintable_balance(
             from_chain, to_chain, asset_name, account_addr=receiver
         )
-        print("pending mint: ", mintable + pending)
-        print("waiting finalisation ...")
+        logger.info("pending mint: %s", mintable + pending)
+        logger.info("waiting finalisation ...")
         self.wait_finalization(from_chain)
 
         self.finalize_transfer_mint(
@@ -496,8 +500,8 @@ class AergoWallet:
         unlockable, pending = self.get_unlockable_balance(
             from_chain, to_chain, asset_name, account_addr=receiver
         )
-        print("pending unlock: ", unlockable + pending)
-        print("waiting finalisation ...")
+        logger.info("pending unlock: %s", unlockable + pending)
+        logger.info("waiting finalisation ...")
         self.wait_finalization(from_chain)
 
         self.finalize_transfer_unlock(
@@ -517,7 +521,7 @@ class AergoWallet:
     ) -> Tuple[int, str]:
         """ Initiate a transfer to a sidechain by locking the asset.
         """
-        print('\n' + from_chain + ' -> ' + to_chain)
+        logger.info(from_chain + ' -> ' + to_chain)
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
         sender = str(aergo_from.account.address)
         if receiver is None:
@@ -531,8 +535,10 @@ class AergoWallet:
         balance = get_balance(sender, asset_address, aergo_from)
         if balance < amount:
             raise InsufficientBalanceError("not enough token balance")
-        print("\U0001f4b0 {} balance on origin before transfer: {}"
-              .format(asset_name, balance/10**18))
+        logger.info(
+            "\U0001f4b0 %s balance on origin before transfer: %s",
+            asset_name, balance/10**18
+        )
 
         aer_balance = get_balance(sender, 'aergo', aergo_from)
         if aer_balance < fee_limit*self.fee_price:
@@ -542,12 +548,14 @@ class AergoWallet:
         lock_height, tx_hash = lock(aergo_from, bridge_from,
                                     receiver, amount, asset_address, fee_limit,
                                     self.fee_price)
-        print('\U0001f512 Lock success: ', tx_hash)
+        logger.info('\U0001f512 Lock success: %s', tx_hash)
 
         # remaining balance on origin : aer or asset
         balance = get_balance(sender, asset_address, aergo_from)
-        print("\U0001f4b0 remaining {} balance on origin after transfer: {}"
-              .format(asset_name, balance/10**18))
+        logger.info(
+            "\U0001f4b0 remaining %s balance on origin after transfer: %s",
+            asset_name, balance/10**18
+        )
 
         aergo_from.disconnect()
         return lock_height, tx_hash
@@ -570,7 +578,7 @@ class AergoWallet:
         already minted amount.
         Bridge tempo is taken from config_data
         """
-        print('\n' + from_chain + ' -> ' + to_chain)
+        logger.info(from_chain + ' -> ' + to_chain)
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self.get_aergo(to_chain, privkey_name, privkey_pwd)
         tx_sender = str(aergo_to.account.address)
@@ -587,10 +595,12 @@ class AergoWallet:
             token_pegged = self.config_data(
                 'networks', from_chain, 'tokens', asset_name, 'pegs', to_chain)
             balance = get_balance(receiver, token_pegged, aergo_to)
-            print("\U0001f4b0 {} balance on destination before transfer : {}"
-                  .format(asset_name, balance/10**18))
+            logger.info(
+                "\U0001f4b0 %s balance on destination before transfer : %s",
+                asset_name, balance/10**18
+            )
         except KeyError:
-            print("Pegged token unknow by wallet")
+            logger.info("Pegged token unknow by wallet")
             save_pegged_token_address = True
 
         fee_limit = 0
@@ -602,24 +612,26 @@ class AergoWallet:
         lock_proof = build_lock_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, lock_height,
                                       asset_address)
-        print("\u2699 Built lock proof")
+        logger.info("\u2699 Built lock proof")
         token_pegged, tx_hash = mint(
             aergo_to, receiver, lock_proof, asset_address, bridge_to,
             fee_limit, self.fee_price
         )
-        print('\u26cf Mint success: ', tx_hash)
+        logger.info('\u26cf Mint success: %s', tx_hash)
 
         # new balance on sidechain
         balance = get_balance(receiver, token_pegged, aergo_to)
-        print("\U0001f4b0 {} balance on destination after transfer : {}"
-              .format(asset_name, balance/10**18))
+        logger.info(
+            "\U0001f4b0 %s balance on destination after transfer : %s",
+            asset_name, balance/10**18
+        )
 
         aergo_from.disconnect()
         aergo_to.disconnect()
 
         # record mint address in file
         if save_pegged_token_address:
-            print("\n------ Store mint address in config.json -----------")
+            logger.info("------ Store mint address in config.json -----------")
             self.config_data(
                 'networks', from_chain, 'tokens', asset_name, 'pegs', to_chain,
                 value=token_pegged)
@@ -638,7 +650,7 @@ class AergoWallet:
     ) -> Tuple[int, str]:
         """ Initiate a transfer from a sidechain by burning the assets.
         """
-        print('\n' + from_chain + ' -> ' + to_chain)
+        logger.info(from_chain + ' -> ' + to_chain)
         aergo_from = self.get_aergo(from_chain, privkey_name, privkey_pwd)
         sender = str(aergo_from.account.address)
         if receiver is None:
@@ -648,8 +660,10 @@ class AergoWallet:
         token_pegged = self.config_data(
             'networks', to_chain, 'tokens', asset_name, 'pegs', from_chain)
         balance = get_balance(sender, token_pegged, aergo_from)
-        print("\U0001f4b0 {} balance on sidechain before transfer: {}"
-              .format(asset_name, balance/10**18))
+        logger.info(
+            "\U0001f4b0 %s balance on sidechain before transfer: %s",
+            asset_name, balance/10**18
+        )
         if balance < amount:
             raise InsufficientBalanceError("not enough balance")
 
@@ -661,12 +675,14 @@ class AergoWallet:
 
         burn_height, tx_hash = burn(aergo_from, bridge_from, receiver, amount,
                                     token_pegged, fee_limit, self.fee_price)
-        print('\U0001f525 Burn success: ', tx_hash)
+        logger.info('\U0001f525 Burn success: %s', tx_hash)
 
         # remaining balance on sidechain
         balance = get_balance(sender, token_pegged, aergo_from)
-        print("\U0001f4b0 remaining {} balance on sidechain after transfer: {}"
-              .format(asset_name, balance/10**18))
+        logger.info(
+            "\U0001f4b0 remaining %s balance on sidechain after transfer: %s",
+            asset_name, balance/10**18
+        )
 
         aergo_from.disconnect()
 
@@ -690,7 +706,7 @@ class AergoWallet:
         already unlocked amount.
         Bridge tempo is taken from config_data
         """
-        print('\n' + from_chain + ' -> ' + to_chain)
+        logger.info(from_chain + ' -> ' + to_chain)
         aergo_from = self._connect_aergo(from_chain)
         aergo_to = self.get_aergo(to_chain, privkey_name, privkey_pwd)
         tx_sender = str(aergo_to.account.address)
@@ -706,11 +722,13 @@ class AergoWallet:
         burn_proof = build_burn_proof(aergo_from, aergo_to, receiver,
                                       bridge_from, bridge_to, burn_height,
                                       asset_address)
-        print("\u2699 Built burn proof")
+        logger.info("\u2699 Built burn proof")
 
         balance = get_balance(receiver, asset_address, aergo_to)
-        print("\U0001f4b0 {} balance on destination before transfer: {}"
-              .format(asset_name, balance/10**18))
+        logger.info(
+            "\U0001f4b0 %s balance on destination before transfer: %s",
+            asset_name, balance/10**18
+        )
 
         fee_limit = 0
         aer_balance = get_balance(tx_sender, 'aergo', aergo_to)
@@ -720,12 +738,14 @@ class AergoWallet:
 
         tx_hash = unlock(aergo_to, receiver, burn_proof, asset_address,
                          bridge_to, fee_limit, self.fee_price)
-        print('\U0001f513 Unlock success: ', tx_hash)
+        logger.info('\U0001f513 Unlock success: %s', tx_hash)
 
         # new balance on origin
         balance = get_balance(receiver, asset_address, aergo_to)
-        print("\U0001f4b0 {} balance on destination after transfer: {}"
-              .format(asset_name, balance/10**18))
+        logger.info(
+            "\U0001f4b0 %s balance on destination after transfer: %s",
+            asset_name, balance/10**18
+        )
 
         aergo_to.disconnect()
         aergo_from.disconnect()

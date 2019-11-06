@@ -497,7 +497,7 @@ class ValidatorServer:
             while True:
                 time.sleep(_ONE_DAY_IN_SECONDS)
         except KeyboardInterrupt:
-            print("\nShutting down validator")
+            logger.info("\"Shutting down validator\"")
             self.shutdown()
 
     def shutdown(self):
