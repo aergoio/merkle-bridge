@@ -610,16 +610,16 @@ class MerkleBridgeCli():
             _ = arguments
 
         if asset_name in from_assets:
-            # if native asset check minteable
-            withdrawable, pending = self.wallet.get_minteable_balance(
+            # if native asset check mintable
+            withdrawable, pending = self.wallet.get_mintable_balance(
                 from_chain, to_chain, asset_name, account_addr=receiver
             )
         elif (asset_name in to_assets and
                 from_chain in self.wallet.config_data(
                     'networks', to_chain, 'tokens', asset_name, 'pegs')
               ):
-            # if pegged asset check unlockeable
-            withdrawable, pending = self.wallet.get_unlockeable_balance(
+            # if pegged asset check unlockable
+            withdrawable, pending = self.wallet.get_unlockable_balance(
                 from_chain, to_chain, asset_name, account_addr=receiver
             )
         else:

@@ -242,7 +242,7 @@ class AergoWallet:
         aergo.disconnect()
         return balance, asset_addr
 
-    def get_minteable_balance(
+    def get_mintable_balance(
         self,
         from_chain: str,
         to_chain: str,
@@ -274,7 +274,7 @@ class AergoWallet:
         aergo_to.disconnect()
         return withdrawable, pending
 
-    def get_unlockeable_balance(
+    def get_unlockable_balance(
         self,
         from_chain: str,
         to_chain: str,
@@ -460,10 +460,10 @@ class AergoWallet:
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
             privkey_pwd
         )
-        minteable, pending = self.get_minteable_balance(
+        mintable, pending = self.get_mintable_balance(
             from_chain, to_chain, asset_name, account_addr=receiver
         )
-        print("pending mint: ", minteable + pending)
+        print("pending mint: ", mintable + pending)
         print("waiting finalisation ...")
         self.wait_finalization(from_chain)
 
@@ -493,10 +493,10 @@ class AergoWallet:
             from_chain, to_chain, asset_name, amount, receiver, privkey_name,
             privkey_pwd
         )
-        unlockeable, pending = self.get_unlockeable_balance(
+        unlockable, pending = self.get_unlockable_balance(
             from_chain, to_chain, asset_name, account_addr=receiver
         )
-        print("pending unlock: ", unlockeable + pending)
+        print("pending unlock: ", unlockable + pending)
         print("waiting finalisation ...")
         self.wait_finalization(from_chain)
 

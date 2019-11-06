@@ -166,7 +166,7 @@ end
 -- deploy new contract
 -- @type    internal
 -- @param   tokenOrigin (address) address of token locked used as pegged token name
-local function _deployMinteableToken(tokenOrigin)
+local function _deployMintableToken(tokenOrigin)
     addr, success = contract.deploy(mintedToken, tokenOrigin)
     assert(success, "failed to create peg token contract")
     return addr
@@ -327,7 +327,7 @@ function mint(receiver, balance, tokenOrigin, merkleProof)
     _typecheck(receiver, 'address')
     _typecheck(balance, 'ubig')
     _typecheck(tokenOrigin, 'address')
-    assert(balance > bignum.number(0), "minteable balance must be positive")
+    assert(balance > bignum.number(0), "mintable balance must be positive")
 
     -- Verify merkle proof of locked balance
     local accountRef = receiver .. tokenOrigin
@@ -347,8 +347,8 @@ function mint(receiver, balance, tokenOrigin, merkleProof)
     -- Deploy or get the minted token
     local mintAddress
     if _bridgeTokens[tokenOrigin] == nil then
-        -- Deploy new minteable token controlled by bridge
-        mintAddress = _deployMinteableToken(tokenOrigin)
+        -- Deploy new mintable token controlled by bridge
+        mintAddress = _deployMintableToken(tokenOrigin)
         _bridgeTokens[tokenOrigin] = mintAddress
         _mintedTokens[mintAddress] = tokenOrigin
     else
@@ -404,7 +404,7 @@ function unlock(receiver, balance, tokenAddress, merkleProof)
     _typecheck(receiver, 'address')
     _typecheck(tokenAddress, 'address')
     _typecheck(balance, 'ubig')
-    assert(balance > bignum.number(0), "unlockeable balance must be positive")
+    assert(balance > bignum.number(0), "unlockable balance must be positive")
 
     -- Verify merkle proof of burnt balance
     local accountRef = receiver .. tokenAddress

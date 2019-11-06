@@ -193,7 +193,7 @@ It is also possible to perform the lock/burn and mint/unlock operations individu
                                                          asset, amount)
 
     # get the amount of assets locked but not yet minted on 'sidechain2'
-    pending_mint = wallet.get_minteable_balance(
+    pending_mint = wallet.get_mintable_balance(
         'mainnet', 'sidechain2', asset, pending=True
     )
 
@@ -205,7 +205,7 @@ It is also possible to perform the lock/burn and mint/unlock operations individu
 
     # Similarly, 
     # wallet.initiate_transfer_burn()
-    # wallet.get_unlockeable_balance()
+    # wallet.get_unlockable_balance()
     # wallet.finalize_transfer_unlock() 
     # can be used to burn and unlock minted assets from a sidechain.
 
