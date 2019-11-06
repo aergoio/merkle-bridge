@@ -41,7 +41,7 @@ from aergo_bridge_operator.op_utils import (
     query_id,
 )
 
-logger = logging.getLogger("proposer")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 file_formatter = logging.Formatter(
@@ -49,7 +49,7 @@ file_formatter = logging.Formatter(
     '"name": "%(name)s", "thread": "%(threadName)s", '
     '"function": "%(funcName)s", "message": %(message)s'
 )
-stream_formatter = logging.Formatter('%(name)s: %(threadName)s: %(message)s')
+stream_formatter = logging.Formatter('%(threadName)s: %(message)s')
 
 
 root_dir = os.path.dirname(__file__)
@@ -99,7 +99,7 @@ class ProposerClient(threading.Thread):
         privkey_pwd: str = None,
         auto_update: bool = False
     ) -> None:
-        threading.Thread.__init__(self, name=aergo_to)
+        threading.Thread.__init__(self, name=aergo_to + " proposer")
         self.config_file_path = config_file_path
         self.config_data = self.load_config_data()
         self.is_from_mainnet = is_from_mainnet

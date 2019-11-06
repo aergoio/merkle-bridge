@@ -38,7 +38,7 @@ from aergo_bridge_operator.op_utils import (
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
 
-logger = logging.getLogger("validator")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 file_formatter = logging.Formatter(
@@ -492,7 +492,7 @@ class ValidatorServer:
 
     def run(self):
         self.server.start()
-        logger.info("server %s started", self.validator_index)
+        logger.info("\"server %s started\"", self.validator_index)
         try:
             while True:
                 time.sleep(_ONE_DAY_IN_SECONDS)
