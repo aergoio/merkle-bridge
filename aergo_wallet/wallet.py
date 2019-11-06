@@ -268,7 +268,7 @@ class AergoWallet:
         aergo_to = self._connect_aergo(to_chain)
         withdrawable, pending = bridge_withdrawable_balance(
             account_addr, asset_address_origin, bridge_from, bridge_to,
-            aergo_from, aergo_to, "sv__locks-", "_sv__mints-"
+            aergo_from, aergo_to, "_sv__locks-", "_sv__mints-"
         )
         aergo_from.disconnect()
         aergo_to.disconnect()
