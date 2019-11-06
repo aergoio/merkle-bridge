@@ -91,9 +91,6 @@ end
 -- call this at constructor
 local function _init(name, symbol, decimals)
   _typecheck(name, 'string')
-  _typecheck(symbol, 'string')
-  _typecheck(decimals, 'number')
-  assert(decimals > 0)
 
   _name:set(name)
   _symbol:set(symbol)
@@ -212,7 +209,7 @@ end
 --------------- Custom constructor ---------------------
 --------------------------------------------------------
 function constructor(originAddress) 
-    _init(originAddress, 'PEG', 18)
+    _init(originAddress, "PEG", "Query decimals at token origin")
     _totalSupply:set(bignum.number(0))
     _master:set(system.getSender())
     return true
