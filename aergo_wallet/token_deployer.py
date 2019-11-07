@@ -36,6 +36,7 @@ def deploy_token(
 
 
 if __name__ == '__main__':
+    print("\n\nDEPLOY TOKEN")
     with open("./test_config.json", "r") as f:
         config_data = json.load(f)
     with open("./contracts/token_bytecode.txt", "r") as f:
