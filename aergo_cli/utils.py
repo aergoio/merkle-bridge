@@ -115,6 +115,11 @@ def prompt_new_bridge(net1, net2):
         },
         {
             'type': 'input',
+            'name': 'oracle1',
+            'message':  'Oracle address on {}'.format(net1)
+        },
+        {
+            'type': 'input',
             'name': 'bridge2',
             'message': 'Bridge contract address on {}'.format(net2)
         },
@@ -127,7 +132,12 @@ def prompt_new_bridge(net1, net2):
             'type': 'input',
             'name': 't_final2',
             'message': 'Finality of {}'.format(net1)
-        }
+        },
+        {
+            'type': 'input',
+            'name': 'oracle2',
+            'message':  'Oracle address on {}'.format(net2)
+        },
     ]
     return inquirer.prompt(questions, style=aergo_style)
 

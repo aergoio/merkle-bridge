@@ -302,13 +302,15 @@ class MerkleBridgeCli():
             new_config['networks'][net1]['bridges'] = {
                 net2: {'addr': answers['bridge1'],
                        't_anchor': int(answers['t_anchor1']),
-                       't_final': int(answers['t_final1'])
+                       't_final': int(answers['t_final1']),
+                       'oracle': answers['oracle1']
                        }
             }
             new_config['networks'][net2]['bridges'] = {
                 net1: {'addr': answers['bridge2'],
                        't_anchor': int(answers['t_anchor2']),
-                       't_final': int(answers['t_final2'])
+                       't_final': int(answers['t_final2']),
+                       'oracle': answers['oracle2']
                        }
             }
         # Register a new private key
