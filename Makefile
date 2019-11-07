@@ -1,15 +1,20 @@
-.PHONY: compile_bridge compile_token deploy_bridge proposer validator broadcaster protoc deploy_token docker clean tests
+.PHONY: compile_bridge compile_oracle compile_token deploy_test_bridge proposer validator protoc docker clean tests
 
 # Shortcuts for development and testing
 
 compile_bridge:
 	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/merkle_bridge.lua > contracts/bridge_bytecode.txt
 
+compile_oracle:
+	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/oracle.lua > contracts/oracle_bytecode.txt
+
 compile_token:
 	$(GOPATH)/src/github.com/aergoio/aergo/bin/aergoluac --payload contracts/standard_token.lua > contracts/token_bytecode.txt
 
-deploy_bridge:
+deploy_test_bridge:
 	python3 -m aergo_bridge_operator.bridge_deployer -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --local_test
+	python3 -m aergo_bridge_operator.oracle_deployer -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --local_test
+	python3 -m aergo_wallet.token_deployer
 
 proposer:
 	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update --local_test
@@ -23,9 +28,6 @@ protoc:
 		--python_out=. \
 		--grpc_python_out=. \
 		./proto/aergo_bridge_operator/*.proto
-
-deploy_token:
-	python3 -m aergo_wallet.token_deployer
 
 docker:
 	# docker build --build-arg GIT_TAG=5a16373a3c535f77304709f725e10284dccfbea1 -t aergo/node ./docker

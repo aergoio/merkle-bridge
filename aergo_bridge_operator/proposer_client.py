@@ -119,9 +119,12 @@ class ProposerClient(threading.Thread):
         self.bridge_to = \
             (self.config_data['networks'][aergo_to]['bridges'][aergo_from]
              ['addr'])
-        self.bridge_to_id = query_id(self.hera_to, self.bridge_to)
+        self.oracle_to = \
+            (self.config_data['networks'][aergo_to]['bridges'][aergo_from]
+             ['oracle'])
+        self.oracle_to_id = query_id(self.hera_to, self.oracle_to)
 
-        validators = query_validators(self.hera_to, self.bridge_to)
+        validators = query_validators(self.hera_to, self.oracle_to)
         logger.info("\"%s Validators: %s\"", self.aergo_to, validators)
         # create all channels with validators
         self.channels: List[grpc._channel.Channel] = []
@@ -175,7 +178,7 @@ class ProposerClient(threading.Thread):
 
         # messages to get signed
         msg_str = root + ',' + str(merge_height) + str(nonce) \
-            + self.bridge_to_id + "R"
+            + self.oracle_to_id + "R"
         msg = bytes(msg_str, 'utf-8')
         h = hashlib.sha256(msg).digest()
 
@@ -203,12 +206,13 @@ class ProposerClient(threading.Thread):
         """ Get a validator's (index) signature and verify it"""
         try:
             approval = getattr(self.stubs[index], rpc_service)(request)
-        except grpc.RpcError:
+        except grpc.RpcError as e:
             logger.warning(
                 "\"%s on [is_from_mainnet=%s]: Failed to connect to validator "
                 "%s (RpcError)\"",
                 rpc_service, request.is_from_mainnet, index
             )
+            logger.warning(e)
             return None
         if approval.error:
             logger.warning(
@@ -275,7 +279,7 @@ class ProposerClient(threading.Thread):
     ) -> None:
         """Anchor a new root on chain"""
         tx, result = self.hera_to.call_sc(
-            self.bridge_to, "newAnchor",
+            self.oracle_to, "newAnchor",
             args=[root, next_anchor_height, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
@@ -306,16 +310,18 @@ class ProposerClient(threading.Thread):
             status = self.hera_to.query_sc_state(self.bridge_to,
                                                  ["_sv__anchorHeight",
                                                   "_sv__anchorRoot",
-                                                  "_sv__nonce",
                                                   "_sv__tAnchor",
                                                   "_sv__tFinal"
                                                   ])
-            height_from, root_from, nonce_to, t_anchor, t_final = \
+            height_from, root_from, t_anchor, t_final = \
                 [proof.value for proof in status.var_proofs]
             merged_height_from = int(height_from)
-            nonce_to = int(nonce_to)
             self.t_anchor = int(t_anchor)
             self.t_final = int(t_final)
+            nonce_to = int(
+                self.hera_to.query_sc_state(
+                    self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
+            )
 
             logger.info(
                 "\"Current %s -> %s \u2693 anchor: "
@@ -339,9 +345,10 @@ class ProposerClient(threading.Thread):
                 logger.info("\"waiting deployment finalization...\"")
                 time.sleep(5)
                 continue
-            nonce_to = int(self.hera_to.query_sc_state(
-                self.bridge_to, ["_sv__nonce"]
-            ).var_proofs[0].value)
+            nonce_to = int(
+                self.hera_to.query_sc_state(
+                    self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
+            )
 
             logger.info(
                 "\"\U0001f58b Gathering validator signatures for: "
@@ -361,8 +368,8 @@ class ProposerClient(threading.Thread):
                 continue
 
             # don't broadcast if somebody else already did
-            last_merge = self.hera_to.query_sc_state(self.bridge_to,
-                                                     ["_sv__anchorHeight"])
+            last_merge = self.hera_to.query_sc_state(
+                self.bridge_to, ["_sv__anchorHeight"])
             merged_height = int(last_merge.var_proofs[0].value)
             if merged_height + self.t_anchor >= next_anchor_height:
                 logger.warning(
@@ -408,9 +415,9 @@ class ProposerClient(threading.Thread):
 
         """
         config_data = self.load_config_data()
-        validators = query_validators(self.hera_to, self.bridge_to)
-        t_anchor, t_final = query_tempo(self.hera_to, self.bridge_to,
-                                        ["_sv__tAnchor", "_sv__tFinal"])
+        validators = query_validators(self.hera_to, self.oracle_to)
+        t_anchor, t_final = query_tempo(
+            self.hera_to, self.bridge_to, ["_sv__tAnchor", "_sv__tFinal"])
         config_validators = [val['addr']
                              for val in config_data['validators']]
         if validators != config_validators:
@@ -461,7 +468,7 @@ class ProposerClient(threading.Thread):
     def set_validators(self, new_validators, validator_indexes, sigs):
         """Update validators on chain"""
         tx, result = self.hera_to.call_sc(
-            self.bridge_to, "validatorsUpdate",
+            self.oracle_to, "validatorsUpdate",
             args=[new_validators, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
@@ -486,7 +493,7 @@ class ProposerClient(threading.Thread):
         """Request approvals of validators for the new validator set."""
         nonce = int(
             self.hera_to.query_sc_state(
-                self.bridge_to, ["_sv__nonce"]).var_proofs[0].value
+                self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
         )
         new_validators_msg = NewValidators(
             is_from_mainnet=self.is_from_mainnet, validators=validators,
@@ -494,7 +501,7 @@ class ProposerClient(threading.Thread):
         data = ""
         for val in validators:
             data += val
-        data += str(nonce) + self.bridge_to_id + "V"
+        data += str(nonce) + self.oracle_to_id + "V"
         data_bytes = bytes(data, 'utf-8')
         h = hashlib.sha256(data_bytes).digest()
         # get validator signatures and verify sig in worker
@@ -530,7 +537,7 @@ class ProposerClient(threading.Thread):
     ) -> bool:
         """Update t_anchor or t_final on chain"""
         tx, result = self.hera_to.call_sc(
-            self.bridge_to, contract_function,
+            self.oracle_to, contract_function,
             args=[t_anchor, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
@@ -571,13 +578,13 @@ class ProposerClient(threading.Thread):
         """Request approvals of validators for the new t_anchor or t_final."""
         nonce = int(
             self.hera_to.query_sc_state(
-                self.bridge_to, ["_sv__nonce"]).var_proofs[0].value
+                self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
         )
         new_tempo_msg = NewTempo(
             is_from_mainnet=self.is_from_mainnet, tempo=tempo,
             destination_nonce=nonce)
         msg = bytes(
-            str(tempo) + str(nonce) + self.bridge_to_id + tempo_id,
+            str(tempo) + str(nonce) + self.oracle_to_id + tempo_id,
             'utf-8'
         )
         h = hashlib.sha256(msg).digest()

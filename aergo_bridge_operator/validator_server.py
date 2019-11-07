@@ -94,24 +94,30 @@ class ValidatorService(BridgeOperatorServicer):
         self.hera2.connect(config_data['networks'][aergo2]['ip'])
 
         self.validator_index = validator_index
-        self.addr1 = config_data['networks'][aergo1]['bridges'][aergo2]['addr']
-        self.addr2 = config_data['networks'][aergo2]['bridges'][aergo1]['addr']
-        self.id1 = query_id(self.hera1, self.addr1)
-        self.id2 = query_id(self.hera2, self.addr2)
+        self.bridge1 = \
+            config_data['networks'][aergo1]['bridges'][aergo2]['addr']
+        self.bridge2 = \
+            config_data['networks'][aergo2]['bridges'][aergo1]['addr']
+        self.oracle1 = \
+            config_data['networks'][aergo1]['bridges'][aergo2]['oracle']
+        self.oracle2 = \
+            config_data['networks'][aergo2]['bridges'][aergo1]['oracle']
+        self.id1 = query_id(self.hera1, self.oracle1)
+        self.id2 = query_id(self.hera2, self.oracle2)
 
         # check validators are correct
-        validators1 = query_validators(self.hera1, self.addr1)
-        validators2 = query_validators(self.hera2, self.addr2)
+        validators1 = query_validators(self.hera1, self.oracle1)
+        validators2 = query_validators(self.hera2, self.oracle2)
         assert validators1 == validators2, \
             "Validators should be the same on both sides of bridge"
         logger.info("\"Bridge validators : %s\"", validators1)
 
         # get the current t_anchor and t_final for both sides of bridge
         t_anchor1, t_final1 = query_tempo(
-            self.hera1, self.addr1, ["_sv__tAnchor", "_sv__tFinal"]
+            self.hera1, self.bridge1, ["_sv__tAnchor", "_sv__tFinal"]
         )
         t_anchor2, t_final2 = query_tempo(
-            self.hera2, self.addr2, ["_sv__tAnchor", "_sv__tFinal"]
+            self.hera2, self.bridge2, ["_sv__tAnchor", "_sv__tFinal"]
         )
         logger.info(
             "\"%s <- %s (t_final=%s) : t_anchor=%s\"", aergo1, aergo2,
@@ -210,15 +216,17 @@ class ValidatorService(BridgeOperatorServicer):
         bridge_id = ""
         if anchor.is_from_mainnet:
             # aergo1 is considered to be mainnet side of bridge
-            err_msg = self.is_valid_anchor(anchor, self.hera1,
-                                           self.addr1,
-                                           self.hera2, self.addr2)
+            err_msg = self.is_valid_anchor(
+                anchor, self.hera1, self.bridge1, self.hera2, self.bridge2,
+                self.oracle2
+            )
             destination = self.aergo2
             bridge_id = self.id2
         else:
-            err_msg = self.is_valid_anchor(anchor, self.hera2,
-                                           self.addr2,
-                                           self.hera1, self.addr1)
+            err_msg = self.is_valid_anchor(
+                anchor, self.hera2, self.bridge2, self.hera1, self.bridge1,
+                self.oracle1
+            )
             destination = self.aergo1
             bridge_id = self.id1
         if err_msg is not None:
@@ -252,6 +260,7 @@ class ValidatorService(BridgeOperatorServicer):
         bridge_from: str,
         aergo_to: herapy.Aergo,
         bridge_to: str,
+        oracle_to: str,
     ) -> Optional[str]:
         """ An anchor is valid if :
             1- it's height is finalized
@@ -276,19 +285,21 @@ class ValidatorService(BridgeOperatorServicer):
             return ("root doesn't match height {}, got: {}, expected: {}"
                     .format(lib, anchor.root, root))
 
-        status = aergo_to.query_sc_state(bridge_to, ["_sv__nonce",
-                                                     "_sv__anchorHeight",
-                                                     "_sv__tAnchor"])
-        last_nonce_to, last_merged_height_from, t_anchor = \
-            [int(proof.value) for proof in status.var_proofs]
-
         # 3- check merkle bridge nonces are correct
+        last_nonce_to = int(
+            aergo_to.query_sc_state(
+                oracle_to, ["_sv__nonce"]).var_proofs[0].value
+        )
         if last_nonce_to != int(anchor.destination_nonce):
             return ("anchor nonce invalid, got: {}, expected: {}"
                     .format(anchor.destination_nonce, last_nonce_to))
 
         # 4- check anchored height comes after the previous one and t_anchor is
         # passed
+        status = aergo_to.query_sc_state(
+            bridge_to, ["_sv__anchorHeight", "_sv__tAnchor"])
+        last_merged_height_from, t_anchor = \
+            [int(proof.value) for proof in status.var_proofs]
         if last_merged_height_from + t_anchor > int(anchor.height):
             return ("anchor height too soon, got: {}, expected: {}"
                     .format(anchor.height, last_merged_height_from + t_anchor))
@@ -305,17 +316,21 @@ class ValidatorService(BridgeOperatorServicer):
 
         """
         if tempo_msg.is_from_mainnet:
-            current_tempo = query_tempo(self.hera2, self.addr2,
+            current_tempo = query_tempo(self.hera2, self.bridge2,
                                         ["_sv__tFinal"])
             return self.get_tempo(
-                self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
-                tempo_msg, 't_anchor', "A", current_tempo)
+                self.hera2, self.aergo1, self.aergo2, self.bridge2,
+                self.oracle2, self.id2, tempo_msg, 't_anchor', "A",
+                current_tempo
+            )
         else:
-            current_tempo = query_tempo(self.hera1, self.addr1,
+            current_tempo = query_tempo(self.hera1, self.bridge1,
                                         ["_sv__tFinal"])
             return self.get_tempo(
-                self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
-                tempo_msg, 't_anchor', "A", current_tempo)
+                self.hera1, self.aergo2, self.aergo1, self.bridge1,
+                self.oracle1, self.id1, tempo_msg, 't_anchor', "A",
+                current_tempo
+            )
 
     def GetTFinalSignature(self, tempo_msg, context):
         """Get a vote(signature) from the validator to update the t_final
@@ -323,17 +338,20 @@ class ValidatorService(BridgeOperatorServicer):
 
         """
         if tempo_msg.is_from_mainnet:
-            current_tempo = query_tempo(self.hera2, self.addr2,
+            current_tempo = query_tempo(self.hera2, self.bridge2,
                                         ["_sv__tFinal"])
             return self.get_tempo(
-                self.hera2, self.aergo1, self.aergo2, self.addr2, self.id2,
-                tempo_msg, 't_final', "F", current_tempo)
+                self.hera2, self.aergo1, self.aergo2, self.bridge2,
+                self.oracle2, self.id2, tempo_msg, 't_final', "F",
+                current_tempo
+            )
         else:
-            current_tempo = query_tempo(self.hera1, self.addr1,
+            current_tempo = query_tempo(self.hera1, self.bridge1,
                                         ["_sv__tFinal"])
             return self.get_tempo(
-                self.hera1, self.aergo2, self.aergo1, self.addr1, self.id1,
-                tempo_msg, 't_final', "F", current_tempo)
+                self.hera1, self.aergo2, self.aergo1, self.bridge1,
+                self.oracle1, self.id1, tempo_msg, 't_final', "F",
+                current_tempo)
 
     def get_tempo(
         self,
@@ -341,6 +359,7 @@ class ValidatorService(BridgeOperatorServicer):
         aergo_from: str,
         aergo_to: str,
         bridge_to: str,
+        oracle_to: str,
         id_to: str,
         tempo_msg,
         tempo_str,
@@ -350,9 +369,10 @@ class ValidatorService(BridgeOperatorServicer):
         if not self.auto_update:
             return Approval(error="Setting update not enabled")
         # 1 - check destination nonce is correct
-        nonce = int(hera.query_sc_state(
-            bridge_to, ["_sv__nonce"]
-        ).var_proofs[0].value)
+        nonce = int(
+            hera.query_sc_state(
+                oracle_to, ["_sv__nonce"]).var_proofs[0].value
+        )
         if nonce != tempo_msg.destination_nonce:
             err_msg = ("Incorrect Nonce, got: {}, expected: {}"
                        .format(tempo_msg.destination_nonce, nonce))
@@ -400,17 +420,17 @@ class ValidatorService(BridgeOperatorServicer):
     def GetValidatorsSignature(self, val_msg, context):
         if val_msg.is_from_mainnet:
             return self.get_validators(
-                self.hera2, self.addr2, self.id2, self.aergo2,
+                self.hera2, self.oracle2, self.id2, self.aergo2,
                 val_msg)
         else:
             return self.get_validators(
-                self.hera1, self.addr1, self.id1, self.aergo2,
+                self.hera1, self.oracle1, self.id1, self.aergo2,
                 val_msg)
 
     def get_validators(
         self,
         hera: herapy.Aergo,
-        bridge_to: str,
+        oracle_to: str,
         id_to: str,
         aergo_to,
         val_msg,
@@ -420,7 +440,7 @@ class ValidatorService(BridgeOperatorServicer):
         # 1 - check destination nonce is correct
         nonce = int(
             hera.query_sc_state(
-                bridge_to, ["_sv__nonce"]).var_proofs[0].value
+                oracle_to, ["_sv__nonce"]).var_proofs[0].value
         )
         if nonce != val_msg.destination_nonce:
             err_msg = ("Incorrect Nonce, got: {}, expected: {}"
@@ -434,7 +454,7 @@ class ValidatorService(BridgeOperatorServicer):
         config_vals = [val['addr'] for val in config_data['validators']]
         # 2 - check new validators are different from current ones to prevent
         # update spamming
-        current_validators = query_validators(hera, bridge_to)
+        current_validators = query_validators(hera, oracle_to)
         if current_validators == config_vals:
             err_msg = "Not voting for a new validator set"
             logger.warning(
