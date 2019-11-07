@@ -18,8 +18,7 @@ before_script:
   - docker_pid=$!
   - sleep 20
 
-  - make deploy_bridge
-  - make deploy_token
+  - make deploy_test_bridge
 
   - make validator&
   - validator_pid=$!
