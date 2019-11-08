@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n+aergo_bridge_operator/bridge_operator.proto\"Z\n\x06\x41nchor\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\x0c\n\x04root\x18\x02 \x01(\t\x12\x0e\n\x06height\x18\x03 \x01(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x04 \x01(\t\"7\n\x08\x41pproval\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0b\n\x03sig\x18\x02 \x01(\x0c\x12\r\n\x05\x65rror\x18\x03 \x01(\t\"M\n\x08NewTempo\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\r\n\x05tempo\x18\x02 \x01(\x04\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\x04\"W\n\rNewValidators\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\x12\n\nvalidators\x18\x02 \x03(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\x04\x32\xd0\x01\n\x0e\x42ridgeOperator\x12*\n\x12GetAnchorSignature\x12\x07.Anchor\x1a\t.Approval\"\x00\x12-\n\x13GetTAnchorSignature\x12\t.NewTempo\x1a\t.Approval\"\x00\x12,\n\x12GetTFinalSignature\x12\t.NewTempo\x1a\t.Approval\"\x00\x12\x35\n\x16GetValidatorsSignature\x12\x0e.NewValidators\x1a\t.Approval\"\x00\x62\x06proto3')
+  serialized_pb=_b('\n+aergo_bridge_operator/bridge_operator.proto\"Z\n\x06\x41nchor\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\x0c\n\x04root\x18\x02 \x01(\t\x12\x0e\n\x06height\x18\x03 \x01(\x04\x12\x19\n\x11\x64\x65stination_nonce\x18\x04 \x01(\x04\"7\n\x08\x41pproval\x12\x0f\n\x07\x61\x64\x64ress\x18\x01 \x01(\t\x12\x0b\n\x03sig\x18\x02 \x01(\x0c\x12\r\n\x05\x65rror\x18\x03 \x01(\t\"M\n\x08NewTempo\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\r\n\x05tempo\x18\x02 \x01(\x04\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\x04\"W\n\rNewValidators\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\x12\n\nvalidators\x18\x02 \x03(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\x04\"O\n\tNewOracle\x12\x17\n\x0fis_from_mainnet\x18\x01 \x01(\x08\x12\x0e\n\x06oracle\x18\x02 \x01(\t\x12\x19\n\x11\x64\x65stination_nonce\x18\x03 \x01(\x04\x32\xff\x01\n\x0e\x42ridgeOperator\x12*\n\x12GetAnchorSignature\x12\x07.Anchor\x1a\t.Approval\"\x00\x12-\n\x13GetTAnchorSignature\x12\t.NewTempo\x1a\t.Approval\"\x00\x12,\n\x12GetTFinalSignature\x12\t.NewTempo\x1a\t.Approval\"\x00\x12\x35\n\x16GetValidatorsSignature\x12\x0e.NewValidators\x1a\t.Approval\"\x00\x12-\n\x12GetOracleSignature\x12\n.NewOracle\x1a\t.Approval\"\x00\x62\x06proto3')
 )
 
 
@@ -49,15 +49,15 @@ _ANCHOR = _descriptor.Descriptor(
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='height', full_name='Anchor.height', index=2,
-      number=3, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=3, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
       name='destination_nonce', full_name='Anchor.destination_nonce', index=3,
-      number=4, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=_b("").decode('utf-8'),
+      number=4, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
@@ -212,10 +212,56 @@ _NEWVALIDATORS = _descriptor.Descriptor(
   serialized_end=362,
 )
 
+
+_NEWORACLE = _descriptor.Descriptor(
+  name='NewOracle',
+  full_name='NewOracle',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='is_from_mainnet', full_name='NewOracle.is_from_mainnet', index=0,
+      number=1, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='oracle', full_name='NewOracle.oracle', index=1,
+      number=2, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='destination_nonce', full_name='NewOracle.destination_nonce', index=2,
+      number=3, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=364,
+  serialized_end=443,
+)
+
 DESCRIPTOR.message_types_by_name['Anchor'] = _ANCHOR
 DESCRIPTOR.message_types_by_name['Approval'] = _APPROVAL
 DESCRIPTOR.message_types_by_name['NewTempo'] = _NEWTEMPO
 DESCRIPTOR.message_types_by_name['NewValidators'] = _NEWVALIDATORS
+DESCRIPTOR.message_types_by_name['NewOracle'] = _NEWORACLE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Anchor = _reflection.GeneratedProtocolMessageType('Anchor', (_message.Message,), {
@@ -246,6 +292,13 @@ NewValidators = _reflection.GeneratedProtocolMessageType('NewValidators', (_mess
   })
 _sym_db.RegisterMessage(NewValidators)
 
+NewOracle = _reflection.GeneratedProtocolMessageType('NewOracle', (_message.Message,), {
+  'DESCRIPTOR' : _NEWORACLE,
+  '__module__' : 'aergo_bridge_operator.bridge_operator_pb2'
+  # @@protoc_insertion_point(class_scope:NewOracle)
+  })
+_sym_db.RegisterMessage(NewOracle)
+
 
 
 _BRIDGEOPERATOR = _descriptor.ServiceDescriptor(
@@ -254,8 +307,8 @@ _BRIDGEOPERATOR = _descriptor.ServiceDescriptor(
   file=DESCRIPTOR,
   index=0,
   serialized_options=None,
-  serialized_start=365,
-  serialized_end=573,
+  serialized_start=446,
+  serialized_end=701,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetAnchorSignature',
@@ -290,6 +343,15 @@ _BRIDGEOPERATOR = _descriptor.ServiceDescriptor(
     index=3,
     containing_service=None,
     input_type=_NEWVALIDATORS,
+    output_type=_APPROVAL,
+    serialized_options=None,
+  ),
+  _descriptor.MethodDescriptor(
+    name='GetOracleSignature',
+    full_name='BridgeOperator.GetOracleSignature',
+    index=4,
+    containing_service=None,
+    input_type=_NEWORACLE,
     output_type=_APPROVAL,
     serialized_options=None,
   ),

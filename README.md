@@ -62,29 +62,21 @@ Start 2 test networks
 $ make docker
 ```
 
-Deploy bridge on mainnet and sidechain
+Deploy test bridge, oralces and token on mainnet and sidechain
 ```sh
-$ make deploy_bridge
-```
-Deploy a new test token on mainnet
-```sh
-$ make deploy_token
-```
-In a new terminal : start proposer
-```sh
-$ make proposer
+$ make deploy_test_bridge
 ```
 In a new terminal : start validator
 ```sh
 $ make validator
 ```
-In a new terminal : start broadcaster
+In a new terminal : start proposer
 ```sh
-$ make broadcaster
+$ make proposer
 ```
 In a new terminal : test wallet transfers, bridge transfers, delegated transfers and the bridge multisig
 ```sh
-$ python3 -m pytest -s tests/
+$ make tests
 ```
 Remove test networks data
 ```sh

@@ -34,6 +34,7 @@ from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
     query_id,
+    query_oracle,
 )
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24
@@ -60,8 +61,8 @@ logger.addHandler(stream_handler)
 
 log_template = \
     '{\"val_index\": %s, \"signed\": %s, \"type\": \"%s\", '\
-    '\"value\": %s, \"destination\": \"%s\"'
-success_log_template = log_template + ', \"nonce\": %s}'
+    '\"destination\": \"%s\"'
+success_log_template = log_template + ', \"value\": %s, \"nonce\": %s}'
 error_log_template = log_template + ', \"error\": \"%s\"}'
 
 
@@ -77,6 +78,7 @@ class ValidatorService(BridgeOperatorServicer):
         privkey_pwd: str = None,
         validator_index: int = 0,
         auto_update: bool = False,
+        oracle_update: bool = False,
     ) -> None:
         """
         aergo1 is considered to be the mainnet side of the bridge.
@@ -89,6 +91,7 @@ class ValidatorService(BridgeOperatorServicer):
         self.hera1 = herapy.Aergo()
         self.hera2 = herapy.Aergo()
         self.auto_update = auto_update
+        self.oracle_update = oracle_update
 
         self.hera1.connect(config_data['networks'][aergo1]['ip'])
         self.hera2.connect(config_data['networks'][aergo2]['ip'])
@@ -238,18 +241,18 @@ class ValidatorService(BridgeOperatorServicer):
 
         # sign anchor and return approval
         msg = bytes(
-            anchor.root + ',' + anchor.height + anchor.destination_nonce
-            + bridge_id + "R", 'utf-8'
+            anchor.root + ',' + str(anchor.height)
+            + str(anchor.destination_nonce) + bridge_id + "R", 'utf-8'
         )
         h = hashlib.sha256(msg).digest()
         sig = self.hera1.account.private_key.sign_msg(h)
         approval = Approval(address=self.address, sig=sig)
         logger.info(
             success_log_template, self.validator_index, "true",
-            "\u2693 anchor",
+            "\u2693 anchor", destination,
             "{{\"root\": \"0x{}\", \"height\": {}}}"
             .format(anchor.root, anchor.height),
-            destination, anchor.destination_nonce
+            anchor.destination_nonce
         )
         return approval
 
@@ -271,7 +274,7 @@ class ValidatorService(BridgeOperatorServicer):
         # 1- get the last block height and check anchor height > LIB
         # lib = best_height - finalized_from
         lib = aergo_from.get_status().consensus_info.status['LibNo']
-        if int(anchor.height) > lib:
+        if anchor.height > lib:
             return ("anchor height not finalized, got: {}, expected: {}"
                     .format(anchor.height, lib))
 
@@ -290,7 +293,7 @@ class ValidatorService(BridgeOperatorServicer):
             aergo_to.query_sc_state(
                 oracle_to, ["_sv__nonce"]).var_proofs[0].value
         )
-        if last_nonce_to != int(anchor.destination_nonce):
+        if last_nonce_to != anchor.destination_nonce:
             return ("anchor nonce invalid, got: {}, expected: {}"
                     .format(anchor.destination_nonce, last_nonce_to))
 
@@ -317,7 +320,7 @@ class ValidatorService(BridgeOperatorServicer):
         """
         if tempo_msg.is_from_mainnet:
             current_tempo = query_tempo(self.hera2, self.bridge2,
-                                        ["_sv__tFinal"])
+                                        ["_sv__tAnchor"])
             return self.get_tempo(
                 self.hera2, self.aergo1, self.aergo2, self.bridge2,
                 self.oracle2, self.id2, tempo_msg, 't_anchor', "A",
@@ -325,7 +328,7 @@ class ValidatorService(BridgeOperatorServicer):
             )
         else:
             current_tempo = query_tempo(self.hera1, self.bridge1,
-                                        ["_sv__tFinal"])
+                                        ["_sv__tAnchor"])
             return self.get_tempo(
                 self.hera1, self.aergo2, self.aergo1, self.bridge1,
                 self.oracle1, self.id1, tempo_msg, 't_anchor', "A",
@@ -412,7 +415,7 @@ class ValidatorService(BridgeOperatorServicer):
         approval = Approval(address=self.address, sig=sig)
         logger.info(
             success_log_template, self.validator_index, "true",
-            "\u231B " + tempo_str, tempo_msg.tempo, aergo_to,
+            "\u231B " + tempo_str, aergo_to, tempo_msg.tempo,
             tempo_msg.destination_nonce
         )
         return approval
@@ -482,8 +485,88 @@ class ValidatorService(BridgeOperatorServicer):
         approval = Approval(address=self.address, sig=sig)
         logger.info(
             success_log_template, self.validator_index, "true",
-            "\U0001f58b validator set", val_msg.validators, aergo_to,
+            "\U0001f58b validator set", aergo_to, val_msg.validators,
             val_msg.destination_nonce
+        )
+        return approval
+
+    def GetOracleSignature(self, oracle_msg, context):
+        if oracle_msg.is_from_mainnet:
+            return self.get_oracle(
+                self.hera2, self.aergo1, self.aergo2, self.oracle2, self.id2,
+                self.bridge2, oracle_msg
+            )
+        else:
+            return self.get_oracle(
+                self.hera1, self.aergo2, self.aergo1, self.oracle1, self.id1,
+                self.bridge1, oracle_msg)
+
+    def get_oracle(
+        self,
+        hera: herapy.Aergo,
+        aergo_from: str,
+        aergo_to: str,
+        oracle_to: str,
+        id_to: str,
+        bridge_to: str,
+        oracle_msg
+    ):
+        """Get a vote(signature) from the validator to update the
+        oracle controlling the bridge contract
+
+        """
+        if not self.oracle_update:
+            return Approval(error="Oracle update not enabled")
+
+        # 1 - check destination nonce is correct
+        nonce = int(
+            hera.query_sc_state(
+                oracle_to, ["_sv__nonce"]).var_proofs[0].value
+        )
+        if nonce != oracle_msg.destination_nonce:
+            err_msg = ("Incorrect Nonce, got: {}, expected: {}"
+                       .format(oracle_msg.destination_nonce, nonce))
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\U0001f58b oracle change", aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
+
+        config_data = self.load_config_data()
+        config_oracle = \
+            config_data['networks'][aergo_to]['bridges'][aergo_from]['oracle']
+        # 2 - check new oracle is different from current one to prevent
+        # update spamming
+        current_oracle = query_oracle(hera, bridge_to)
+        if current_oracle == config_oracle:
+            err_msg = "Not voting for a new oracle"
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\U0001f58b oracle change", aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
+        # 3 - check validators are same in config file
+        if config_oracle != oracle_msg.oracle:
+            err_msg = ("Invalid oracle, got: {}, expected: {}"
+                       .format(oracle_msg.oracle, config_oracle))
+            logger.warning(
+                error_log_template, self.validator_index, "false",
+                "\U0001f58b oracle change", aergo_to, err_msg
+            )
+            return Approval(error=err_msg)
+
+        # sign validators
+        data = oracle_msg.oracle \
+            + str(oracle_msg.destination_nonce) + id_to + "O"
+        data_bytes = bytes(data, 'utf-8')
+        h = hashlib.sha256(data_bytes).digest()
+        sig = hera.account.private_key.sign_msg(h)
+        approval = Approval(address=self.address, sig=sig)
+        logger.info(
+            success_log_template, self.validator_index, "true",
+            "\U0001f58b oracle change", aergo_to,
+            "\"{}\"".format(oracle_msg.oracle),
+            oracle_msg.destination_nonce
         )
         return approval
 
@@ -498,14 +581,17 @@ class ValidatorServer:
         privkey_pwd: str = None,
         validator_index: int = 0,
         auto_update: bool = False,
+        oracle_update: bool = False,
     ) -> None:
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         with open(config_file_path, "r") as f:
             config_data = json.load(f)
         add_BridgeOperatorServicer_to_server(
-            ValidatorService(config_file_path, aergo1, aergo2, privkey_name,
-                             privkey_pwd, validator_index, auto_update),
-            self.server)
+            ValidatorService(
+                config_file_path, aergo1, aergo2, privkey_name, privkey_pwd,
+                validator_index, auto_update, oracle_update
+            ), self.server
+        )
         self.server.add_insecure_port(config_data['validators']
                                       [validator_index]['ip'])
         self.validator_index = validator_index
@@ -535,7 +621,7 @@ def _serve_all(config_file_path, aergo1, aergo2,
         config_data = json.load(f)
     validator_indexes = [i for i in range(len(config_data['validators']))]
     servers = [ValidatorServer(config_file_path, aergo1, aergo2,
-                               privkey_name, privkey_pwd, index, True)
+                               privkey_name, privkey_pwd, index, True, True)
                for index in validator_indexes]
     worker = partial(_serve_worker, servers)
     pool = Pool(len(validator_indexes))

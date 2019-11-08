@@ -30,3 +30,9 @@ def query_id(aergo: herapy.Aergo, oracle: str) -> str:
     id_q = aergo.query_sc_state(oracle, ["_sv__contractId"])
     id = id_q.var_proofs[0].value.decode('utf-8')[1:-1]
     return id
+
+
+def query_oracle(aergo: herapy.Aergo, bridge: str) -> str:
+    oracle_q = aergo.query_sc_state(bridge, ["_sv__oracle"])
+    oracle = oracle_q.var_proofs[0].value.decode('utf-8')[1:-1]
+    return oracle

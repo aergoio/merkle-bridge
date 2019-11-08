@@ -11,6 +11,9 @@ service BridgeOperator {
 
     // Get signature to update validators of anchors
     rpc GetValidatorsSignature(NewValidators) returns (Approval) {}
+
+    // Get signature to update bridge oracle
+    rpc GetOracleSignature(NewOracle) returns (Approval) {}
 }
 
 message Anchor {
@@ -19,9 +22,9 @@ message Anchor {
     // root to be merged on sidechain
     string root = 2;
     // height to be merged on sidechain
-    string height = 3;
+    uint64 height = 3;
     // sidechain update nonce
-    string destination_nonce = 4;
+    uint64 destination_nonce = 4;
 }
 
 message Approval {
@@ -48,5 +51,14 @@ message NewValidators {
     // validators addresses : 'A...' 
     repeated string validators = 2;
     // eth bridge update nonce
+    uint64 destination_nonce = 3;
+}
+
+message NewOracle {
+    // flag to know from which chain the oracle in validating anchors
+    bool is_from_mainnet = 1;
+    // oracle address : 'A...' 
+    string oracle = 2;
+    // oracle update nonce
     uint64 destination_nonce = 3;
 }

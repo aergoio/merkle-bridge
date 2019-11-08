@@ -34,6 +34,11 @@ class BridgeOperatorStub(object):
         request_serializer=aergo__bridge__operator_dot_bridge__operator__pb2.NewValidators.SerializeToString,
         response_deserializer=aergo__bridge__operator_dot_bridge__operator__pb2.Approval.FromString,
         )
+    self.GetOracleSignature = channel.unary_unary(
+        '/BridgeOperator/GetOracleSignature',
+        request_serializer=aergo__bridge__operator_dot_bridge__operator__pb2.NewOracle.SerializeToString,
+        response_deserializer=aergo__bridge__operator_dot_bridge__operator__pb2.Approval.FromString,
+        )
 
 
 class BridgeOperatorServicer(object):
@@ -68,6 +73,13 @@ class BridgeOperatorServicer(object):
     context.set_details('Method not implemented!')
     raise NotImplementedError('Method not implemented!')
 
+  def GetOracleSignature(self, request, context):
+    """Get signature to update bridge oracle
+    """
+    context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+    context.set_details('Method not implemented!')
+    raise NotImplementedError('Method not implemented!')
+
 
 def add_BridgeOperatorServicer_to_server(servicer, server):
   rpc_method_handlers = {
@@ -89,6 +101,11 @@ def add_BridgeOperatorServicer_to_server(servicer, server):
       'GetValidatorsSignature': grpc.unary_unary_rpc_method_handler(
           servicer.GetValidatorsSignature,
           request_deserializer=aergo__bridge__operator_dot_bridge__operator__pb2.NewValidators.FromString,
+          response_serializer=aergo__bridge__operator_dot_bridge__operator__pb2.Approval.SerializeToString,
+      ),
+      'GetOracleSignature': grpc.unary_unary_rpc_method_handler(
+          servicer.GetOracleSignature,
+          request_deserializer=aergo__bridge__operator_dot_bridge__operator__pb2.NewOracle.FromString,
           response_serializer=aergo__bridge__operator_dot_bridge__operator__pb2.Approval.SerializeToString,
       ),
   }

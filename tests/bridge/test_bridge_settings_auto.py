@@ -5,6 +5,7 @@ import aergo.herapy as herapy
 from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
+    query_oracle,
 )
 
 
@@ -139,3 +140,51 @@ def auto_update_validators(from_chain, to_chain, wallet):
     aergo_validators = query_validators(hera, oracle)
 
     assert aergo_validators == aergo_validators_before
+
+
+def test_oracle_update(wallet):
+    auto_update_oracle('sidechain2', 'mainnet', wallet)
+    auto_update_oracle('mainnet', 'sidechain2', wallet)
+
+
+def auto_update_oracle(from_chain, to_chain, wallet):
+    hera = herapy.Aergo()
+    hera.connect(wallet.config_data('networks', to_chain, 'ip'))
+    oracle = wallet.config_data(
+        'networks', to_chain, 'bridges', from_chain, 'oracle')
+    bridge = wallet.config_data(
+        'networks', to_chain, 'bridges', from_chain, 'addr')
+    default = wallet.config_data('wallet', 'default', 'addr')
+    oracle_before = query_oracle(hera, bridge)
+    assert oracle == oracle_before
+
+    # set oracle to 'default' account in test_config
+    new_oracle = default
+    wallet.config_data(
+        'networks', to_chain, 'bridges', from_chain, 'oracle',
+        value=new_oracle
+    )
+    wallet.save_config()
+    # wait for changes to be reflacted
+    _, current_height = hera.get_blockchain_status()
+    # waite for anchor containing our transfer
+    stream = hera.receive_event_stream(
+        bridge, "oracleUpdate", start_block_no=current_height)
+    next(stream)
+    stream.stop()
+    oracle_after = query_oracle(hera, bridge)
+    assert oracle_after == default
+
+    wallet.config_data(
+        'networks', to_chain, 'bridges', from_chain, 'oracle',
+        value=oracle
+    )
+    wallet.save_config()
+    # transfer bridge ownership back to oracle
+    # set aergo signer
+    encrypted_key = wallet.config_data('wallet', 'default', 'priv_key')
+    hera.import_account(encrypted_key, '1234')
+    hera.call_sc(bridge, "oracleUpdate", args=[oracle])
+    time.sleep(2)
+    oracle_after = query_oracle(hera, bridge)
+    assert oracle == oracle_after

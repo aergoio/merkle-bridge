@@ -33,12 +33,14 @@ from aergo_bridge_operator.bridge_operator_pb2_grpc import (
 from aergo_bridge_operator.bridge_operator_pb2 import (
     Anchor,
     NewValidators,
-    NewTempo
+    NewTempo,
+    NewOracle,
 )
 from aergo_bridge_operator.op_utils import (
     query_tempo,
     query_validators,
     query_id,
+    query_oracle,
 )
 
 logger = logging.getLogger(__name__)
@@ -97,13 +99,15 @@ class ProposerClient(threading.Thread):
         is_from_mainnet: bool,
         privkey_name: str = None,
         privkey_pwd: str = None,
-        auto_update: bool = False
+        auto_update: bool = False,
+        oracle_update: bool = False
     ) -> None:
         threading.Thread.__init__(self, name=aergo_to + " proposer")
         self.config_file_path = config_file_path
         self.config_data = self.load_config_data()
         self.is_from_mainnet = is_from_mainnet
         self.auto_update = auto_update
+        self.oracle_update = oracle_update
         self.aergo_from = aergo_from
         self.aergo_to = aergo_to
 
@@ -184,7 +188,7 @@ class ProposerClient(threading.Thread):
 
         anchor = Anchor(
             is_from_mainnet=self.is_from_mainnet, root=root,
-            height=str(merge_height), destination_nonce=str(nonce))
+            height=merge_height, destination_nonce=nonce)
 
         # get validator signatures and verify sig in worker
         validator_indexes = [i for i in range(len(self.stubs))]
@@ -437,6 +441,13 @@ class ProposerClient(threading.Thread):
         if t_final != config_t_final:
             logger.info('\"Finality update requested: %s\"', config_t_final)
             self.update_t_final(config_t_final)
+        if self.oracle_update:
+            oracle = query_oracle(self.hera_to, self.bridge_to)
+            config_oracle = (config_data['networks'][self.aergo_to]['bridges']
+                             [self.aergo_from]['oracle'])
+            if oracle != config_oracle:
+                logger.info('\"Oracle change requested: %s\"', config_oracle)
+                self.update_oracle(config_oracle)
 
     def update_validator_connections(self):
         """Update connections to validators after a successful update
@@ -465,30 +476,6 @@ class ProposerClient(threading.Thread):
         # broadcast transaction
         return self.set_validators(new_validators, validator_indexes, sigs)
 
-    def set_validators(self, new_validators, validator_indexes, sigs):
-        """Update validators on chain"""
-        tx, result = self.hera_to.call_sc(
-            self.oracle_to, "validatorsUpdate",
-            args=[new_validators, validator_indexes, sigs]
-        )
-        if result.status != herapy.CommitStatus.TX_OK:
-            logger.warning(
-                "\"Set new validators Tx commit failed : %s\"",
-                result.json()
-            )
-            return False
-
-        result = self.hera_to.wait_tx_result(tx.tx_hash)
-        if result.status != herapy.TxResultStatus.SUCCESS:
-            logger.warning(
-                "\"Set new validators failed : nonce already used, or "
-                "invalid signature: %s\"", result.json()
-            )
-            return False
-        else:
-            logger.info("\"\U0001f58b New validators update success\"")
-        return True
-
     def get_new_validators_signatures(self, validators):
         """Request approvals of validators for the new validator set."""
         nonce = int(
@@ -514,6 +501,30 @@ class ProposerClient(threading.Thread):
         sigs, validator_indexes = self.extract_signatures(approvals)
         return sigs, validator_indexes
 
+    def set_validators(self, new_validators, validator_indexes, sigs):
+        """Update validators on chain"""
+        tx, result = self.hera_to.call_sc(
+            self.oracle_to, "validatorsUpdate",
+            args=[new_validators, validator_indexes, sigs]
+        )
+        if result.status != herapy.CommitStatus.TX_OK:
+            logger.warning(
+                "\"Set new validators Tx commit failed : %s\"",
+                result.json()
+            )
+            return False
+
+        result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result.status != herapy.TxResultStatus.SUCCESS:
+            logger.warning(
+                "\"Set new validators failed : nonce already used, or "
+                "invalid signature: %s\"", result.json()
+            )
+            return False
+        else:
+            logger.info("\"\U0001f58b New validators update success\"")
+        return True
+
     def update_t_anchor(self, t_anchor):
         """Try to update the anchoring periode registered in the bridge
         contract.
@@ -527,38 +538,6 @@ class ProposerClient(threading.Thread):
             return
         # broadcast transaction
         self.set_tempo(t_anchor, validator_indexes, sigs, "tAnchorUpdate")
-
-    def set_tempo(
-        self,
-        t_anchor,
-        validator_indexes,
-        sigs,
-        contract_function
-    ) -> bool:
-        """Update t_anchor or t_final on chain"""
-        tx, result = self.hera_to.call_sc(
-            self.oracle_to, contract_function,
-            args=[t_anchor, validator_indexes, sigs]
-        )
-        if result.status != herapy.CommitStatus.TX_OK:
-            logger.warning(
-                "\"Set %s Tx commit failed : %s\"",
-                contract_function, result.json()
-            )
-            return False
-
-        result = self.hera_to.wait_tx_result(tx.tx_hash)
-        if result.status != herapy.TxResultStatus.SUCCESS:
-            logger.warning(
-                "\"Set %s failed: nonce already used, or invalid "
-                "signature: %s\"",
-                contract_function, result.json()
-            )
-            return False
-        else:
-            logger.info(
-                "\"\u231B %s success\"", contract_function)
-        return True
 
     def update_t_final(self, t_final):
         """Try to update the anchoring periode registered in the bridge
@@ -597,6 +576,99 @@ class ProposerClient(threading.Thread):
         sigs, validator_indexes = self.extract_signatures(approvals)
         return sigs, validator_indexes
 
+    def set_tempo(
+        self,
+        t_anchor,
+        validator_indexes,
+        sigs,
+        contract_function
+    ) -> bool:
+        """Update t_anchor or t_final on chain"""
+        tx, result = self.hera_to.call_sc(
+            self.oracle_to, contract_function,
+            args=[t_anchor, validator_indexes, sigs]
+        )
+        if result.status != herapy.CommitStatus.TX_OK:
+            logger.warning(
+                "\"Set %s Tx commit failed : %s\"",
+                contract_function, result.json()
+            )
+            return False
+
+        result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result.status != herapy.TxResultStatus.SUCCESS:
+            logger.warning(
+                "\"Set %s failed: nonce already used, or invalid "
+                "signature: %s\"",
+                contract_function, result.json()
+            )
+            return False
+        else:
+            logger.info(
+                "\"\u231B %s success\"", contract_function)
+        return True
+
+    def update_oracle(self, oracle):
+        """Try to update the oracle periode registered in the bridge
+        contract.
+
+        """
+        try:
+            sigs, validator_indexes = \
+                self.get_new_oracle_signatures(oracle)
+        except ValidatorMajorityError:
+            logger.warning("\"Failed to gather 2/3 validators signatures\"")
+            return
+        # broadcast transaction
+        self.set_oracle(oracle, validator_indexes, sigs)
+
+    def get_new_oracle_signatures(self, oracle):
+        """Request approvals of validators for the new oracle."""
+        nonce = int(
+            self.hera_to.query_sc_state(
+                self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
+        )
+        new_oracle_msg = NewOracle(
+            is_from_mainnet=self.is_from_mainnet, oracle=oracle,
+            destination_nonce=nonce
+        )
+        data = oracle + str(nonce) + self.oracle_to_id + "O"
+        data_bytes = bytes(data, 'utf-8')
+        h = hashlib.sha256(data_bytes).digest()
+        # get validator signatures and verify sig in worker
+        validator_indexes = [i for i in range(len(self.stubs))]
+        worker = partial(
+            self.get_signature_worker, "GetOracleSignature",
+            new_oracle_msg, h
+        )
+        approvals = self.pool.map(worker, validator_indexes)
+        sigs, validator_indexes = self.extract_signatures(approvals)
+        return sigs, validator_indexes
+
+    def set_oracle(self, new_oracle, validator_indexes, sigs):
+        """Update oracle on chain"""
+        tx, result = self.hera_to.call_sc(
+            self.oracle_to, "oracleUpdate",
+            args=[new_oracle, validator_indexes, sigs]
+        )
+        if result.status != herapy.CommitStatus.TX_OK:
+            logger.warning(
+                "\"Set new oracle Tx commit failed : %s\"",
+                result.json()
+            )
+            return False
+
+        result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result.status != herapy.TxResultStatus.SUCCESS:
+            logger.warning(
+                "\"Set new oracle failed : nonce already used, or "
+                "invalid signature: %s\"", result.json()
+            )
+            return False
+        else:
+            logger.info("\"\U0001f58b New oracle update success\"")
+        return True
+
     def load_config_data(self) -> Dict:
         with open(self.config_file_path, "r") as f:
             config_data = json.load(f)
@@ -621,15 +693,16 @@ class BridgeProposerClient:
         aergo_sidechain: str,
         privkey_name: str = None,
         privkey_pwd: str = None,
-        auto_update: bool = False
+        auto_update: bool = False,
+        oracle_update: bool = False
     ) -> None:
         self.t_proposer1 = ProposerClient(
             config_file_path, aergo_sidechain, aergo_mainnet, False,
-            privkey_name, privkey_pwd, auto_update
+            privkey_name, privkey_pwd, auto_update, oracle_update
         )
         self.t_proposer2 = ProposerClient(
             config_file_path, aergo_mainnet, aergo_sidechain, True,
-            privkey_name, privkey_pwd, auto_update
+            privkey_name, privkey_pwd, auto_update, oracle_update
         )
 
     def run(self):
@@ -667,7 +740,7 @@ if __name__ == '__main__':
         proposer = BridgeProposerClient(
             args.config_file_path, args.net1, args.net2,
             privkey_name=args.privkey_name, privkey_pwd='1234',
-            auto_update=args.auto_update
+            auto_update=args.auto_update, oracle_update=True
         )
         proposer.run()
     else:
