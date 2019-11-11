@@ -427,7 +427,7 @@ class ValidatorService(BridgeOperatorServicer):
         return approval
 
     def GetValidatorsSignature(self, val_msg, context):
-        if not self.auto_update and self.oracle_update:
+        if not (self.auto_update and self.oracle_update):
             return Approval(error="Oracle validators update not enabled")
         if val_msg.is_from_mainnet:
             return self.get_validators(
@@ -497,7 +497,7 @@ class ValidatorService(BridgeOperatorServicer):
         return approval
 
     def GetOracleSignature(self, oracle_msg, context):
-        if not self.auto_update and self.oracle_update:
+        if not (self.auto_update and self.oracle_update):
             return Approval(error="Oracle update not enabled")
 
         if oracle_msg.is_from_mainnet:
