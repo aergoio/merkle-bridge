@@ -17,10 +17,10 @@ deploy_test_bridge:
 	python3 -m aergo_wallet.token_deployer
 
 proposer:
-	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update --local_test
+	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --local_test
 
 validator:
-	python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update --local_test
+	python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --local_test
 
 protoc:
 	python3 -m grpc_tools.protoc \

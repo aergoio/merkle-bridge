@@ -77,6 +77,7 @@ class ValidatorService(BridgeOperatorServicer):
         privkey_name: str = None,
         privkey_pwd: str = None,
         validator_index: int = 0,
+        anchoring_on: bool = False,
         auto_update: bool = False,
         oracle_update: bool = False,
     ) -> None:
@@ -90,6 +91,7 @@ class ValidatorService(BridgeOperatorServicer):
         self.aergo2 = aergo2
         self.hera1 = herapy.Aergo()
         self.hera2 = herapy.Aergo()
+        self.anchoring_on = anchoring_on
         self.auto_update = auto_update
         self.oracle_update = oracle_update
 
@@ -215,6 +217,8 @@ class ValidatorService(BridgeOperatorServicer):
         """ Verifies the anchors are valid and signes them
             aergo1 and aergo2 must be trusted.
         """
+        if not self.anchoring_on:
+            return Approval(error="Anchoring not enabled")
         destination = ""
         bridge_id = ""
         if anchor.is_from_mainnet:
@@ -318,6 +322,8 @@ class ValidatorService(BridgeOperatorServicer):
         setting in the Aergo bridge contract
 
         """
+        if not self.auto_update:
+            return Approval(error="Setting update not enabled")
         if tempo_msg.is_from_mainnet:
             current_tempo = query_tempo(self.hera2, self.bridge2,
                                         ["_sv__tAnchor"])
@@ -340,6 +346,8 @@ class ValidatorService(BridgeOperatorServicer):
         setting in the Aergo bridge contract
 
         """
+        if not self.auto_update:
+            return Approval(error="Setting update not enabled")
         if tempo_msg.is_from_mainnet:
             current_tempo = query_tempo(self.hera2, self.bridge2,
                                         ["_sv__tFinal"])
@@ -369,8 +377,6 @@ class ValidatorService(BridgeOperatorServicer):
         tempo_id,
         current_tempo,
     ):
-        if not self.auto_update:
-            return Approval(error="Setting update not enabled")
         # 1 - check destination nonce is correct
         nonce = int(
             hera.query_sc_state(
@@ -421,6 +427,8 @@ class ValidatorService(BridgeOperatorServicer):
         return approval
 
     def GetValidatorsSignature(self, val_msg, context):
+        if not self.auto_update and self.oracle_update:
+            return Approval(error="Oracle validators update not enabled")
         if val_msg.is_from_mainnet:
             return self.get_validators(
                 self.hera2, self.oracle2, self.id2, self.aergo2,
@@ -438,8 +446,6 @@ class ValidatorService(BridgeOperatorServicer):
         aergo_to,
         val_msg,
     ):
-        if not self.auto_update:
-            return Approval(error="Setting update not enabled")
         # 1 - check destination nonce is correct
         nonce = int(
             hera.query_sc_state(
@@ -491,6 +497,9 @@ class ValidatorService(BridgeOperatorServicer):
         return approval
 
     def GetOracleSignature(self, oracle_msg, context):
+        if not self.auto_update and self.oracle_update:
+            return Approval(error="Oracle update not enabled")
+
         if oracle_msg.is_from_mainnet:
             return self.get_oracle(
                 self.hera2, self.aergo1, self.aergo2, self.oracle2, self.id2,
@@ -515,9 +524,6 @@ class ValidatorService(BridgeOperatorServicer):
         oracle controlling the bridge contract
 
         """
-        if not self.oracle_update:
-            return Approval(error="Oracle update not enabled")
-
         # 1 - check destination nonce is correct
         nonce = int(
             hera.query_sc_state(
@@ -580,6 +586,7 @@ class ValidatorServer:
         privkey_name: str = None,
         privkey_pwd: str = None,
         validator_index: int = 0,
+        anchoring_on: bool = False,
         auto_update: bool = False,
         oracle_update: bool = False,
     ) -> None:
@@ -589,7 +596,7 @@ class ValidatorServer:
         add_BridgeOperatorServicer_to_server(
             ValidatorService(
                 config_file_path, aergo1, aergo2, privkey_name, privkey_pwd,
-                validator_index, auto_update, oracle_update
+                validator_index, anchoring_on, auto_update, oracle_update
             ), self.server
         )
         self.server.add_insecure_port(config_data['validators']
@@ -621,7 +628,7 @@ def _serve_all(config_file_path, aergo1, aergo2,
         config_data = json.load(f)
     validator_indexes = [i for i in range(len(config_data['validators']))]
     servers = [ValidatorServer(config_file_path, aergo1, aergo2,
-                               privkey_name, privkey_pwd, index, True, True)
+                               privkey_name, privkey_pwd, index, True, True, True)
                for index in validator_indexes]
     worker = partial(_serve_worker, servers)
     pool = Pool(len(validator_indexes))
@@ -648,12 +655,24 @@ if __name__ == '__main__':
         '--privkey_name', type=str, help='Name of account in config file '
         'to sign anchors', required=False)
     parser.add_argument(
+        '--anchoring_on', dest='anchoring_on', action='store_true',
+        help='Enable anchoring (can be diseabled when wanting to only update '
+             'settings)'
+    )
+    parser.add_argument(
         '--auto_update', dest='auto_update', action='store_true',
         help='Update bridge contract when settings change in config file')
     parser.add_argument(
+        '--oracle_update', dest='oracle_update', action='store_true',
+        help='Update bridge contract when validators or oracle addr '
+             'change in config file'
+    )
+    parser.add_argument(
         '--local_test', dest='local_test', action='store_true',
         help='Start all validators locally for convenient testing')
+    parser.set_defaults(anchoring_on=False)
     parser.set_defaults(auto_update=False)
+    parser.set_defaults(oracle_update=False)
     parser.set_defaults(local_test=False)
 
     args = parser.parse_args()
@@ -666,6 +685,8 @@ if __name__ == '__main__':
             args.config_file_path, args.net1, args.net2,
             privkey_name=args.privkey_name,
             validator_index=args.validator_index,
-            auto_update=args.auto_update
+            anchoring_on=args.anchoring_on,
+            auto_update=args.auto_update,
+            oracle_update=False  # diseabled by default for safety
         )
         validator.run()

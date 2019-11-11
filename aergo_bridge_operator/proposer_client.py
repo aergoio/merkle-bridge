@@ -99,6 +99,7 @@ class ProposerClient(threading.Thread):
         is_from_mainnet: bool,
         privkey_name: str = None,
         privkey_pwd: str = None,
+        anchoring_on: bool = False,
         auto_update: bool = False,
         oracle_update: bool = False
     ) -> None:
@@ -106,6 +107,7 @@ class ProposerClient(threading.Thread):
         self.config_file_path = config_file_path
         self.config_data = self.load_config_data()
         self.is_from_mainnet = is_from_mainnet
+        self.anchoring_on = anchoring_on
         self.auto_update = auto_update
         self.oracle_update = oracle_update
         self.aergo_from = aergo_from
@@ -354,38 +356,40 @@ class ProposerClient(threading.Thread):
                     self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
             )
 
-            logger.info(
-                "\"\U0001f58b Gathering validator signatures for: "
-                "root: 0x%s, height: %s'\"", root, next_anchor_height
-            )
-
-            try:
-                sigs, validator_indexes = self.get_anchor_signatures(
-                    root, next_anchor_height, nonce_to
+            if self.anchoring_on:
+                logger.info(
+                    "\"\U0001f58b Gathering validator signatures for: "
+                    "root: 0x%s, height: %s'\"", root, next_anchor_height
                 )
-            except ValidatorMajorityError:
-                logger.warning(
-                    "\"Failed to gather 2/3 validators signatures, "
-                    "\u23F0 waiting for next anchor...\""
-                )
-                self.monitor_settings_and_sleep(self.t_anchor)
-                continue
 
-            # don't broadcast if somebody else already did
-            last_merge = self.hera_to.query_sc_state(
-                self.bridge_to, ["_sv__anchorHeight"])
-            merged_height = int(last_merge.var_proofs[0].value)
-            if merged_height + self.t_anchor >= next_anchor_height:
-                logger.warning(
-                    "\"Not yet anchor time, maybe another proposer already "
-                    "anchored\""
-                )
-                wait = merged_height + self.t_anchor - next_anchor_height
-                self.monitor_settings_and_sleep(wait)
-                continue
+                try:
+                    sigs, validator_indexes = self.get_anchor_signatures(
+                        root, next_anchor_height, nonce_to
+                    )
+                except ValidatorMajorityError:
+                    logger.warning(
+                        "\"Failed to gather 2/3 validators signatures, "
+                        "\u23F0 waiting for next anchor...\""
+                    )
+                    self.monitor_settings_and_sleep(self.t_anchor)
+                    continue
 
-            # Broadcast finalised merge block
-            self.new_anchor(root, next_anchor_height, validator_indexes, sigs)
+                # don't broadcast if somebody else already did
+                last_merge = self.hera_to.query_sc_state(
+                    self.bridge_to, ["_sv__anchorHeight"])
+                merged_height = int(last_merge.var_proofs[0].value)
+                if merged_height + self.t_anchor >= next_anchor_height:
+                    logger.warning(
+                        "\"Not yet anchor time, maybe another proposer "
+                        "already anchored\""
+                    )
+                    wait = merged_height + self.t_anchor - next_anchor_height
+                    self.monitor_settings_and_sleep(wait)
+                    continue
+
+                # Broadcast finalised merge block
+                self.new_anchor(
+                    root, next_anchor_height, validator_indexes, sigs)
 
             # Wait t_anchor
             # counting commit time in t_anchor often leads to 'Next anchor not
@@ -419,17 +423,8 @@ class ProposerClient(threading.Thread):
 
         """
         config_data = self.load_config_data()
-        validators = query_validators(self.hera_to, self.oracle_to)
         t_anchor, t_final = query_tempo(
             self.hera_to, self.bridge_to, ["_sv__tAnchor", "_sv__tFinal"])
-        config_validators = [val['addr']
-                             for val in config_data['validators']]
-        if validators != config_validators:
-            logger.info(
-                '\"Validator set update requested: %s\"', config_validators)
-            if self.update_validators(config_validators):
-                self.config_data = config_data
-                self.update_validator_connections()
         config_t_anchor = (config_data['networks'][self.aergo_to]['bridges']
                            [self.aergo_from]['t_anchor'])
         if t_anchor != config_t_anchor:
@@ -442,6 +437,17 @@ class ProposerClient(threading.Thread):
             logger.info('\"Finality update requested: %s\"', config_t_final)
             self.update_t_final(config_t_final)
         if self.oracle_update:
+            validators = query_validators(self.hera_to, self.oracle_to)
+            config_validators = \
+                [val['addr'] for val in config_data['validators']]
+            if validators != config_validators:
+                logger.info(
+                    '\"Validator set update requested: %s\"',
+                    config_validators
+                )
+                if self.update_validators(config_validators):
+                    self.config_data = config_data
+                    self.update_validator_connections()
             oracle = query_oracle(self.hera_to, self.bridge_to)
             config_oracle = (config_data['networks'][self.aergo_to]['bridges']
                              [self.aergo_from]['oracle'])
@@ -693,16 +699,17 @@ class BridgeProposerClient:
         aergo_sidechain: str,
         privkey_name: str = None,
         privkey_pwd: str = None,
+        anchoring_on: bool = False,
         auto_update: bool = False,
         oracle_update: bool = False
     ) -> None:
         self.t_proposer1 = ProposerClient(
             config_file_path, aergo_sidechain, aergo_mainnet, False,
-            privkey_name, privkey_pwd, auto_update, oracle_update
+            privkey_name, privkey_pwd, anchoring_on, auto_update, oracle_update
         )
         self.t_proposer2 = ProposerClient(
             config_file_path, aergo_mainnet, aergo_sidechain, True,
-            privkey_name, privkey_pwd, auto_update, oracle_update
+            privkey_name, privkey_pwd, anchoring_on, auto_update, oracle_update
         )
 
     def run(self):
@@ -727,12 +734,24 @@ if __name__ == '__main__':
         '--privkey_name', type=str, help='Name of account in config file '
         'to sign anchors', required=False)
     parser.add_argument(
+        '--anchoring_on', dest='anchoring_on', action='store_true',
+        help='Enable anchoring (can be diseabled when wanting to only update '
+             'settings)'
+    )
+    parser.add_argument(
         '--auto_update', dest='auto_update', action='store_true',
         help='Update bridge contract when settings change in config file')
     parser.add_argument(
+        '--oracle_update', dest='oracle_update', action='store_true',
+        help='Update bridge contract when validators or oracle addr '
+             'change in config file'
+    )
+    parser.add_argument(
         '--local_test', dest='local_test', action='store_true',
         help='Start proposer with password for testing')
+    parser.set_defaults(anchoring_on=False)
     parser.set_defaults(auto_update=False)
+    parser.set_defaults(oracle_update=False)
     parser.set_defaults(local_test=False)
 
     args = parser.parse_args()
@@ -740,12 +759,15 @@ if __name__ == '__main__':
         proposer = BridgeProposerClient(
             args.config_file_path, args.net1, args.net2,
             privkey_name=args.privkey_name, privkey_pwd='1234',
-            auto_update=args.auto_update, oracle_update=True
+            anchoring_on=True, auto_update=True, oracle_update=True
         )
         proposer.run()
     else:
         proposer = BridgeProposerClient(
             args.config_file_path, args.net1, args.net2,
-            privkey_name=args.privkey_name, auto_update=args.auto_update
+            privkey_name=args.privkey_name,
+            anchoring_on=args.anchoring_on,
+            auto_update=args.auto_update,
+            oracle_update=False  # diseabled by default for safety
         )
         proposer.run()

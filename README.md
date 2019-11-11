@@ -47,13 +47,13 @@ $ python3 -m aergo_cli.main
 ### Proposer
 Start a proposer between 2 Aergo networks.
 ```sh
-$ python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --auto_update
+$ python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --anchoring_on
 ```
 
 ### Validator
 Start a validator between 2 Aergo networks.
 ```sh
-$ python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update
+$ python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --anchoring_on
 ```
 
 ## Running tests

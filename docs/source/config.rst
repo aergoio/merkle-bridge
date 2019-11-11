@@ -14,6 +14,7 @@ It can be created and updated manually of with the help of the cli.
                 "bridges": {  // bridge contracts to other networks
                     "sidechain2": {  // name of the network being connected
                         "addr": "AmgEZebmD4BcV4dhKq6h2HcJS2E8vvy5CEYPyrTvuohjQMiJqMC4",  // bridge contract (on mainnet) address to sidechain
+                        "oracle": "AmgQdbUqDuoX5krsmvSEHc9X3apBuXyJTQ4mimfWzejEsYScTo3f", // oracle controling bridge contract 'addr'
                         "t_anchor": 25,  // anchoring periode of sidechain to mainnet 
                         "t_final": 5  // minimum finality time of sidechain
                     }
@@ -32,6 +33,7 @@ It can be created and updated manually of with the help of the cli.
                 "bridges": {  // bridge contracts to other networks
                     "mainnet": {  // name of the network being connected
                         "addr": "Amho9dBsJZdbqC1nG4Vztgy7HWfkc6mxiRKjxMUrjPx6kgszdrsa",  // bridge contract (on sidechain) address to mainnet
+                        "oracle": "AmgQdbUqDuoX5krsmvSEHc9X3apBuXyJTQ4mimfWzejEsYScTo3f", // oracle controling bridge contract 'addr'
                         "id": "3e688cb882552b4f7d9032e0ae55d9",  // bridge id used to prevent bridge update replay
                         "t_anchor": 10,  // anchoring periode of mainnet to sidechain2 
                         "t_final": 10  // minimum finality time of mainnet

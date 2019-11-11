@@ -17,7 +17,8 @@ Starting a Validator
 
         usage: validator_server.py [-h] -c CONFIG_FILE_PATH --net1 NET1 --net2 NET2 -i
                                 VALIDATOR_INDEX [--privkey_name PRIVKEY_NAME]
-                                [--auto_update] [--local_test]
+                                [--anchoring_on] [--auto_update] [--oracle_update]
+                                [--local_test]
 
         Start a validator between 2 Aergo networks.
 
@@ -32,11 +33,15 @@ Starting a Validator
                                 validators
         --privkey_name PRIVKEY_NAME
                                 Name of account in config file to sign anchors
+        --anchoring_on        Enable anchoring (can be diseabled when wanting to
+                                only update settings)
         --auto_update         Update bridge contract when settings change in config
                                 file
-        --local_test          Start all validators locally for convenient testing 
+        --oracle_update       Update bridge contract when validators or oracle addr
+                                change in config file
+        --local_test          Start all validators locally for convenient testing
 
-    $ python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --auto_update
+    $ python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --anchoring_on
 
         "Bridge validators : ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']"
         "mainnet <- sidechain2 (t_final=4) : t_anchor=6"
@@ -54,7 +59,10 @@ Starting a Validator
 
     from aergo_bridge_operator.validator_server import ValidatorServer
 
-    validator = ValidatorServer("./test_config.json", 'mainnet', 'sidechain2')
+    validator = ValidatorServer(
+        "./test_config.json", 'mainnet', 'sidechain2', privkey_name='validator',
+        validator_index=2, anchoring_on=True
+    )
     validator.run()
 
 
