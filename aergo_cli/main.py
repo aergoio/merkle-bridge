@@ -296,8 +296,8 @@ class MerkleBridgeCli():
             'bridges': {}
         }
         # Register bridge contracts on each network
-        if promptYN('Would you like to register a bridge ? '
-                    '(needed if already deployed)', 'Yes', 'No'):
+        if promptYN('Would you like to register a bridge ?',
+                    'Yes', 'No'):
             answers = prompt_new_bridge(net1, net2)
             new_config['networks'][net1]['bridges'] = {
                 net2: {'addr': answers['bridge1'],
@@ -313,12 +313,6 @@ class MerkleBridgeCli():
                        'oracle': answers['oracle2']
                        }
             }
-        # Register a new private key
-        new_config['wallet'] = {}
-        print("Register a private key for {}".format(net1))
-        name, addr, privkey = prompt_aergo_privkey()
-        new_config['wallet'][name] = {"addr": addr,
-                                      "priv_key": privkey}
 
         # Register bridge validators
         if promptYN('Would you like to register validators ? '
@@ -327,6 +321,13 @@ class MerkleBridgeCli():
             new_config['validators'] = validators
         else:
             new_config['validators'] = {}
+
+        # Register a new private key
+        new_config['wallet'] = {}
+        print("Register a private key for {}".format(net1))
+        name, addr, privkey = prompt_aergo_privkey()
+        new_config['wallet'][name] = {"addr": addr,
+                                      "priv_key": privkey}
 
         questions = [
             {
