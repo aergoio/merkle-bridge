@@ -13,7 +13,7 @@ install:
   - pip install -r dev-dependencies.txt
 
 before_script:
-	- docker build --build-arg GIT_TAG=eada70e40f6e1f0c6927b717fb78c3c25c819b4a -t aergo/node ./docker
+  - docker build --build-arg GIT_TAG=eada70e40f6e1f0c6927b717fb78c3c25c819b4a -t aergo/node ./docker
   - docker-compose -f ./docker/docker-compose.yml up&
   - docker_pid=$!
   - sleep 20
