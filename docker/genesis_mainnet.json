@@ -1,7 +1,7 @@
 {
 "chain_id":{
-        "public":false,
-        "mainnet":false,
+        "public":true,
+        "mainnet":true,
         "magic":"mainnet",
         "consensus":"dpos"
     },

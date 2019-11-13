@@ -1,31 +1,20 @@
 {
-    "broadcasters": {
-        "mainnet": {
-            "ip": "localhost:9850",
-            "sidechain2": {
-                "ip": "localhost:9850"
-            }
-        },
-        "sidechain2": {
-            "ip": "localhost:9850"
-        }
-    },
     "networks": {
         "mainnet": {
             "bridges": {
                 "sidechain2": {
-                    "addr": "AmhPw3kQTmkWuKsz9u3fzbDoCF3J9KbHTbkPWcpLYimvnYRT17KH",
-                    "oracle": "AmhnysZqow8YmcY2J7tVKdJEqn8QXcvnD1kHjuvYYgz8jC3WG1DY",
-                    "t_anchor": 6,
+                    "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
+                    "oracle": "AmgQdbUqDuoX5krsmvSEHc9X3apBuXyJTQ4mimfWzejEsYScTo3f",
+                    "t_anchor": 7,
                     "t_final": 4
                 }
             },
             "ip": "localhost:7845",
             "tokens": {
                 "token1": {
-                    "addr": "AmgbeqeiLZZRzsqctB2Axj5JFDEFBiDsQHWYJQ5nCsUDpQ8DxDWe",
+                    "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
                     "pegs": {
-                        "sidechain2": "AmgpFRBj1h9JpqCMJKJkwrt3ass3BXX9ZzmK9dtNBYfo3Egs4UV2"
+                        "sidechain2": "AmhoYqbizfrTLCx1QCXKoQuyuwtjyWQRwVEfVPMPLkZJEcAY2nSa"
                     }
                 }
             }
@@ -33,8 +22,8 @@
         "sidechain2": {
             "bridges": {
                 "mainnet": {
-                    "addr": "AmhPw3kQTmkWuKsz9u3fzbDoCF3J9KbHTbkPWcpLYimvnYRT17KH",
-                    "oracle": "AmhnysZqow8YmcY2J7tVKdJEqn8QXcvnD1kHjuvYYgz8jC3WG1DY",
+                    "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
+                    "oracle": "AmgQdbUqDuoX5krsmvSEHc9X3apBuXyJTQ4mimfWzejEsYScTo3f",
                     "t_anchor": 7,
                     "t_final": 5
                 }
@@ -55,6 +44,10 @@
         {
             "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
             "ip": "localhost:9843"
+        },
+        {
+            "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
+            "ip": "localhost:9841"
         }
     ],
     "wallet": {
