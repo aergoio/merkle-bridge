@@ -30,7 +30,7 @@ protoc:
 		./proto/aergo_bridge_operator/*.proto
 
 docker:
-	docker build --build-arg GIT_TAG=eada70e40f6e1f0c6927b717fb78c3c25c819b4a -t aergo/node ./docker
+	# docker build --build-arg GIT_TAG=eada70e40f6e1f0c6927b717fb78c3c25c819b4a -t aergo/node ./docker
 	docker-compose -f ./docker/docker-compose.yml up
 
 clean:

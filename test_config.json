@@ -44,10 +44,6 @@
         {
             "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
             "ip": "localhost:9843"
-        },
-        {
-            "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
-            "ip": "localhost:9841"
         }
     ],
     "wallet": {

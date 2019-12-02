@@ -331,7 +331,7 @@ class ProposerClient(threading.Thread):
 
             logger.info(
                 "\"Current %s -> %s \u2693 anchor: "
-                "height: %s, root: 0x%s, nonce: %s\"",
+                "height: %s, root: %s, nonce: %s\"",
                 self.aergo_from, self.aergo_to, merged_height_from,
                 root_from.decode('utf-8')[1:-1], nonce_to
             )
@@ -346,7 +346,7 @@ class ProposerClient(threading.Thread):
                 address=self.bridge_from, proof=True,
                 root=block.blocks_root_hash
             )
-            root = contract.state_proof.state.storageRoot.hex()
+            root = "0x" + contract.state_proof.state.storageRoot.hex()
             if len(root) == 0:
                 logger.info("\"waiting deployment finalization...\"")
                 time.sleep(5)
@@ -359,12 +359,12 @@ class ProposerClient(threading.Thread):
             if self.anchoring_on:
                 logger.info(
                     "\"\U0001f58b Gathering validator signatures for: "
-                    "root: 0x%s, height: %s'\"", root, next_anchor_height
+                    "root: %s, height: %s'\"", root, next_anchor_height
                 )
 
                 try:
                     sigs, validator_indexes = self.get_anchor_signatures(
-                        root, next_anchor_height, nonce_to
+                        root[2:], next_anchor_height, nonce_to
                     )
                 except ValidatorMajorityError:
                     logger.warning(

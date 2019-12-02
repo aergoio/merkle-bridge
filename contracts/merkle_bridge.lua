@@ -30,7 +30,7 @@ end
 state.var {
     -- Trie root of the opposit side bridge contract. _mints and _unlocks require a merkle proof
     -- of state inclusion in this last Root.
-    -- (hex string without 0x prefix)
+    -- (0x hex string)
     _anchorRoot = state.value(),
     -- Height of the last block anchored
     -- (hex string without 0x prefix)
@@ -187,14 +187,14 @@ end
 
 -- Register a new anchor
 -- @type    call
--- @param   root (hex string) bytes of Aergo storage root
+-- @param   root (0x hex string) bytes of Aergo storage root
 -- @param   height (uint) block height of root
 -- @event   newAnchor(proposer, height, root)
 function newAnchor(root, height)
     _onlyOracle()
     -- check Height to prevent spamming and leave minimum time for users to make transfers.
     assert(height > _anchorHeight:get() + _tAnchor:get(), "Next anchor height not reached")
-    _anchorRoot:set("0x"..root)
+    _anchorRoot:set(root)
     _anchorHeight:set(height)
     contract.event("newAnchor", system.getSender(), height, root)
 end

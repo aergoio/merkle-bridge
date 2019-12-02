@@ -136,14 +136,14 @@ end
 
 -- Register a new anchor
 -- @type    call
--- @param   root (ethaddress) Ethereum storage root
+-- @param   root (0x hex string) Aergo bridge storage root
 -- @param   height (uint) block height of root
 -- @param   signers ([]uint) array of signer indexes
 -- @param   signatures ([]0x hex string) array of signatures matching signers indexes
 function newAnchor(root, height, signers, signatures)
     oldNonce = _nonce:get()
     -- NOTE since length of root is not checked, ',' is necessary before height
-    message = crypto.sha256(root..','..tostring(height)..tostring(oldNonce).._contractId:get().."R")
+    message = crypto.sha256(string.sub(root, 3)..','..tostring(height)..tostring(oldNonce).._contractId:get().."R")
     assert(_validateSignatures(message, signers, signatures), "Failed signature validation")
     _nonce:set(oldNonce + 1)
     contract.call(_bridge:get(), "newAnchor", root, height)
