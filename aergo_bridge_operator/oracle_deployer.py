@@ -1,7 +1,11 @@
 import argparse
 from getpass import getpass
+import hashlib
 import json
 import aergo.herapy as herapy
+from aergo.herapy.utils.encoding import (
+    decode_address,
+)
 
 
 def deploy_oracle(
@@ -44,11 +48,23 @@ def deploy_oracle(
     print('validators : ', validators)
     bridge1 = config_data['networks'][net1]['bridges'][net2]['addr']
     bridge2 = config_data['networks'][net2]['bridges'][net1]['addr']
+    bridge_trie_key1 = \
+        "0x" + hashlib.sha256(decode_address(bridge1)).digest().hex()
+    bridge_trie_key2 = \
+        "0x" + hashlib.sha256(decode_address(bridge2)).digest().hex()
+    t_anchor1 = config_data['networks'][net1]['bridges'][net2]['t_anchor']
+    t_final1 = config_data['networks'][net1]['bridges'][net2]['t_final']
+    t_anchor2 = config_data['networks'][net2]['bridges'][net1]['t_anchor']
+    t_final2 = config_data['networks'][net2]['bridges'][net1]['t_final']
     # get already deployed bridge addresses from config,json
     tx1, result1 = aergo1.deploy_sc(
-        amount=0, payload=payload, args=[validators, bridge1])
+        amount=0, payload=payload,
+        args=[validators, bridge1, bridge_trie_key2, t_anchor1, t_final1]
+    )
     tx2, result2 = aergo2.deploy_sc(
-        amount=0, payload=payload, args=[validators, bridge2])
+        amount=0, payload=payload,
+        args=[validators, bridge2, bridge_trie_key1, t_anchor2, t_final2]
+    )
     if result1.status != herapy.CommitStatus.TX_OK:
         print("    > ERROR[{0}]: {1}"
               .format(result1.status, result1.detail))

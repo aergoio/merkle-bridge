@@ -101,7 +101,8 @@ class ProposerClient(threading.Thread):
         privkey_pwd: str = None,
         anchoring_on: bool = False,
         auto_update: bool = False,
-        oracle_update: bool = False
+        oracle_update: bool = False,
+        bridge_anchoring: bool = True
     ) -> None:
         threading.Thread.__init__(self, name=aergo_to + " proposer")
         self.config_file_path = config_file_path
@@ -110,6 +111,7 @@ class ProposerClient(threading.Thread):
         self.anchoring_on = anchoring_on
         self.auto_update = auto_update
         self.oracle_update = oracle_update
+        self.bridge_anchoring = bridge_anchoring
         self.aergo_from = aergo_from
         self.aergo_to = aergo_to
 
@@ -154,7 +156,7 @@ class ProposerClient(threading.Thread):
 
         # get the current t_anchor and t_final for both sides of bridge
         self.t_anchor, self.t_final = query_tempo(
-            self.hera_to, self.bridge_to, ["_sv__tAnchor", "_sv__tFinal"]
+            self.hera_to, self.oracle_to, ["_sv__tAnchor", "_sv__tFinal"]
         )
         logger.info(
             "\"%s (t_final=%s) -> %s  : t_anchor=%s\"", aergo_from,
@@ -276,7 +278,7 @@ class ProposerClient(threading.Thread):
             wait = (merged_height + self.t_anchor) - lib + 1
         return lib
 
-    def new_anchor(
+    def new_state_anchor(
         self,
         root: str,
         next_anchor_height: int,
@@ -285,7 +287,7 @@ class ProposerClient(threading.Thread):
     ) -> None:
         """Anchor a new root on chain"""
         tx, result = self.hera_to.call_sc(
-            self.oracle_to, "newAnchor",
+            self.oracle_to, "newStateAnchor",
             args=[root, next_anchor_height, validator_indexes, sigs]
         )
         if result.status != herapy.CommitStatus.TX_OK:
@@ -304,6 +306,51 @@ class ProposerClient(threading.Thread):
                 "\"\u2693 Anchor success, \u23F0 wait until next anchor "
                 "time: %ss...\"", self.t_anchor
             )
+            logger.info("\"\u26fd Aergo Fee: %s\"", result.fee_used)
+
+    def new_state_and_bridge_anchor(
+        self,
+        stateRoot: str,
+        next_anchor_height: int,
+        validator_indexes: List[int],
+        sigs: List[str],
+        bridge_contract_proto: str,
+        merkle_proof: List[str]
+    ) -> None:
+        """Anchor a new state root and update bridge anchor on chain"""
+        print([stateRoot, next_anchor_height, validator_indexes, sigs,
+               bridge_contract_proto, merkle_proof])
+        args = ['0xdf78857cdc5d29bac3496aa8fb1e7ccd1cb0525a1d9182ec07208007966220e5', 287, [1, 2],
+                ['0x304502208d43b2acfc7c1565c3f4d4823b058deac1f6a30687ddb82f238ee50bff9b66a3022100434608c6f92a4aca6234929daf9d830edb4d85656ed0c7a73f0e2a047852f966',
+                 '0x3046022100c027d2261afaff168906bad928bae1543b8ddd47b3b7373cf6b2a9bc0cfb45ff02210071b97bc0c525a265f6195f3d4cf72dd2e8fe0415bd8671fe0b44880943cdf4d2'
+                ],
+                 '0x1a2066dff00bd5479a6f1b298098fcf368d89f696a9643c63cb765ba95e1d2f0e635222078bf5f4ec57a6a156fed24e5c421e8a62b62c3fe946c109e0194e7558845abe12801',
+                 ['152aecb624c7a1e162bc9e1de2097fe599552989eff57240eda0a44fa1bbcf95',
+                  'dc9180b50869ee6bc6077501ff721c179468dc4ef948f617babe2502c4763b91',
+                  'f3c23425042461715aa8a62a288c5b791254391d4a817b2f7d9d4ed040a1def2'
+                 ]
+               ]
+        tx, result = self.hera_to.call_sc(
+            self.oracle_to, "newStateAndBridgeAnchor",
+            args=args
+        )
+        if result.status != herapy.CommitStatus.TX_OK:
+            logger.warning(
+                "\"Anchor on aergo Tx commit failed : %s\"", result.json())
+            return
+
+        result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result.status != herapy.TxResultStatus.SUCCESS:
+            logger.warning(
+                "\"Anchor failed: already anchored, or invalid "
+                "signature: %s\"", result.json()
+            )
+        else:
+            logger.info(
+                "\"\u2693 Anchor success, \u23F0 wait until next anchor "
+                "time: %ss...\"", self.t_anchor
+            )
+            logger.info("\"\u26fd Aergo Fee: %s\"", result.fee_used)
 
     def run(
         self,
@@ -313,21 +360,16 @@ class ProposerClient(threading.Thread):
         """
         while True:  # anchor a new root
             # Get last merge information
-            status = self.hera_to.query_sc_state(self.bridge_to,
-                                                 ["_sv__anchorHeight",
-                                                  "_sv__anchorRoot",
+            status = self.hera_to.query_sc_state(self.oracle_to,
+                                                 ["_sv__anchorRoot",
+                                                  "_sv__anchorHeight",
                                                   "_sv__tAnchor",
-                                                  "_sv__tFinal"
+                                                  "_sv__tFinal",
+                                                  "_sv__nonce"
                                                   ])
-            height_from, root_from, t_anchor, t_final = \
-                [proof.value for proof in status.var_proofs]
-            merged_height_from = int(height_from)
-            self.t_anchor = int(t_anchor)
-            self.t_final = int(t_final)
-            nonce_to = int(
-                self.hera_to.query_sc_state(
-                    self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
-            )
+            merged_height_from, self.t_anchor, self.t_final, nonce_to = \
+                [int(proof.value) for proof in status.var_proofs[1:]]
+            root_from = status.var_proofs[0].value
 
             logger.info(
                 "\"Current %s -> %s \u2693 anchor: "
@@ -342,12 +384,9 @@ class ProposerClient(threading.Thread):
             block = self.hera_from.get_block(
                 block_height=next_anchor_height
             )
-            contract = self.hera_from.get_account(
-                address=self.bridge_from, proof=True,
-                root=block.blocks_root_hash
-            )
-            root = "0x" + contract.state_proof.state.storageRoot.hex()
-            if len(root) == 0:
+            root_bytes = block.blocks_root_hash
+            root = "0x" + root_bytes.hex()
+            if len(root_bytes) == 0:
                 logger.info("\"waiting deployment finalization...\"")
                 time.sleep(5)
                 continue
@@ -376,7 +415,7 @@ class ProposerClient(threading.Thread):
 
                 # don't broadcast if somebody else already did
                 last_merge = self.hera_to.query_sc_state(
-                    self.bridge_to, ["_sv__anchorHeight"])
+                    self.oracle_to, ["_sv__anchorHeight"])
                 merged_height = int(last_merge.var_proofs[0].value)
                 if merged_height + self.t_anchor >= next_anchor_height:
                     logger.warning(
@@ -387,9 +426,19 @@ class ProposerClient(threading.Thread):
                     self.monitor_settings_and_sleep(wait)
                     continue
 
-                # Broadcast finalised merge block
-                self.new_anchor(
-                    root, next_anchor_height, validator_indexes, sigs)
+                if self.bridge_anchoring:
+                    # broadcast the general state root and relay the bridge
+                    # root with a merkle proof
+                    bridge_state_proto, merkle_proof = \
+                        self.buildBridgeAnchorArgs(root_bytes)
+                    self.new_state_and_bridge_anchor(
+                        root, next_anchor_height, validator_indexes, sigs,
+                        bridge_state_proto, merkle_proof
+                    )
+                else:
+                    # only broadcast the general state root
+                    self.new_state_anchor(
+                        root, next_anchor_height, validator_indexes, sigs)
 
             # Wait t_anchor
             # counting commit time in t_anchor often leads to 'Next anchor not
@@ -424,7 +473,7 @@ class ProposerClient(threading.Thread):
         """
         config_data = self.load_config_data()
         t_anchor, t_final = query_tempo(
-            self.hera_to, self.bridge_to, ["_sv__tAnchor", "_sv__tFinal"])
+            self.hera_to, self.oracle_to, ["_sv__tAnchor", "_sv__tFinal"])
         config_t_anchor = (config_data['networks'][self.aergo_to]['bridges']
                            [self.aergo_from]['t_anchor'])
         if t_anchor != config_t_anchor:
@@ -675,6 +724,19 @@ class ProposerClient(threading.Thread):
             logger.info("\"\U0001f58b New oracle update success\"")
         return True
 
+    def buildBridgeAnchorArgs(
+        self,
+        root: bytes
+    ) -> Tuple[str, List[str]]:
+        """Build arguments to derive bridge storage root from the anchored
+        state root with a merkle proof
+        """
+        state = self.hera_from.get_account(
+            address=self.bridge_from, proof=True, root=root, compressed=False)
+        merkle_proof = [node.hex() for node in state.state_proof.auditPath]
+        proto = "0x" + state.state_proof.state.SerializeToString().hex()
+        return proto, merkle_proof
+
     def load_config_data(self) -> Dict:
         with open(self.config_file_path, "r") as f:
             config_data = json.load(f)
@@ -701,15 +763,18 @@ class BridgeProposerClient:
         privkey_pwd: str = None,
         anchoring_on: bool = False,
         auto_update: bool = False,
-        oracle_update: bool = False
+        oracle_update: bool = False,
+        bridge_anchoring: bool = True
     ) -> None:
         self.t_proposer1 = ProposerClient(
             config_file_path, aergo_sidechain, aergo_mainnet, False,
-            privkey_name, privkey_pwd, anchoring_on, auto_update, oracle_update
+            privkey_name, privkey_pwd, anchoring_on, auto_update,
+            oracle_update, bridge_anchoring
         )
         self.t_proposer2 = ProposerClient(
             config_file_path, aergo_mainnet, aergo_sidechain, True,
-            privkey_name, privkey_pwd, anchoring_on, auto_update, oracle_update
+            privkey_name, privkey_pwd, anchoring_on, auto_update,
+            oracle_update, bridge_anchoring
         )
 
     def run(self):

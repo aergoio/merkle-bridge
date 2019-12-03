@@ -1,3 +1,4 @@
+import json
 import time
 
 import aergo.herapy as herapy
@@ -174,6 +175,7 @@ def auto_update_oracle(from_chain, to_chain, wallet):
     stream.stop()
     oracle_after = query_oracle(hera, bridge)
     assert oracle_after == default
+    time.sleep(10)
 
     wallet.config_data(
         'networks', to_chain, 'bridges', from_chain, 'oracle',
@@ -184,7 +186,25 @@ def auto_update_oracle(from_chain, to_chain, wallet):
     # set aergo signer
     encrypted_key = wallet.config_data('wallet', 'default', 'priv_key')
     hera.import_account(encrypted_key, '1234')
-    hera.call_sc(bridge, "oracleUpdate", args=[oracle])
-    time.sleep(2)
+    tx, _ = hera.call_sc(bridge, "oracleUpdate", args=[oracle])
+    hera.wait_tx_result(tx.tx_hash)
     oracle_after = query_oracle(hera, bridge)
     assert oracle == oracle_after
+
+
+def test_getters(wallet):
+    hera = wallet.get_aergo('mainnet', 'default', '1234')
+    aergo_oracle_addr = wallet.config_data(
+        'networks', 'mainnet', 'bridges', 'sidechain2', 'oracle'
+    )
+    # query validators
+    aergo_validators = query_validators(hera, aergo_oracle_addr)
+    getter_validators = json.loads(
+        hera.query_sc(aergo_oracle_addr, "getValidators"))
+    assert getter_validators == aergo_validators
+
+    # query anchored state
+    root, height = json.loads(
+        hera.query_sc(aergo_oracle_addr, "getForeignBlockchainState"))
+    assert len(root) == 66
+    assert type(height) == int
