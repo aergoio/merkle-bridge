@@ -5,7 +5,7 @@
                 "sidechain2": {
                     "addr": "AmgQqVWX3JADRBEVkVCM4CyWdoeXuumeYGGJJxEeoAukRC26hxmw",
                     "oracle": "AmgQdbUqDuoX5krsmvSEHc9X3apBuXyJTQ4mimfWzejEsYScTo3f",
-                    "t_anchor": 7,
+                    "t_anchor": 6,
                     "t_final": 4
                 }
             },
@@ -13,9 +13,7 @@
             "tokens": {
                 "token1": {
                     "addr": "AmgpYGMMPEnb7ukcJkhpGCGJXwqEq2MgpneN47hHrbBS7C3AjDke",
-                    "pegs": {
-                        "sidechain2": "AmhoYqbizfrTLCx1QCXKoQuyuwtjyWQRwVEfVPMPLkZJEcAY2nSa"
-                    }
+                    "pegs": {}
                 }
             }
         },

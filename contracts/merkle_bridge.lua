@@ -33,7 +33,6 @@ state.var {
     -- (0x hex string)
     _anchorRoot = state.value(),
     -- Height of the last block anchored
-    -- (hex string without 0x prefix)
     _anchorHeight = state.value(),
 
     -- _tAnchor is the anchoring periode of the bridge
@@ -90,7 +89,7 @@ end
 
 -- compute the merkle proof verification
 -- @type    internal
--- @param   ap ([]0x hex string) merkle proof nodes (audit path)
+-- @param   ap ([] hex string without 0x) merkle proof nodes (audit path)
 -- @param   keyIndex (uint) step counter in merkle proof iteration
 -- @param   key (hex string) key for which the merkle proof is created
 -- @param   leafHash (hex string) value stored in the smt
@@ -112,7 +111,7 @@ end
 -- (In solidity, only bytes32[] is supported, so byte(0) cannot be passed and it is
 -- more efficient to use a compressed proof)
 -- @type    internal
--- @param   ap ([]0x hex string) merkle proof nodes (audit path)
+-- @param   ap ([] hex string without 0x) merkle proof nodes (audit path)
 -- @param   mapName (string) name of mapping variable
 -- @param   key (string) key stored in mapName
 -- @param   value (string) value of key in mapName
@@ -237,7 +236,7 @@ end
 -- @param   receiver (address) designated receiver in lock
 -- @param   balance (ubig) total balance of tokens locked
 -- @param   tokenOrigin (address) token locked address on origin
--- @param   merkleProof ([]0x hex string) merkle proof of inclusion of locked balance
+-- @param   merkleProof ([]hex string without 0x) merkle proof of inclusion of locked balance
 -- @return  (address, uint) pegged token Aergo address, minted amount
 -- @event   mint(minter, receiver, amount, tokenOrigin)
 function mint(receiver, balance, tokenOrigin, merkleProof)
@@ -314,7 +313,7 @@ end
 -- @param   receiver (address) designated receiver in burn
 -- @param   balance (ubig) total balance of tokens burnt
 -- @param   tokenAddress (address) token to unlock
--- @param   merkleProof ([]0x hex string) merkle proof of inclusion of burnt balance
+-- @param   merkleProof ([]hex string without 0x) merkle proof of inclusion of burnt balance
 -- @return  (uint) unlocked amount
 -- @event   unlock(unlocker, receiver, amount, tokenAddress)
 function unlock(receiver, balance, tokenAddress, merkleProof)
