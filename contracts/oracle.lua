@@ -162,6 +162,38 @@ local function _parseRootFromProto(proto)
     return storageRoot
 end
 
+-- check if the ith bit is set in hex string bytes
+-- @type    internal
+-- @param   bits (hex string) hex string without 0x
+-- @param   i (uint) index of bit to check
+-- @return  (bool) true if ith bit is 1
+local function _bitIsSet(bits, i)
+    require "bit"
+    -- get the hex byte containing ith bit
+    local byteIndex = math.floor(i/8)*2 + 1
+    local byteHex = string.sub(bits, byteIndex, byteIndex + 1)
+    local byte = tonumber(byteHex, 16)
+    return bit.band(byte, bit.lshift(1,7-i%8)) ~= 0
+end
+
+-- compute the merkle proof verification
+-- @type    internal
+-- @param   ap ([] hex string without 0x) merkle proof nodes (audit path)
+-- @param   keyIndex (uint) step counter in merkle proof iteration
+-- @param   key (hex string) key for which the merkle proof is created
+-- @param   leafHash (hex string) value stored in the smt
+-- @return  (0x hex string) hash of the smt root with given merkle proof
+local function _verifyProof(ap, keyIndex, key, leafHash)
+    if keyIndex == #ap then
+        return leafHash
+    end
+    if _bitIsSet(key, keyIndex) then
+        local right = _verifyProof(ap, keyIndex+1, key, leafHash)
+        return crypto.sha256("0x"..ap[#ap-keyIndex]..string.sub(right, 3, #right))
+    end
+    local left = _verifyProof(ap, keyIndex+1, key, leafHash)
+    return crypto.sha256(left..ap[#ap-keyIndex])
+end
 
 -- Create a new bridge contract
 -- @type    __init__
@@ -303,7 +335,8 @@ end
 function newBridgeAnchor(proto, merkleProof)
     local root = _parseRootFromProto(proto)
     local accountHash = crypto.sha256(proto)
-    -- TODO : verify proto merkleProof
+    local leafHash = crypto.sha256(_destinationBridgeKey:get()..string.sub(accountHash, 3)..string.format('%02x', 256-#merkleProof))
+    assert(_anchorRoot:get() == _verifyProof(merkleProof, 0, string.sub(_destinationBridgeKey:get(), 3), leafHash), "Failed to verify bridge contract protobuf merkle proof")
     contract.call(_bridge:get(), "newAnchor", root, _anchorHeight:get())
 end
 
