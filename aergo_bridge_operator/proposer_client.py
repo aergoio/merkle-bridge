@@ -318,21 +318,10 @@ class ProposerClient(threading.Thread):
         merkle_proof: List[str]
     ) -> None:
         """Anchor a new state root and update bridge anchor on chain"""
-        print([stateRoot, next_anchor_height, validator_indexes, sigs,
-               bridge_contract_proto, merkle_proof])
-        args = ['0xdf78857cdc5d29bac3496aa8fb1e7ccd1cb0525a1d9182ec07208007966220e5', 287, [1, 2],
-                ['0x304502208d43b2acfc7c1565c3f4d4823b058deac1f6a30687ddb82f238ee50bff9b66a3022100434608c6f92a4aca6234929daf9d830edb4d85656ed0c7a73f0e2a047852f966',
-                 '0x3046022100c027d2261afaff168906bad928bae1543b8ddd47b3b7373cf6b2a9bc0cfb45ff02210071b97bc0c525a265f6195f3d4cf72dd2e8fe0415bd8671fe0b44880943cdf4d2'
-                ],
-                 '0x1a2066dff00bd5479a6f1b298098fcf368d89f696a9643c63cb765ba95e1d2f0e635222078bf5f4ec57a6a156fed24e5c421e8a62b62c3fe946c109e0194e7558845abe12801',
-                 ['152aecb624c7a1e162bc9e1de2097fe599552989eff57240eda0a44fa1bbcf95',
-                  'dc9180b50869ee6bc6077501ff721c179468dc4ef948f617babe2502c4763b91',
-                  'f3c23425042461715aa8a62a288c5b791254391d4a817b2f7d9d4ed040a1def2'
-                 ]
-               ]
         tx, result = self.hera_to.call_sc(
             self.oracle_to, "newStateAndBridgeAnchor",
-            args=args
+            args=[stateRoot, next_anchor_height, validator_indexes, sigs,
+                  bridge_contract_proto, merkle_proof]
         )
         if result.status != herapy.CommitStatus.TX_OK:
             logger.warning(
@@ -381,10 +370,9 @@ class ProposerClient(threading.Thread):
             # Wait for the next anchor time
             next_anchor_height = self.wait_next_anchor(merged_height_from)
             # Get root of next anchor to broadcast
-            block = self.hera_from.get_block(
-                block_height=next_anchor_height
-            )
-            root_bytes = block.blocks_root_hash
+            block = self.hera_from.get_block_headers(
+                block_height=next_anchor_height, list_size=1)
+            root_bytes = block[0].blocks_root_hash
             root = "0x" + root_bytes.hex()
             if len(root_bytes) == 0:
                 logger.info("\"waiting deployment finalization...\"")

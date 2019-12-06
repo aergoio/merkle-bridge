@@ -105,12 +105,13 @@ def bridge_withdrawable_balance(
     account_ref = account_addr + asset_address_origin
     # total_deposit : total latest deposit including pending
     _, block_height = aergo_from.get_blockchain_status()
-    block_from = aergo_from.get_block(
-        block_height=block_height
-    )
+    block_from = aergo_from.get_block_headers(
+        block_height=block_height, list_size=1)
+    root_from = block_from[0].blocks_root_hash
+
     deposit_proof = aergo_from.query_sc_state(
         bridge_from, [deposit_key + account_ref],
-        root=block_from.blocks_root_hash, compressed=False
+        root=root_from, compressed=False
     )
     if not deposit_proof.account.state_proof.inclusion:
         raise InvalidArgumentsError(
@@ -140,12 +141,12 @@ def bridge_withdrawable_balance(
     last_anchor_height = int(withdraw_proof.var_proofs[0].value)
 
     # get anchored deposit : total deposit before the last anchor
-    block_from = aergo_from.get_block(
-        block_height=last_anchor_height
-    )
+    block_from = aergo_from.get_block_headers(
+        block_height=last_anchor_height, list_size=1)
+    root_from = block_from[0].blocks_root_hash
     deposit_proof = aergo_from.query_sc_state(
         bridge_from, [deposit_key + account_ref],
-        root=block_from.blocks_root_hash, compressed=False
+        root=root_from, compressed=False
     )
     if not deposit_proof.account.state_proof.inclusion:
         raise InvalidArgumentsError(
@@ -210,13 +211,15 @@ def build_deposit_proof(
         last_merged_height_to = new_anchor_event.arguments[1]
     stream.stop()
     # get inclusion proof of lock in last merged block
-    merge_block_from = aergo_from.get_block(block_height=last_merged_height_to)
+    merge_block_from = aergo_from.get_block_headers(
+        block_height=last_merged_height_to, list_size=1)
+    root_from = merge_block_from[0].blocks_root_hash
     account_ref = receiver + token_origin
     proof = aergo_from.query_sc_state(
         bridge_from, [key_word + account_ref],
-        root=merge_block_from.blocks_root_hash, compressed=False
+        root=root_from, compressed=False
     )
-    if not proof.verify_proof(merge_block_from.blocks_root_hash):
+    if not proof.verify_proof(root_from):
         raise InvalidMerkleProofError("Unable to verify {} proof"
                                       .format(key_word))
     if not proof.account.state_proof.inclusion:

@@ -278,8 +278,9 @@ class ValidatorService(BridgeOperatorServicer):
 
         # 2- get blocks state root at origin_height
         # and check equals anchor root
-        block = aergo_from.get_block(block_height=int(anchor.height))
-        root = block.blocks_root_hash.hex()
+        block = aergo_from.get_block_headers(
+            block_height=int(anchor.height), list_size=1)
+        root = block[0].blocks_root_hash.hex()
         if root != anchor.root:
             return ("root doesn't match height {}, got: {}, expected: {}"
                     .format(lib, anchor.root, root))
