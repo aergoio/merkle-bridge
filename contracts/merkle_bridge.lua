@@ -100,7 +100,7 @@ local function _verifyProof(ap, keyIndex, key, leafHash)
     end
     if _bitIsSet(key, keyIndex) then
         local right = _verifyProof(ap, keyIndex+1, key, leafHash)
-        return crypto.sha256("0x"..ap[#ap-keyIndex]..string.sub(right, 3, #right))
+        return crypto.sha256("0x"..ap[#ap-keyIndex]..string.sub(right, 3))
     end
     local left = _verifyProof(ap, keyIndex+1, key, leafHash)
     return crypto.sha256(left..ap[#ap-keyIndex])
@@ -120,8 +120,8 @@ local function _verifyDepositProof(ap, mapName, key, value, root)
     local varId = "_sv_" .. mapName .. "-" .. key
     local trieKey = crypto.sha256(varId)
     local trieValue = crypto.sha256(value)
-    local leafHash = crypto.sha256(trieKey..string.sub(trieValue, 3, #trieValue)..string.format('%02x', 256-#ap))
-    return root == _verifyProof(ap, 0, string.sub(trieKey, 3, #trieKey), leafHash)
+    local leafHash = crypto.sha256(trieKey..string.sub(trieValue, 3)..string.format('%02x', 256-#ap))
+    return root == _verifyProof(ap, 0, string.sub(trieKey, 3), leafHash)
 end
 
 -- deploy new contract
