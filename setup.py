@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/aergoio/merkle-bridge",
     packages=setuptools.find_packages(),
     install_requires=[
-        "aergo-herapy==1.2.7",
+        "aergo-herapy==2.0.0",
         "PyInquirer",
         "pyfiglet"
     ],

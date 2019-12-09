@@ -71,7 +71,7 @@ class ValidatorMajorityError(Exception):
 
 class ProposerClient(threading.Thread):
     """The proposer client periodically (every t_anchor) broadcasts
-    the finalized trie state root (after lib) of the bridge contract
+    the finalized block trie state root (after lib)
     on the other side of the bridge after validation by the Validator servers.
     It first checks the last merged height and waits until
     now > lib + t_anchor is reached, then merges the current finalised
@@ -306,7 +306,7 @@ class ProposerClient(threading.Thread):
                 "\"\u2693 Anchor success, \u23F0 wait until next anchor "
                 "time: %ss...\"", self.t_anchor
             )
-            logger.info("\"\u26fd Aergo Fee: %s\"", result.fee_used)
+            logger.info("\"\u26fd Aergo gas used: %s\"", result.gas_used)
 
     def new_state_and_bridge_anchor(
         self,
@@ -339,7 +339,7 @@ class ProposerClient(threading.Thread):
                 "\"\u2693 Anchor success, \u23F0 wait until next anchor "
                 "time: %ss...\"", self.t_anchor
             )
-            logger.info("\"\u26fd Aergo Fee: %s\"", result.fee_used)
+            logger.info("\"\u26fd Aergo gas used: %s\"", result.gas_used)
 
     def run(
         self,
