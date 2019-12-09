@@ -15,6 +15,9 @@ from aergo_wallet.wallet_utils import (
     build_deposit_proof,
     is_aergo_address
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def lock(
@@ -49,6 +52,7 @@ def lock(
     result = aergo_from.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Lock asset Tx execution failed : {}".format(result))
+    logger.info("\u26fd gas used: %s", result.gas_used)
     # get precise lock height
     tx_detail = aergo_from.get_tx(tx.tx_hash)
     lock_height = tx_detail.block.height
@@ -101,5 +105,6 @@ def mint(
     result = aergo_to.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Mint asset Tx execution failed : {}".format(result))
+    logger.info("\u26fd gas used: %s", result.gas_used)
     token_pegged = json.loads(result.detail)[0]
     return token_pegged, str(tx.tx_hash)

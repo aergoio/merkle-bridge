@@ -13,6 +13,9 @@ from aergo_wallet.wallet_utils import (
     build_deposit_proof,
     is_aergo_address,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def burn(
@@ -39,6 +42,7 @@ def burn(
     result = aergo_from.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Burn asset Tx execution failed : {}".format(result))
+    logger.info("\u26fd gas used: %s", result.gas_used)
     # get precise burn height
     tx_detail = aergo_from.get_tx(tx.tx_hash)
     burn_height = tx_detail.block.height
@@ -91,4 +95,5 @@ def unlock(
     result = aergo_to.wait_tx_result(tx.tx_hash)
     if result.status != herapy.TxResultStatus.SUCCESS:
         raise TxError("Unlock asset Tx execution failed : {}".format(result))
+    logger.info("\u26fd gas used: %s", result.gas_used)
     return str(tx.tx_hash)

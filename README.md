@@ -4,8 +4,7 @@
 
 POC implementation of the Aergo Merkle Bridge
 
-https://merkle-bridge.readthedocs.io/en/latest/index.html
-
+https://merkle-bridge.readthedocs.io
 
 * Bridge operator:
   * Proposer
