@@ -61,12 +61,12 @@ state.var {
 
 --------------------- Utility Functions -------------------------
 -- Check 2/3 validators signed message hash
--- @type    internal
+-- @type    query
 -- @param   hash (0x hex string)
 -- @param   signers ([]uint) array of signer indexes
 -- @param   signatures ([]0x hex string) array of signatures matching signers indexes
 -- @return  (bool) 2/3 signarures are valid
-local function _validateSignatures(hash, signers, signatures)
+function validateSignatures(hash, signers, signatures)
     -- 2/3 of Validators must sign for the hash to be valid
     nb = _validatorsCount:get()
     assert(nb*2 <= #signers*3, "2/3 validators must sign")
@@ -81,10 +81,10 @@ local function _validateSignatures(hash, signers, signatures)
 end
 
 -- Concatenate strings in array
--- @type    internal
+-- @type    query
 -- @param   array ([]string)
 -- @return  (string)
-local function _join(array)
+function join(array)
     -- not using a separator is safe for signing if the length of items is checked with isValidAddress for example
     str = ""
     for i, data in ipairs(array) do
@@ -94,8 +94,9 @@ local function _join(array)
 end
 
 -- Parse a proto serialized contract account state to extract the storage root
+-- @type    query
 -- @param   proto (0x hex string) serialized proto account
-local function _parseRootFromProto(proto)
+function parseRootFromProto(proto)
    --[[
         message State {
             uint64 nonce = 1;
@@ -163,11 +164,11 @@ local function _parseRootFromProto(proto)
 end
 
 -- check if the ith bit is set in hex string bytes
--- @type    internal
+-- @type    query
 -- @param   bits (hex string) hex string without 0x
 -- @param   i (uint) index of bit to check
 -- @return  (bool) true if ith bit is 1
-local function _bitIsSet(bits, i)
+function bitIsSet(bits, i)
     require "bit"
     -- get the hex byte containing ith bit
     local byteIndex = math.floor(i/8)*2 + 1
@@ -177,22 +178,32 @@ local function _bitIsSet(bits, i)
 end
 
 -- compute the merkle proof verification
--- @type    internal
--- @param   ap ([] hex string without 0x) merkle proof nodes (audit path)
--- @param   keyIndex (uint) step counter in merkle proof iteration
+-- @type    query
 -- @param   key (hex string) key for which the merkle proof is created
 -- @param   leafHash (hex string) value stored in the smt
+-- @param   ap ([] hex string without 0x) merkle proof nodes (audit path)
+-- @param   keyIndex (uint) step counter in merkle proof iteration
 -- @return  (0x hex string) hash of the smt root with given merkle proof
-local function _verifyProof(ap, keyIndex, key, leafHash)
+function verifyProof(key, leafHash, ap, keyIndex)
     if keyIndex == #ap then
         return leafHash
     end
-    if _bitIsSet(key, keyIndex) then
-        local right = _verifyProof(ap, keyIndex+1, key, leafHash)
+    if bitIsSet(key, keyIndex) then
+        local right = verifyProof(key, leafHash, ap, keyIndex+1)
         return crypto.sha256("0x"..ap[#ap-keyIndex]..string.sub(right, 3, #right))
     end
-    local left = _verifyProof(ap, keyIndex+1, key, leafHash)
+    local left = verifyProof(key, leafHash, ap, keyIndex+1)
     return crypto.sha256(left..ap[#ap-keyIndex])
+end
+
+-- Verify Aergo contract state inclusion Merkle proof
+-- @type    query
+-- @param   proto - (0x hex string) Proto bytes of the serialized contract account
+-- @param   merkleProof ([]0x hex string) merkle proof of inclusion of protobuf serialized account in general trie
+function verifyAergoStateProof(proto, merkleProof)
+    local accountHash = crypto.sha256(proto)
+    local leafHash = crypto.sha256(_destinationBridgeKey:get()..string.sub(accountHash, 3)..string.format('%02x', 256-#merkleProof))
+    return _anchorRoot:get() == verifyProof(string.sub(_destinationBridgeKey:get(), 3), leafHash, merkleProof, 0)
 end
 
 -- Create a new bridge contract
@@ -251,8 +262,8 @@ end
 function validatorsUpdate(validators, signers, signatures)
     oldNonce = _nonce:get()
     -- it is safe to join validators without a ',' because the validators length is checked in _typecheck
-    message = crypto.sha256(_join(validators)..tostring(oldNonce).._contractId:get().."V")
-    assert(_validateSignatures(message, signers, signatures), "Failed new validators signature validation")
+    message = crypto.sha256(join(validators)..tostring(oldNonce).._contractId:get().."V")
+    assert(validateSignatures(message, signers, signatures), "Failed new validators signature validation")
     oldCount = _validatorsCount:get()
     if #validators < oldCount then
         diff = oldCount - #validators
@@ -277,7 +288,7 @@ end
 function oracleUpdate(newOracle, signers, signatures)
     oldNonce = _nonce:get()
     message = crypto.sha256(newOracle..tostring(oldNonce).._contractId:get().."O")
-    assert(_validateSignatures(message, signers, signatures), "Failed new oracle signature validation")
+    assert(validateSignatures(message, signers, signatures), "Failed new oracle signature validation")
     _nonce:set(oldNonce + 1)
     contract.call(_bridge:get(), "oracleUpdate", newOracle)
 end
@@ -290,7 +301,7 @@ end
 function tAnchorUpdate(tAnchor, signers, signatures)
     oldNonce = _nonce:get()
     message = crypto.sha256(tostring(tAnchor)..tostring(oldNonce).._contractId:get().."A")
-    assert(_validateSignatures(message, signers, signatures), "Failed tAnchor signature validation")
+    assert(validateSignatures(message, signers, signatures), "Failed tAnchor signature validation")
     _nonce:set(oldNonce + 1)
     _tAnchor:set(tAnchor)
     contract.call(_bridge:get(), "tAnchorUpdate", tAnchor)
@@ -304,7 +315,7 @@ end
 function tFinalUpdate(tFinal, signers, signatures)
     oldNonce = _nonce:get()
     message = crypto.sha256(tostring(tFinal)..tostring(oldNonce).._contractId:get().."F")
-    assert(_validateSignatures(message, signers, signatures), "Failed tFinal signature validation")
+    assert(validateSignatures(message, signers, signatures), "Failed tFinal signature validation")
     _nonce:set(oldNonce + 1)
     _tFinal:set(tFinal)
     contract.call(_bridge:get(), "tFinalUpdate", tFinal)
@@ -321,7 +332,7 @@ function newStateAnchor(root, height, signers, signatures)
     oldNonce = _nonce:get()
     -- NOTE since length of root is not checked, ',' is necessary before height
     message = crypto.sha256(string.sub(root, 3)..','..tostring(height)..tostring(oldNonce).._contractId:get().."R")
-    assert(_validateSignatures(message, signers, signatures), "Failed signature validation")
+    assert(validateSignatures(message, signers, signatures), "Failed signature validation")
     _nonce:set(oldNonce + 1)
     _anchorRoot:set(root)
     _anchorHeight:set(height)
@@ -333,10 +344,10 @@ end
 -- @param   proto - (0x hex string) Proto bytes of the serialized contract account
 -- @param   merkleProof ([]0x hex string) merkle proof of inclusion of protobuf serialized account in general trie
 function newBridgeAnchor(proto, merkleProof)
-    local root = _parseRootFromProto(proto)
-    local accountHash = crypto.sha256(proto)
-    local leafHash = crypto.sha256(_destinationBridgeKey:get()..string.sub(accountHash, 3)..string.format('%02x', 256-#merkleProof))
-    assert(_anchorRoot:get() == _verifyProof(merkleProof, 0, string.sub(_destinationBridgeKey:get(), 3), leafHash), "Failed to verify bridge contract protobuf merkle proof")
+    local root = parseRootFromProto(proto)
+    if not verifyAergoStateProof(proto, merkleProof) then
+        error("Failed to verify bridge contract protobuf merkle proof")
+    end
     contract.call(_bridge:get(), "newAnchor", root, _anchorHeight:get())
 end
 
@@ -353,4 +364,4 @@ function newStateAndBridgeAnchor(stateRoot, height, signers, signatures, proto, 
     newBridgeAnchor(proto, merkleProof)
 end
 
-abi.register(getValidators, getForeignBlockchainState, oracleUpdate, validatorsUpdate, tAnchorUpdate, tFinalUpdate, newStateAnchor, newBridgeAnchor, newStateAndBridgeAnchor)
+abi.register(validateSignatures, join, parseRootFromProto, bitIsSet, verifyProof, verifyAergoStateProof, getValidators, getForeignBlockchainState, validatorsUpdate, oracleUpdate, tAnchorUpdate, tFinalUpdate, newStateAnchor, newBridgeAnchor, newStateAndBridgeAnchor)

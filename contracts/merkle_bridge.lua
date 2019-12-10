@@ -74,11 +74,11 @@ local function _onlyOracle()
 end
 
 -- check if the ith bit is set in hex string bytes
--- @type    internal
+-- @type    query
 -- @param   bits (hex string) hex string without 0x
 -- @param   i (uint) index of bit to check
 -- @return  (bool) true if ith bit is 1
-local function _bitIsSet(bits, i)
+function bitIsSet(bits, i)
     require "bit"
     -- get the hex byte containing ith bit
     local byteIndex = math.floor(i/8)*2 + 1
@@ -88,21 +88,21 @@ local function _bitIsSet(bits, i)
 end
 
 -- compute the merkle proof verification
--- @type    internal
+-- @type    query
 -- @param   ap ([] hex string without 0x) merkle proof nodes (audit path)
 -- @param   keyIndex (uint) step counter in merkle proof iteration
 -- @param   key (hex string) key for which the merkle proof is created
 -- @param   leafHash (hex string) value stored in the smt
 -- @return  (0x hex string) hash of the smt root with given merkle proof
-local function _verifyProof(ap, keyIndex, key, leafHash)
+function verifyProof(key, leafHash, ap, keyIndex)
     if keyIndex == #ap then
         return leafHash
     end
-    if _bitIsSet(key, keyIndex) then
-        local right = _verifyProof(ap, keyIndex+1, key, leafHash)
+    if bitIsSet(key, keyIndex) then
+        local right = verifyProof(key, leafHash, ap, keyIndex+1)
         return crypto.sha256("0x"..ap[#ap-keyIndex]..string.sub(right, 3))
     end
-    local left = _verifyProof(ap, keyIndex+1, key, leafHash)
+    local left = verifyProof(key, leafHash, ap, keyIndex+1)
     return crypto.sha256(left..ap[#ap-keyIndex])
 end
 
@@ -110,18 +110,18 @@ end
 -- passed in the merkle proof array.
 -- (In solidity, only bytes32[] is supported, so byte(0) cannot be passed and it is
 -- more efficient to use a compressed proof)
--- @type    internal
+-- @type    query
 -- @param   ap ([] hex string without 0x) merkle proof nodes (audit path)
 -- @param   mapName (string) name of mapping variable
 -- @param   key (string) key stored in mapName
 -- @param   value (string) value of key in mapName
 -- @return  (bool) merkle proof of inclusion is valid
-local function _verifyDepositProof(ap, mapName, key, value, root)
+function verifyDepositProof(mapName, key, value, root, ap)
     local varId = "_sv_" .. mapName .. "-" .. key
     local trieKey = crypto.sha256(varId)
     local trieValue = crypto.sha256(value)
     local leafHash = crypto.sha256(trieKey..string.sub(trieValue, 3)..string.format('%02x', 256-#ap))
-    return root == _verifyProof(ap, 0, string.sub(trieKey, 3), leafHash)
+    return root == verifyProof(string.sub(trieKey, 3), leafHash, ap, 0)
 end
 
 -- deploy new contract
@@ -248,7 +248,7 @@ function mint(receiver, balance, tokenOrigin, merkleProof)
     -- Verify merkle proof of locked balance
     local accountRef = receiver .. tokenOrigin
     local balanceStr = "\""..bignum.tostring(balance).."\""
-    if not _verifyDepositProof(merkleProof, "_locks", accountRef, balanceStr, _anchorRoot:get()) then
+    if not verifyDepositProof("_locks", accountRef, balanceStr, _anchorRoot:get(), merkleProof) then
         error("failed to verify deposit balance merkle proof")
     end
     -- Calculate amount to mint
@@ -325,7 +325,7 @@ function unlock(receiver, balance, tokenAddress, merkleProof)
     -- Verify merkle proof of burnt balance
     local accountRef = receiver .. tokenAddress
     local balanceStr = "\""..bignum.tostring(balance).."\""
-    if not _verifyDepositProof(merkleProof, "_burns", accountRef, balanceStr, _anchorRoot:get()) then
+    if not verifyDepositProof("_burns", accountRef, balanceStr, _anchorRoot:get(), merkleProof) then
         error("failed to verify burnt balance merkle proof")
     end
 
@@ -574,4 +574,4 @@ abi.register_view(name, symbol, decimals, totalSupply, balanceOf, isApprovedForA
 
 ]]
 
-abi.register(oracleUpdate, newAnchor, tAnchorUpdate, tFinalUpdate, tokensReceived, unlock, mint, burn)
+abi.register(bitIsSet, verifyProof, verifyDepositProof, oracleUpdate, newAnchor, tAnchorUpdate, tFinalUpdate, tokensReceived, mint, burn, unlock)
