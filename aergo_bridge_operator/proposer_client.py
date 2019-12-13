@@ -349,90 +349,95 @@ class ProposerClient(threading.Thread):
         is acquired, set the new anchored root in bridge_to.
         """
         while True:  # anchor a new root
-            # Get last merge information
-            status = self.hera_to.query_sc_state(self.oracle_to,
-                                                 ["_sv__anchorRoot",
-                                                  "_sv__anchorHeight",
-                                                  "_sv__tAnchor",
-                                                  "_sv__tFinal",
-                                                  "_sv__nonce"
-                                                  ])
-            merged_height_from, self.t_anchor, self.t_final, nonce_to = \
-                [int(proof.value) for proof in status.var_proofs[1:]]
-            root_from = status.var_proofs[0].value
+            try:
+                # Get last merge information
+                status = self.hera_to.query_sc_state(self.oracle_to,
+                                                     ["_sv__anchorRoot",
+                                                      "_sv__anchorHeight",
+                                                      "_sv__tAnchor",
+                                                      "_sv__tFinal",
+                                                      "_sv__nonce"
+                                                      ])
+                merged_height_from, self.t_anchor, self.t_final, nonce_to = \
+                    [int(proof.value) for proof in status.var_proofs[1:]]
+                root_from = status.var_proofs[0].value
 
-            logger.info(
-                "\"Current %s -> %s \u2693 anchor: "
-                "height: %s, root: %s, nonce: %s\"",
-                self.aergo_from, self.aergo_to, merged_height_from,
-                root_from.decode('utf-8')[1:-1], nonce_to
-            )
-
-            # Wait for the next anchor time
-            next_anchor_height = self.wait_next_anchor(merged_height_from)
-            # Get root of next anchor to broadcast
-            block = self.hera_from.get_block_headers(
-                block_height=next_anchor_height, list_size=1)
-            root_bytes = block[0].blocks_root_hash
-            root = "0x" + root_bytes.hex()
-            if len(root_bytes) == 0:
-                logger.info("\"waiting deployment finalization...\"")
-                time.sleep(5)
-                continue
-            nonce_to = int(
-                self.hera_to.query_sc_state(
-                    self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
-            )
-
-            if self.anchoring_on:
                 logger.info(
-                    "\"\U0001f58b Gathering validator signatures for: "
-                    "root: %s, height: %s'\"", root, next_anchor_height
+                    "\"Current %s -> %s \u2693 anchor: "
+                    "height: %s, root: %s, nonce: %s\"",
+                    self.aergo_from, self.aergo_to, merged_height_from,
+                    root_from.decode('utf-8')[1:-1], nonce_to
                 )
 
-                try:
-                    sigs, validator_indexes = self.get_anchor_signatures(
-                        root[2:], next_anchor_height, nonce_to
-                    )
-                except ValidatorMajorityError:
-                    logger.warning(
-                        "\"Failed to gather 2/3 validators signatures, "
-                        "\u23F0 waiting for next anchor...\""
-                    )
-                    self.monitor_settings_and_sleep(self.t_anchor)
+                # Wait for the next anchor time
+                next_anchor_height = self.wait_next_anchor(merged_height_from)
+                # Get root of next anchor to broadcast
+                block = self.hera_from.get_block_headers(
+                    block_height=next_anchor_height, list_size=1)
+                root_bytes = block[0].blocks_root_hash
+                root = "0x" + root_bytes.hex()
+                if len(root_bytes) == 0:
+                    logger.info("\"waiting deployment finalization...\"")
+                    time.sleep(5)
                     continue
+                nonce_to = int(
+                    self.hera_to.query_sc_state(
+                        self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
+                )
 
-                # don't broadcast if somebody else already did
-                last_merge = self.hera_to.query_sc_state(
-                    self.oracle_to, ["_sv__anchorHeight"])
-                merged_height = int(last_merge.var_proofs[0].value)
-                if merged_height + self.t_anchor >= next_anchor_height:
-                    logger.warning(
-                        "\"Not yet anchor time, maybe another proposer "
-                        "already anchored\""
+                if self.anchoring_on:
+                    logger.info(
+                        "\"\U0001f58b Gathering validator signatures for: "
+                        "root: %s, height: %s'\"", root, next_anchor_height
                     )
-                    wait = merged_height + self.t_anchor - next_anchor_height
-                    self.monitor_settings_and_sleep(wait)
-                    continue
 
-                if self.bridge_anchoring:
-                    # broadcast the general state root and relay the bridge
-                    # root with a merkle proof
-                    bridge_state_proto, merkle_proof = \
-                        self.buildBridgeAnchorArgs(root_bytes)
-                    self.new_state_and_bridge_anchor(
-                        root, next_anchor_height, validator_indexes, sigs,
-                        bridge_state_proto, merkle_proof
-                    )
-                else:
-                    # only broadcast the general state root
-                    self.new_state_anchor(
-                        root, next_anchor_height, validator_indexes, sigs)
+                    try:
+                        sigs, validator_indexes = self.get_anchor_signatures(
+                            root[2:], next_anchor_height, nonce_to
+                        )
+                    except ValidatorMajorityError:
+                        logger.warning(
+                            "\"Failed to gather 2/3 validators signatures, "
+                            "\u23F0 waiting for next anchor...\""
+                        )
+                        self.monitor_settings_and_sleep(self.t_anchor)
+                        continue
 
-            # Wait t_anchor
-            # counting commit time in t_anchor often leads to 'Next anchor not
-            # reached exception.
-            self.monitor_settings_and_sleep(self.t_anchor)
+                    # don't broadcast if somebody else already did
+                    last_merge = self.hera_to.query_sc_state(
+                        self.oracle_to, ["_sv__anchorHeight"])
+                    merged_height = int(last_merge.var_proofs[0].value)
+                    if merged_height + self.t_anchor >= next_anchor_height:
+                        logger.warning(
+                            "\"Not yet anchor time, maybe another proposer "
+                            "already anchored\""
+                        )
+                        wait = \
+                            merged_height + self.t_anchor - next_anchor_height
+                        self.monitor_settings_and_sleep(wait)
+                        continue
+
+                    if self.bridge_anchoring:
+                        # broadcast the general state root and relay the bridge
+                        # root with a merkle proof
+                        bridge_state_proto, merkle_proof = \
+                            self.buildBridgeAnchorArgs(root_bytes)
+                        self.new_state_and_bridge_anchor(
+                            root, next_anchor_height, validator_indexes, sigs,
+                            bridge_state_proto, merkle_proof
+                        )
+                    else:
+                        # only broadcast the general state root
+                        self.new_state_anchor(
+                            root, next_anchor_height, validator_indexes, sigs)
+
+                # Wait t_anchor
+                # counting commit time in t_anchor often leads to 'Next anchor
+                # not reached exception.
+                self.monitor_settings_and_sleep(self.t_anchor)
+            except herapy.errors.exception.CommunicationException as e:
+                logger.warning("\"%s\"", e)
+                time.sleep(10)
 
     def monitor_settings_and_sleep(self, sleeping_time):
         """While sleeping, periodicaly check changes to the config
