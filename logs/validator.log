@@ -1,0 +1,24 @@
+{"level": "INFO", "time": "2019-12-13 11:21:01,330", "service": "__init__", "message": "Bridge validators : ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']"
+{"level": "INFO", "time": "2019-12-13 11:21:01,347", "service": "__init__", "message": "mainnet <- sidechain2 (t_final=4) : t_anchor=6"
+{"level": "INFO", "time": "2019-12-13 11:21:01,347", "service": "__init__", "message": "mainnet (t_final=6) -> sidechain2 : t_anchor=8"
+{"level": "WARNING", "time": "2019-12-13 11:21:01,348", "service": "__init__", "message": "WARNING: This validator will vote for settings update in config.json"
+{"level": "INFO", "time": "2019-12-13 11:21:01,538", "service": "__init__", "message": "Validator Address: AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ"
+{"level": "INFO", "time": "2019-12-13 11:21:01,596", "service": "__init__", "message": "Bridge validators : ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']"
+{"level": "INFO", "time": "2019-12-13 11:21:01,603", "service": "__init__", "message": "mainnet <- sidechain2 (t_final=4) : t_anchor=6"
+{"level": "INFO", "time": "2019-12-13 11:21:01,603", "service": "__init__", "message": "mainnet (t_final=6) -> sidechain2 : t_anchor=8"
+{"level": "WARNING", "time": "2019-12-13 11:21:01,604", "service": "__init__", "message": "WARNING: This validator will vote for settings update in config.json"
+{"level": "INFO", "time": "2019-12-13 11:21:01,810", "service": "__init__", "message": "Validator Address: AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ"
+{"level": "INFO", "time": "2019-12-13 11:21:01,854", "service": "__init__", "message": "Bridge validators : ['AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ', 'AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ']"
+{"level": "INFO", "time": "2019-12-13 11:21:01,885", "service": "__init__", "message": "mainnet <- sidechain2 (t_final=4) : t_anchor=6"
+{"level": "INFO", "time": "2019-12-13 11:21:01,886", "service": "__init__", "message": "mainnet (t_final=6) -> sidechain2 : t_anchor=8"
+{"level": "WARNING", "time": "2019-12-13 11:21:01,886", "service": "__init__", "message": "WARNING: This validator will vote for settings update in config.json"
+{"level": "INFO", "time": "2019-12-13 11:21:02,160", "service": "__init__", "message": "Validator Address: AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ"
+{"level": "INFO", "time": "2019-12-13 11:21:02,168", "service": "run", "message": "server 2 started"
+{"level": "INFO", "time": "2019-12-13 11:21:02,168", "service": "run", "message": "server 0 started"
+{"level": "INFO", "time": "2019-12-13 11:21:02,168", "service": "run", "message": "server 1 started"
+{"level": "INFO", "time": "2019-12-13 11:21:06,100", "service": "GetAnchorSignature", "message": {"val_index": 0, "signed": true, "type": "⚓ anchor", "destination": "sidechain2", "value": {"root": "0xacc93f9280d4e2159ad1347a313970f9cdae873f9db1990c4d9e4a4c6a256c51", "height": 392}, "nonce": 43}
+{"level": "INFO", "time": "2019-12-13 11:21:06,154", "service": "GetAnchorSignature", "message": {"val_index": 0, "signed": true, "type": "⚓ anchor", "destination": "mainnet", "value": {"root": "0xaec9bdf43e1275d5e3d82f8b6ebdb0593f1174adba0536602f969ff4903325bb", "height": 402}, "nonce": 50}
+{"level": "INFO", "time": "2019-12-13 11:21:06,211", "service": "GetAnchorSignature", "message": {"val_index": 1, "signed": true, "type": "⚓ anchor", "destination": "mainnet", "value": {"root": "0xaec9bdf43e1275d5e3d82f8b6ebdb0593f1174adba0536602f969ff4903325bb", "height": 402}, "nonce": 50}
+{"level": "INFO", "time": "2019-12-13 11:21:06,214", "service": "GetAnchorSignature", "message": {"val_index": 1, "signed": true, "type": "⚓ anchor", "destination": "sidechain2", "value": {"root": "0xacc93f9280d4e2159ad1347a313970f9cdae873f9db1990c4d9e4a4c6a256c51", "height": 392}, "nonce": 43}
+{"level": "INFO", "time": "2019-12-13 11:21:06,222", "service": "GetAnchorSignature", "message": {"val_index": 2, "signed": true, "type": "⚓ anchor", "destination": "sidechain2", "value": {"root": "0xacc93f9280d4e2159ad1347a313970f9cdae873f9db1990c4d9e4a4c6a256c51", "height": 392}, "nonce": 43}
+{"level": "INFO", "time": "2019-12-13 11:21:06,227", "service": "GetAnchorSignature", "message": {"val_index": 2, "signed": true, "type": "⚓ anchor", "destination": "mainnet", "value": {"root": "0xaec9bdf43e1275d5e3d82f8b6ebdb0593f1174adba0536602f969ff4903325bb", "height": 402}, "nonce": 50}
