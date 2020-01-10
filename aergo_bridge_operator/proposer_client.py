@@ -12,6 +12,7 @@ from multiprocessing.dummy import (
 )
 import os
 import threading
+import traceback
 import time
 
 from typing import (
@@ -225,8 +226,8 @@ class ProposerClient(threading.Thread):
             return None
         if approval.error:
             logger.warning(
-                "\"%s on [is_from_mainnet=%s]: %s\"", rpc_service,
-                request.is_from_mainnet, approval.error
+                "\"%s on [is_from_mainnet=%s]: %s by validator %s\"",
+                rpc_service, request.is_from_mainnet, approval.error, index
             )
             return None
         if approval.address != self.config_data['validators'][index]['addr']:
@@ -297,6 +298,10 @@ class ProposerClient(threading.Thread):
             return
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result is None:
+            logger.warning(
+                "\"Transaction not found. Tx hash: %s\"", tx.tx_hash)
+            return
         if result.status != herapy.TxResultStatus.SUCCESS:
             logger.warning(
                 "\"Anchor failed: already anchored, or invalid "
@@ -330,6 +335,10 @@ class ProposerClient(threading.Thread):
             return
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result is None:
+            logger.warning(
+                "\"Transaction not found. Tx hash: %s\"", tx.tx_hash)
+            return
         if result.status != herapy.TxResultStatus.SUCCESS:
             logger.warning(
                 "\"Anchor failed: already anchored, or invalid "
@@ -435,9 +444,14 @@ class ProposerClient(threading.Thread):
                 # counting commit time in t_anchor often leads to 'Next anchor
                 # not reached exception.
                 self.monitor_settings_and_sleep(self.t_anchor)
-            except herapy.errors.exception.CommunicationException as e:
-                logger.warning("\"%s\"", e)
-                time.sleep(10)
+            except herapy.errors.exception.CommunicationException:
+                logger.warning("\"%s\"", traceback.format_exc())
+                time.sleep(self.t_anchor / 10)
+            except TypeError:
+                # This TypeError can be raised when the aergo node is
+                # restarting and lib is None
+                logger.warning("\"%s\"", traceback.format_exc())
+                time.sleep(self.t_anchor / 10)
 
     def monitor_settings_and_sleep(self, sleeping_time):
         """While sleeping, periodicaly check changes to the config
@@ -564,6 +578,10 @@ class ProposerClient(threading.Thread):
             return False
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result is None:
+            logger.warning(
+                "\"Transaction not found. Tx hash: %s\"", tx.tx_hash)
+            return
         if result.status != herapy.TxResultStatus.SUCCESS:
             logger.warning(
                 "\"Set new validators failed : nonce already used, or "
@@ -645,6 +663,10 @@ class ProposerClient(threading.Thread):
             return False
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result is None:
+            logger.warning(
+                "\"Transaction not found. Tx hash: %s\"", tx.tx_hash)
+            return
         if result.status != herapy.TxResultStatus.SUCCESS:
             logger.warning(
                 "\"Set %s failed: nonce already used, or invalid "
@@ -708,6 +730,10 @@ class ProposerClient(threading.Thread):
             return False
 
         result = self.hera_to.wait_tx_result(tx.tx_hash)
+        if result is None:
+            logger.warning(
+                "\"Transaction not found. Tx hash: %s\"", tx.tx_hash)
+            return
         if result.status != herapy.TxResultStatus.SUCCESS:
             logger.warning(
                 "\"Set new oracle failed : nonce already used, or "
