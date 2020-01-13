@@ -219,10 +219,9 @@ class ProposerClient(threading.Thread):
         except grpc.RpcError as e:
             logger.warning(
                 "\"%s on [is_from_mainnet=%s]: Failed to connect to validator "
-                "%s (RpcError)\"",
-                rpc_service, request.is_from_mainnet, index
+                "%s (RpcError: %s)\"",
+                rpc_service, request.is_from_mainnet, index, e.code()
             )
-            logger.warning(e)
             return None
         if approval.error:
             logger.warning(
@@ -288,6 +287,7 @@ class ProposerClient(threading.Thread):
         sigs: List[str],
     ) -> None:
         """Anchor a new root on chain"""
+        self.hera_to.get_account()
         tx, result = self.hera_to.call_sc(
             self.oracle_to, "newStateAnchor",
             args=[root, next_anchor_height, validator_indexes, sigs]
@@ -324,6 +324,7 @@ class ProposerClient(threading.Thread):
         merkle_proof: List[str]
     ) -> None:
         """Anchor a new state root and update bridge anchor on chain"""
+        self.hera_to.get_account()
         tx, result = self.hera_to.call_sc(
             self.oracle_to, "newStateAndBridgeAnchor",
             args=[stateRoot, next_anchor_height, validator_indexes, sigs,
@@ -445,12 +446,27 @@ class ProposerClient(threading.Thread):
                 # not reached exception.
                 self.monitor_settings_and_sleep(self.t_anchor)
             except herapy.errors.exception.CommunicationException:
-                logger.warning("\"%s\"", traceback.format_exc())
+                logger.warning(
+                    "%s",
+                    {
+                        "Hera CommunicationException":
+                            json.dumps(traceback.format_exc())
+                    }
+                )
                 time.sleep(self.t_anchor / 10)
             except TypeError:
                 # This TypeError can be raised when the aergo node is
                 # restarting and lib is None
-                logger.warning("\"%s\"", traceback.format_exc())
+                logger.warning(
+                    "%s",
+                    {"LIB == None?": json.dumps(traceback.format_exc())}
+                )
+                time.sleep(self.t_anchor / 10)
+            except:
+                logger.warning(
+                    "%s",
+                    {"UNKNOWN ERROR": json.dumps(traceback.format_exc())}
+                )
                 time.sleep(self.t_anchor / 10)
 
     def monitor_settings_and_sleep(self, sleeping_time):
@@ -566,6 +582,7 @@ class ProposerClient(threading.Thread):
 
     def set_validators(self, new_validators, validator_indexes, sigs):
         """Update validators on chain"""
+        self.hera_to.get_account()
         tx, result = self.hera_to.call_sc(
             self.oracle_to, "validatorsUpdate",
             args=[new_validators, validator_indexes, sigs]
@@ -651,6 +668,7 @@ class ProposerClient(threading.Thread):
         contract_function
     ) -> bool:
         """Update t_anchor or t_final on chain"""
+        self.hera_to.get_account()
         tx, result = self.hera_to.call_sc(
             self.oracle_to, contract_function,
             args=[t_anchor, validator_indexes, sigs]
@@ -666,7 +684,7 @@ class ProposerClient(threading.Thread):
         if result is None:
             logger.warning(
                 "\"Transaction not found. Tx hash: %s\"", tx.tx_hash)
-            return
+            return False
         if result.status != herapy.TxResultStatus.SUCCESS:
             logger.warning(
                 "\"Set %s failed: nonce already used, or invalid "
@@ -718,6 +736,7 @@ class ProposerClient(threading.Thread):
 
     def set_oracle(self, new_oracle, validator_indexes, sigs):
         """Update oracle on chain"""
+        self.hera_to.get_account()
         tx, result = self.hera_to.call_sc(
             self.oracle_to, "oracleUpdate",
             args=[new_oracle, validator_indexes, sigs]
