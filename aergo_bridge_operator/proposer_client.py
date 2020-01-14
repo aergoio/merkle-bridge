@@ -168,6 +168,11 @@ class ProposerClient(threading.Thread):
             self.t_final, aergo_to, self.t_anchor
         )
 
+        if not anchoring_on and not auto_update:
+            # if anchoring and auto update are off, use proposer as monitoring
+            # system
+            return
+
         logger.info("\"Set Sender Account\"")
         if privkey_name is None:
             privkey_name = 'proposer'
@@ -401,15 +406,23 @@ class ProposerClient(threading.Thread):
                     logger.info("\"waiting deployment finalization...\"")
                     time.sleep(5)
                     continue
-                nonce_to = int(
-                    self.hera_to.query_sc_state(
-                        self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
-                )
+
+                if not self.anchoring_on and not self.auto_update:
+                    logger.info(
+                        "\"Anchoring height reached waiting for anchor...\""
+                    )
+                    time.sleep(30)
+                    continue
 
                 if self.anchoring_on:
                     logger.info(
                         "\"\U0001f58b Gathering validator signatures for: "
                         "root: %s, height: %s'\"", root, next_anchor_height
+                    )
+
+                    nonce_to = int(
+                        self.hera_to.query_sc_state(
+                            self.oracle_to, ["_sv__nonce"]).var_proofs[0].value
                     )
 
                     try:
@@ -452,10 +465,11 @@ class ProposerClient(threading.Thread):
                         self.new_state_anchor(
                             root, next_anchor_height, validator_indexes, sigs)
 
-                # Wait t_anchor
-                # counting commit time in t_anchor often leads to 'Next anchor
-                # not reached exception.
-                self.monitor_settings_and_sleep(self.t_anchor)
+                if self.auto_update:
+                    self.monitor_settings_and_sleep(self.t_anchor)
+                else:
+                    time.sleep(self.t_anchor)
+
             except herapy.errors.exception.CommunicationException:
                 logger.warning(
                     "%s",
@@ -487,18 +501,15 @@ class ProposerClient(threading.Thread):
         just not give signatures.
 
         """
-        if self.auto_update:
-            start = time.time()
+        start = time.time()
+        self.monitor_settings()
+        while time.time()-start < sleeping_time-10:
+            # check the config file every 10 seconds
+            time.sleep(10)
             self.monitor_settings()
-            while time.time()-start < sleeping_time-10:
-                # check the config file every 10 seconds
-                time.sleep(10)
-                self.monitor_settings()
-            remaining = sleeping_time - (time.time() - start)
-            if remaining > 0:
-                time.sleep(remaining)
-        else:
-            time.sleep(sleeping_time)
+        remaining = sleeping_time - (time.time() - start)
+        if remaining > 0:
+            time.sleep(remaining)
 
     def monitor_settings(self):
         """Check if a modification of bridge settings is requested by seeing
