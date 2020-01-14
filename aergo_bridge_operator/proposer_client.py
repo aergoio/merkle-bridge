@@ -27,6 +27,9 @@ import aergo.herapy as herapy
 from aergo.herapy.utils.signature import (
     verify_sig,
 )
+from aergo.herapy.errors.general_exception import (
+    GeneralException as HeraException,
+)
 
 from aergo_bridge_operator.bridge_operator_pb2_grpc import (
     BridgeOperatorStub,
@@ -168,11 +171,19 @@ class ProposerClient(threading.Thread):
         logger.info("\"Set Sender Account\"")
         if privkey_name is None:
             privkey_name = 'proposer'
-        if privkey_pwd is None:
-            privkey_pwd = getpass("Decrypt exported private key '{}'\n"
-                                  "Password: ".format(privkey_name))
         sender_priv_key = self.config_data['wallet'][privkey_name]['priv_key']
-        self.hera_to.import_account(sender_priv_key, privkey_pwd)
+        if privkey_pwd is None:
+            while True:
+                try:
+                    privkey_pwd = getpass("Decrypt exported private key '{}'\n"
+                                          "Password: ".format(privkey_name))
+                    self.hera_to.import_account(sender_priv_key, privkey_pwd)
+                    break
+                except HeraException:
+                    logger.info("\"Wrong password, try again\"")
+        else:
+            self.hera_to.import_account(sender_priv_key, privkey_pwd)
+
         logger.info(
             "\"%s Proposer Address: %s\"", aergo_to,
             self.hera_to.account.address
@@ -838,6 +849,9 @@ if __name__ == '__main__':
         '--privkey_name', type=str, help='Name of account in config file '
         'to sign anchors', required=False)
     parser.add_argument(
+        '--privkey_pwd', type=str, help='Password to decrypt privkey_name',
+        required=False)
+    parser.add_argument(
         '--anchoring_on', dest='anchoring_on', action='store_true',
         help='Enable anchoring (can be diseabled when wanting to only update '
              'settings)'
@@ -862,7 +876,7 @@ if __name__ == '__main__':
     if args.local_test:
         proposer = BridgeProposerClient(
             args.config_file_path, args.net1, args.net2,
-            privkey_name=args.privkey_name, privkey_pwd='1234',
+            privkey_name=args.privkey_name, privkey_pwd=args.privkey_pwd,
             anchoring_on=True, auto_update=True, oracle_update=True
         )
         proposer.run()
@@ -870,6 +884,7 @@ if __name__ == '__main__':
         proposer = BridgeProposerClient(
             args.config_file_path, args.net1, args.net2,
             privkey_name=args.privkey_name,
+            privkey_pwd=args.privkey_pwd,
             anchoring_on=args.anchoring_on,
             auto_update=args.auto_update,
             oracle_update=False  # diseabled by default for safety
