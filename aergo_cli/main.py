@@ -404,6 +404,7 @@ class MerkleBridgeCli():
     def register_key(self):
         """Register new key in wallet's config."""
         name, addr, keystore_path = prompt_aergo_keystore()
+        keystore_path = os.path.relpath(keystore_path, self.root_path)
         try:
             self.wallet.config_data('wallet', name)
             print("Account name already used")

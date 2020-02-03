@@ -188,9 +188,7 @@ class AergoWallet:
         privkey_pwd: str = None,
         skip_state: bool = False
     ) -> herapy.Aergo:
-        """ Return aergo provider with new account created with
-        privkey_name
-        """
+        """ Return aergo provider with account loaded from keystore """
         if network_name is None:
             raise InvalidArgumentsError("Provide network_name")
         keystore_path = self.config_data('wallet', privkey_name, 'keystore')
