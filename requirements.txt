@@ -1,3 +1,4 @@
-aergo-herapy==2.0.0
+# aergo-herapy==2.0.0
+git+git://github.com/aergoio/herapy.git@d0d65b0a6e940bddac62b295a25eec0854003a2b#egg=aergo-herapy
 PyInquirer
 pyfiglet

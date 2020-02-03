@@ -12,11 +12,6 @@ def deploy_bridge(
     privkey_name: str = None,
     privkey_pwd: str = None
 ) -> None:
-    if privkey_name is None:
-        privkey_name = 'proposer'
-    if privkey_pwd is None:
-        privkey_pwd = getpass("Decrypt exported private key '{}'\nPassword: "
-                              .format(privkey_name))
     payload = herapy.utils.decode_address(payload_str)
     with open(config_file_path, "r") as f:
         config_data = json.load(f)
@@ -34,10 +29,19 @@ def deploy_bridge(
     aergo2.connect(config_data['networks'][net2]['ip'])
 
     print("------ Set Sender Account -----------")
-    sender_priv_key1 = config_data['wallet'][privkey_name]['priv_key']
-    sender_priv_key2 = config_data['wallet'][privkey_name]['priv_key']
-    aergo1.import_account(sender_priv_key1, privkey_pwd)
-    aergo2.import_account(sender_priv_key2, privkey_pwd)
+    if privkey_name is None:
+        privkey_name = 'proposer'
+    if privkey_pwd is None:
+        privkey_pwd = getpass("Decrypt Aergo keystore: '{}'\nPassword: "
+                              .format(privkey_name))
+    keystore_path1 = config_data['wallet'][privkey_name]['keystore']
+    keystore_path2 = config_data['wallet'][privkey_name]['keystore']
+    with open(keystore_path1, "r") as f:
+        keystore1 = f.read()
+    with open(keystore_path2, "r") as f:
+        keystore2 = f.read()
+    aergo1.import_account_from_keystore(keystore1, privkey_pwd)
+    aergo2.import_account_from_keystore(keystore2, privkey_pwd)
     print("  > Sender Address: {}".format(aergo1.account.address))
 
     print("------ Deploy SC -----------")

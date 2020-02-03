@@ -49,11 +49,13 @@ if __name__ == '__main__':
 
     print("------ Set Sender Account -----------")
     privkey_name = 'default'
-    sender_priv_key = config_data["wallet"][privkey_name]['priv_key']
+    keystore_path = config_data['wallet'][privkey_name]['keystore']
+    with open(keystore_path, "r") as f:
+        keystore = f.read()
     # privkey_pwd = getpass("Decrypt exported private key '{}'\nPassword: "
     #                      .format(privkey_name))
     privkey_pwd = '1234'
-    aergo.import_account(sender_priv_key, privkey_pwd)
+    aergo.import_account_from_keystore(keystore, privkey_pwd)
     receiver = aergo.account.address.__str__()
     print("  > Sender Address: {}".format(receiver))
 
