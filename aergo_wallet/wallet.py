@@ -56,7 +56,7 @@ class AergoWallet:
                 config_data = json.load(f)
         self._config_data = config_data
         self._config_path = config_file_path
-        self.fee_price = 0
+        self.gas_price = 0
 
     def config_data(
         self,
@@ -388,22 +388,22 @@ class AergoWallet:
             asset_name, network_name, asset_origin_chain, account_addr=sender
         )
         if asset_name == 'aergo':
-            fee_limit = 0
-            if balance < value + fee_limit*self.fee_price:
+            gas_limit = 300000
+            if balance < value + gas_limit*self.gas_price:
                 raise InsufficientBalanceError("not enough balance")
         else:
-            fee_limit = 0
+            gas_limit = 300000
             if balance < value:
                 raise InsufficientBalanceError("not enough token balance")
             aer_balance, _ = self.get_balance(
                 'aergo', network_name, account_addr=sender
             )
-            if aer_balance < fee_limit*self.fee_price:
+            if aer_balance < gas_limit*self.gas_price:
                 err = "not enough aer balance to pay tx fee"
                 raise InsufficientBalanceError(err)
 
-        tx_hash = transfer(value, to, asset_addr, aergo, sender, fee_limit,
-                           self.fee_price)
+        tx_hash = transfer(value, to, asset_addr, aergo, sender, gas_limit,
+                           self.gas_price)
         aergo.disconnect()
         logger.info("Transfer success: %s", tx_hash)
         return tx_hash
@@ -426,9 +426,9 @@ class AergoWallet:
             receiver = str(aergo.account.address)
         logger.info("  > Sender Address: %s", receiver)
 
-        fee_limit = 0
+        gas_limit = 0
         sc_address = deploy_token(payload_str, aergo, receiver, total_supply,
-                                  fee_limit, self.fee_price)
+                                  gas_limit, self.gas_price)
 
         logger.info("------ Store address in config.json -----------")
         self.config_data(
@@ -531,7 +531,7 @@ class AergoWallet:
         asset_address = self.config_data(
             'networks', from_chain, 'tokens', asset_name, 'addr')
 
-        fee_limit = 0
+        gas_limit = 300000
         balance = get_balance(sender, asset_address, aergo_from)
         if balance < amount:
             raise InsufficientBalanceError("not enough token balance")
@@ -541,13 +541,13 @@ class AergoWallet:
         )
 
         aer_balance = get_balance(sender, 'aergo', aergo_from)
-        if aer_balance < fee_limit*self.fee_price:
+        if aer_balance < gas_limit*self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
         lock_height, tx_hash = lock(aergo_from, bridge_from,
-                                    receiver, amount, asset_address, fee_limit,
-                                    self.fee_price)
+                                    receiver, amount, asset_address, gas_limit,
+                                    self.gas_price)
         logger.info('\U0001f512 Lock success: %s', tx_hash)
 
         # remaining balance on origin : aer or asset
@@ -603,9 +603,9 @@ class AergoWallet:
             logger.info("Pegged token unknow by wallet")
             save_pegged_token_address = True
 
-        fee_limit = 0
+        gas_limit = 300000
         aer_balance = get_balance(tx_sender, 'aergo', aergo_to)
-        if aer_balance < fee_limit*self.fee_price:
+        if aer_balance < gas_limit*self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
@@ -615,7 +615,7 @@ class AergoWallet:
         logger.info("\u2699 Built lock proof")
         token_pegged, tx_hash = mint(
             aergo_to, receiver, lock_proof, asset_address, bridge_to,
-            fee_limit, self.fee_price
+            gas_limit, self.gas_price
         )
         logger.info('\u26cf Mint success: %s', tx_hash)
 
@@ -667,14 +667,14 @@ class AergoWallet:
         if balance < amount:
             raise InsufficientBalanceError("not enough balance")
 
-        fee_limit = 0
+        gas_limit = 300000
         aer_balance = get_balance(sender, 'aergo', aergo_from)
-        if aer_balance < fee_limit*self.fee_price:
+        if aer_balance < gas_limit*self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
         burn_height, tx_hash = burn(aergo_from, bridge_from, receiver, amount,
-                                    token_pegged, fee_limit, self.fee_price)
+                                    token_pegged, gas_limit, self.gas_price)
         logger.info('\U0001f525 Burn success: %s', tx_hash)
 
         # remaining balance on sidechain
@@ -730,14 +730,14 @@ class AergoWallet:
             asset_name, balance/10**18
         )
 
-        fee_limit = 0
+        gas_limit = 300000
         aer_balance = get_balance(tx_sender, 'aergo', aergo_to)
-        if aer_balance < fee_limit*self.fee_price:
+        if aer_balance < gas_limit*self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
         tx_hash = unlock(aergo_to, receiver, burn_proof, asset_address,
-                         bridge_to, fee_limit, self.fee_price)
+                         bridge_to, gas_limit, self.gas_price)
         logger.info('\U0001f513 Unlock success: %s', tx_hash)
 
         # new balance on origin
