@@ -17,8 +17,9 @@ Starting a Proposer
     $ python3 -m aergo_bridge_operator.proposer_client --help
 
         usage: proposer_client.py [-h] -c CONFIG_FILE_PATH --net1 NET1 --net2 NET2
-                                [--privkey_name PRIVKEY_NAME] [--anchoring_on]
-                                [--auto_update] [--oracle_update] [--local_test]
+                                [--privkey_name PRIVKEY_NAME]
+                                [--privkey_pwd PRIVKEY_PWD] [--anchoring_on]
+                                [--auto_update] [--oracle_update]
 
         Start a proposer between 2 Aergo networks.
 
@@ -30,13 +31,14 @@ Starting a Proposer
         --net2 NET2           Name of Aergo network in config file
         --privkey_name PRIVKEY_NAME
                                 Name of account in config file to sign anchors
+        --privkey_pwd PRIVKEY_PWD
+                                Password to decrypt privkey_name
         --anchoring_on        Enable anchoring (can be diseabled when wanting to
                                 only update settings)
         --auto_update         Update bridge contract when settings change in config
                                 file
         --oracle_update       Update bridge contract when validators or oracle addr
                                 change in config file
-        --local_test          Start proposer with password for testing
 
     $ python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --anchoring_on
 

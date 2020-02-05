@@ -849,19 +849,24 @@ if __name__ == '__main__':
     # Add arguments
     parser.add_argument(
         '-c', '--config_file_path', type=str, help='Path to config.json',
-        required=True)
+        required=True
+    )
     parser.add_argument(
         '--net1', type=str, help='Name of Aergo network in config file',
-        required=True)
+        required=True
+    )
     parser.add_argument(
         '--net2', type=str, help='Name of Aergo network in config file',
-        required=True)
+        required=True
+    )
     parser.add_argument(
         '--privkey_name', type=str, help='Name of account in config file '
-        'to sign anchors', required=False)
+        'to sign anchors', required=False
+    )
     parser.add_argument(
         '--privkey_pwd', type=str, help='Password to decrypt privkey_name',
-        required=False)
+        required=False
+    )
     parser.add_argument(
         '--anchoring_on', dest='anchoring_on', action='store_true',
         help='Enable anchoring (can be diseabled when wanting to only update '
@@ -869,35 +874,22 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--auto_update', dest='auto_update', action='store_true',
-        help='Update bridge contract when settings change in config file')
+        help='Update bridge contract when settings change in config file'
+    )
     parser.add_argument(
         '--oracle_update', dest='oracle_update', action='store_true',
         help='Update bridge contract when validators or oracle addr '
              'change in config file'
     )
-    parser.add_argument(
-        '--local_test', dest='local_test', action='store_true',
-        help='Start proposer with password for testing')
-    parser.set_defaults(anchoring_on=False)
-    parser.set_defaults(auto_update=False)
-    parser.set_defaults(oracle_update=False)
-    parser.set_defaults(local_test=False)
 
     args = parser.parse_args()
-    if args.local_test:
-        proposer = BridgeProposerClient(
-            args.config_file_path, args.net1, args.net2,
-            privkey_name=args.privkey_name, privkey_pwd=args.privkey_pwd,
-            anchoring_on=True, auto_update=True, oracle_update=True
-        )
-        proposer.run()
-    else:
-        proposer = BridgeProposerClient(
-            args.config_file_path, args.net1, args.net2,
-            privkey_name=args.privkey_name,
-            privkey_pwd=args.privkey_pwd,
-            anchoring_on=args.anchoring_on,
-            auto_update=args.auto_update,
-            oracle_update=False  # diseabled by default for safety
-        )
-        proposer.run()
+
+    proposer = BridgeProposerClient(
+        args.config_file_path, args.net1, args.net2,
+        privkey_name=args.privkey_name,
+        privkey_pwd=args.privkey_pwd,
+        anchoring_on=args.anchoring_on,
+        auto_update=args.auto_update,
+        oracle_update=args.oracle_update
+    )
+    proposer.run()
