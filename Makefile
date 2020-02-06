@@ -17,7 +17,7 @@ deploy_test_bridge:
 	python3 -m aergo_wallet.token_deployer
 
 proposer:
-	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --privkey_pwd "1234" --local_test
+	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --privkey_name "proposer" --privkey_pwd "1234" --anchoring_on --auto_update --oracle_update
 
 validator:
 	python3 -m aergo_bridge_operator.validator_server -c './test_config.json' --net1 'mainnet' --net2 'sidechain2' --validator_index 1 --privkey_name "validator" --local_test
@@ -39,3 +39,6 @@ clean:
 
 tests:
 	python3 -m pytest -s tests
+
+monitor:
+	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2'

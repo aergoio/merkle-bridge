@@ -26,8 +26,8 @@ def lock(
     receiver: str,
     value: int,
     asset: str,
-    fee_limit: int,
-    fee_price: int,
+    gas_limit: int,
+    gas_price: int,
 ) -> Tuple[int, str]:
     """ Lock can be called to lock aer or tokens.
         it supports delegated transfers when tx broadcaster is not
@@ -43,7 +43,8 @@ def lock(
         )
     args = (bridge_from, {"_bignum": str(value)}, receiver)
     tx, result = aergo_from.call_sc(
-        asset, "transfer", args=args, amount=0
+        asset, "transfer", args=args, amount=0, gas_limit=gas_limit,
+        gas_price=gas_price
     )
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Lock asset Tx commit failed : {}".format(result))
@@ -83,8 +84,8 @@ def mint(
     lock_proof: herapy.obj.sc_state.SCState,
     token_origin: str,
     bridge_to: str,
-    fee_limit: int,
-    fee_price: int
+    gas_limit: int,
+    gas_price: int
 ) -> Tuple[str, str]:
     """ Mint the receiver's deposit balance on aergo_to. """
     if not is_aergo_address(receiver):
@@ -96,9 +97,10 @@ def mint(
     balance = lock_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     ubig_balance = {'_bignum': str(balance)}
     # call mint on aergo_to with the lock proof from aergo_from
-    tx, result = aergo_to.call_sc(bridge_to, "mint",
-                                  args=[receiver, ubig_balance,
-                                        token_origin, ap])
+    tx, result = aergo_to.call_sc(
+        bridge_to, "mint", args=[receiver, ubig_balance, token_origin, ap],
+        gas_limit=gas_limit, gas_price=gas_price
+    )
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Mint asset Tx commit failed : {}".format(result))
 

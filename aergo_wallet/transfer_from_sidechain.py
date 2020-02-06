@@ -24,8 +24,8 @@ def burn(
     receiver: str,
     value: int,
     token_pegged: str,
-    fee_limit: int,
-    fee_price: int,
+    gas_limit: int,
+    gas_price: int,
 ) -> Tuple[int, str]:
     """ Burn a minted token on a sidechain. """
     if not is_aergo_address(receiver):
@@ -33,7 +33,10 @@ def burn(
             "Receiver {} must be an Aergo address".format(receiver)
         )
     args = (receiver, {"_bignum": str(value)}, token_pegged)
-    tx, result = aergo_from.call_sc(bridge_from, "burn", args=args)
+    tx, result = aergo_from.call_sc(
+        bridge_from, "burn", args=args, gas_limit=gas_limit,
+        gas_price=gas_price
+    )
 
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Burn asset Tx commit failed : {}".format(result))
@@ -73,8 +76,8 @@ def unlock(
     burn_proof: herapy.obj.sc_state.SCState,
     token_origin: str,
     bridge_to: str,
-    fee_limit: int,
-    fee_price: int,
+    gas_limit: int,
+    gas_price: int,
 ) -> str:
     """ Unlock the receiver's deposit balance on aergo_to. """
     if not is_aergo_address(receiver):
@@ -86,9 +89,10 @@ def unlock(
     balance = burn_proof.var_proofs[0].value.decode('utf-8')[1:-1]
     ubig_balance = {'_bignum': str(balance)}
     # call unlock on aergo_to with the burn proof from aergo_from
-    tx, result = aergo_to.call_sc(bridge_to, "unlock",
-                                  args=[receiver, ubig_balance,
-                                        token_origin, ap])
+    tx, result = aergo_to.call_sc(
+        bridge_to, "unlock", args=[receiver, ubig_balance, token_origin, ap],
+        gas_limit=gas_limit, gas_price=gas_price
+    )
     if result.status != herapy.CommitStatus.TX_OK:
         raise TxError("Unlock asset Tx commit failed : {}".format(result))
 
