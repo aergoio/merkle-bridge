@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="merkle-bridge",
-    version="0.3.3",
+    version="0.4.0",
     author="Pierre-Alain Ouvrard",
     author_email="ouvrard.pierre.alain@gmail.com",
     description="POC implementation of the merkle-bridge",
