@@ -60,20 +60,12 @@ It can be created and updated manually of with the help of the cli.
         ],
         "wallet": {  // named accounts
             "broadcaster": {  // name of account
-                "addr": "AmPiFGxLvETrs13QYrHUiYoFqAqqWv7TKYXG21zC8TJfJTDHc7HJ",  // address matching the private key
-                "priv_key": "47T5iXRL4M9mhCZqzxzbWUxhwnE7oDvreBkJuNRADL2DppJDroz1TcEiJF4p9qh6X6Z2ynEMo"  // exported (encrypted) private key
+                "addr": "AmMQNBFXuSqiN97rv2m1NoxWu7D2UKAojKCpWqrLmZh676GgfRGG",  // address matching the private key
+                "keystore": "keystore/AmMQNBFXuSqiN97rv2m1NoxWu7D2UKAojKCpWqrLmZh676GgfRGG__2020-01-20T04:13:16__keystore.json"  // path to keystore file
             },
             "default": {
-                "addr": "AmNMFbiVsqy6vg4njsTjgy7bKPFHFYhLV4rzQyrENUS9AM1e3tw5",
-                "priv_key": "47CLj29W96rS9SsizUz4pueeuTT2GcSpkoAsvVC3USLzQ5kKTWKmz1WLKnqor2ET7hPd73TC9"
+                "addr": "AmNPWDJMjU4g98Scm4AikW8JwQMGwWMztM7Qy8ggxNTkhgZMJHFp",
+                "keystore": "keystore/AmNPWDJMjU4g98Scm4AikW8JwQMGwWMztM7Qy8ggxNTkhgZMJHFp__2020-01-20T04:13:06__keystore.json"
             },
-            "proposer": {
-                "addr": "AmPxVdu993eosN3UjnPDdN3wb7TNbHeiHDvn2dvZUcH8KXDK3RLU",
-                "priv_key": "47sDAWjMFTP7r2JP2BJ29PJRfY13yUTtVvoLjAf8knhH4GryQrpMJoTqscDjed1YPHVZXY4sN"
-            },
-            "validator": {
-                "addr": "AmNLjcxUDmxeGZL7F8bqyaGt3zqog5HAoJmFBEZAx1RvfTKLSBsQ",
-                "priv_key": "47wwDRMKXH4serxiNQcrtMSxHsGt9qX6wZTt9XNUcABBokLYpUtKuYue1ujmsBLvzy9DcD84i"
-            }
         }
     }

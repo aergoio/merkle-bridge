@@ -53,7 +53,7 @@ logger.setLevel(logging.INFO)
 file_formatter = logging.Formatter(
     '{"level": "%(levelname)s", "time": "%(asctime)s", '
     '"thread": "%(threadName)s", '
-    '"function": "%(funcName)s", "message": %(message)s'
+    '"function": "%(funcName)s", "message": %(message)s}'
 )
 stream_formatter = logging.Formatter('%(threadName)s: %(message)s')
 
@@ -176,18 +176,21 @@ class ProposerClient(threading.Thread):
         logger.info("\"Set Sender Account\"")
         if privkey_name is None:
             privkey_name = 'proposer'
-        sender_priv_key = self.config_data['wallet'][privkey_name]['priv_key']
+        keystore_path = self.config_data['wallet'][privkey_name]['keystore']
+        with open(keystore_path, "r") as f:
+            keystore = f.read()
         if privkey_pwd is None:
             while True:
                 try:
                     privkey_pwd = getpass("Decrypt exported private key '{}'\n"
                                           "Password: ".format(privkey_name))
-                    self.hera_to.import_account(sender_priv_key, privkey_pwd)
+                    self.hera_to.import_account_from_keystore(
+                        keystore, privkey_pwd)
                     break
                 except HeraException:
                     logger.info("\"Wrong password, try again\"")
         else:
-            self.hera_to.import_account(sender_priv_key, privkey_pwd)
+            self.hera_to.import_account_from_keystore(keystore, privkey_pwd)
 
         logger.info(
             "\"%s Proposer Address: %s\"", aergo_to,

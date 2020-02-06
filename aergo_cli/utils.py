@@ -164,25 +164,25 @@ def prompt_new_network():
     return answers
 
 
-def prompt_aergo_privkey():
-    """Prompt user to input a new aergo private key.
+def prompt_aergo_keystore():
+    """Prompt user to register a new aergo keystore.
 
     Returns:
         - name of the key
         - address of the key
-        - encrypted private key
+        - keystore path
 
     """
     questions = [
         {
             'type': 'input',
-            'name': 'privkey_name',
-            'message': 'Give your key a short descriptive name'
+            'name': 'account_name',
+            'message': 'Give your account a short descriptive name'
         },
         {
             'type': 'input',
-            'name': 'privkey',
-            'message': 'Encrypted exported key string'
+            'name': 'keystore_path',
+            'message': 'Path to keystore.json file'
         },
         {
             'type': 'input',
@@ -191,10 +191,10 @@ def prompt_aergo_privkey():
         }
     ]
     answers = inquirer.prompt(questions, style=aergo_style)
-    privkey = answers['privkey']
-    privkey_name = answers['privkey_name']
+    keystore_path = answers['keystore_path']
+    account_name = answers['account_name']
     addr = answers['addr']
-    return privkey_name, addr, privkey
+    return account_name, addr, keystore_path
 
 
 def prompt_new_asset(networks):

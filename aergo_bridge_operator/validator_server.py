@@ -47,7 +47,7 @@ logger.setLevel(logging.INFO)
 
 file_formatter = logging.Formatter(
     '{"level": "%(levelname)s", "time": "%(asctime)s", '
-    '"service": "%(funcName)s", "message": %(message)s'
+    '"service": "%(funcName)s", "message": %(message)s}'
 )
 stream_formatter = logging.Formatter('%(message)s')
 
@@ -207,21 +207,24 @@ class ValidatorService(BridgeOperatorServicer):
 
         if privkey_name is None:
             privkey_name = 'validator'
-        sender_priv_key = \
-            config_data['wallet'][privkey_name]['priv_key']
+        keystore_path = config_data['wallet'][privkey_name]['keystore']
+        with open(keystore_path, "r") as f:
+            keystore = f.read()
         if privkey_pwd is None:
             while True:
                 try:
                     privkey_pwd = getpass("Decrypt exported private key '{}'\n"
                                           "Password: ".format(privkey_name))
-                    self.hera1.import_account(sender_priv_key, privkey_pwd)
-                    self.hera2.import_account(sender_priv_key, privkey_pwd)
+                    self.hera1.import_account_from_keystore(
+                        keystore, privkey_pwd)
+                    self.hera2.import_account_from_keystore(
+                        keystore, privkey_pwd)
                     break
                 except HeraException:
                     logger.info("\"Wrong password, try again\"")
         else:
-            self.hera1.import_account(sender_priv_key, privkey_pwd)
-            self.hera2.import_account(sender_priv_key, privkey_pwd)
+            self.hera1.import_account_from_keystore(keystore, privkey_pwd)
+            self.hera2.import_account_from_keystore(keystore, privkey_pwd)
         self.address = str(self.hera1.account.address)
         logger.info("\"Validator Address: %s\"", self.address)
 

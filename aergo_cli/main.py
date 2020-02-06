@@ -19,7 +19,7 @@ from aergo_cli.utils import (
     prompt_deposit_height,
     prompt_new_bridge,
     prompt_new_network,
-    prompt_aergo_privkey,
+    prompt_aergo_keystore,
     prompt_new_asset,
     prompt_new_validators,
     prompt_number,
@@ -228,7 +228,7 @@ class MerkleBridgeCli():
                             'value': 'B'
                         },
                         {
-                            'name': 'Register new encrypted private key',
+                            'name': 'Register new keystore account',
                             'value': 'K'
                         },
                         {
@@ -324,10 +324,10 @@ class MerkleBridgeCli():
 
         # Register a new private key
         new_config['wallet'] = {}
-        print("Register a private key for {}".format(net1))
-        name, addr, privkey = prompt_aergo_privkey()
+        print("Register a keystore for transacting on Aergo")
+        name, addr, keystore_path = prompt_aergo_keystore()
         new_config['wallet'][name] = {"addr": addr,
-                                      "priv_key": privkey}
+                                      "keystore": keystore_path}
 
         questions = [
             {
@@ -403,15 +403,16 @@ class MerkleBridgeCli():
 
     def register_key(self):
         """Register new key in wallet's config."""
-        name, addr, privkey = prompt_aergo_privkey()
+        name, addr, keystore_path = prompt_aergo_keystore()
+        keystore_path = os.path.relpath(keystore_path, self.root_path)
         try:
             self.wallet.config_data('wallet', name)
-            print("Key name already used")
+            print("Account name already used")
             return
         except KeyError:
             pass
         self.wallet.config_data(
-            'wallet', name, value={'addr': addr, 'priv_key': privkey})
+            'wallet', name, value={'addr': addr, 'keystore': keystore_path})
         self.wallet.save_config()
 
     def register_new_validators(self):

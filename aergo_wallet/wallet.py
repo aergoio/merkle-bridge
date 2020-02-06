@@ -85,20 +85,23 @@ class AergoWallet:
         account_name: str = 'default',
         password: str = None
     ) -> str:
-        """ Load and maybe prompt user password to decrypt priv_key."""
-        exported_privkey = self.config_data('wallet', account_name, 'priv_key')
+        """ Load and maybe prompt user password to decrypt keystore."""
+        keystore_path = self.config_data('wallet', account_name, 'keystore')
+        with open(keystore_path, "r") as f:
+            keystore = f.read()
         if password is None:
             password = getpass("Decrypt exported private key '{}'\nPassword: "
                                .format(account_name))
         aergo = herapy.Aergo()
-        account = aergo.import_account(exported_privkey, password,
-                                       skip_state=True, skip_self=True)
+        account = aergo.import_account_from_keystore(
+            keystore, password, skip_state=True, skip_self=True)
         priv_key = str(account.private_key)
         return priv_key
 
     def create_account(
         self,
         account_name: str,
+        keystore_path: str,
         password: str = None
     ) -> str:
         if password is None:
@@ -111,9 +114,12 @@ class AergoWallet:
                 logger.info("Passwords don't match, try again")
         aergo = herapy.Aergo()
         aergo.new_account(skip_state=True)
-        exported_privkey = aergo.export_account(password)
-        addr = str(aergo.account.address)
-        return self.register_account(account_name, exported_privkey, addr=addr)
+        keystore = aergo.export_account_to_keystore(password)
+        with open(keystore_path, 'w') as f:
+            json.dump(keystore, f, indent=4)
+        addr = self.register_account(
+            account_name, keystore_path=keystore_path, password=password)
+        return addr
 
     def get_wallet_address(self, account_name: str = 'default') -> str:
         addr = self.config_data('wallet', account_name, 'addr')
@@ -122,7 +128,7 @@ class AergoWallet:
     def register_account(
         self,
         account_name: str,
-        exported_privkey: str,
+        keystore_path: str,
         password: str = None,
         addr: str = None
     ) -> str:
@@ -133,13 +139,15 @@ class AergoWallet:
             # if KeyError then account doesn't already exists
             if addr is None:
                 aergo = herapy.Aergo()
-                account = aergo.import_account(exported_privkey, password,
-                                               skip_state=True, skip_self=True)
+                with open(keystore_path, "r") as f:
+                    keystore = f.read()
+                account = aergo.import_account_from_keystore(
+                    keystore, password, skip_state=True, skip_self=True)
                 addr = str(account.address)
             self.config_data('wallet', account_name, value={})
             self.config_data('wallet', account_name, 'addr', value=addr)
             self.config_data(
-                'wallet', account_name, 'priv_key', value=exported_privkey)
+                'wallet', account_name, 'keystore', value=keystore_path)
             self.save_config()
             return addr
         error = "Error: account name '{}' already exists".format(account_name)
@@ -180,27 +188,27 @@ class AergoWallet:
         privkey_pwd: str = None,
         skip_state: bool = False
     ) -> herapy.Aergo:
-        """ Return aergo provider with new account created with
-        priv_key
-        """
+        """ Return aergo provider with account loaded from keystore """
         if network_name is None:
             raise InvalidArgumentsError("Provide network_name")
-        exported_privkey = self.config_data('wallet', privkey_name, 'priv_key')
+        keystore_path = self.config_data('wallet', privkey_name, 'keystore')
+        with open(keystore_path, "r") as f:
+            keystore = f.read()
         aergo = self._connect_aergo(network_name)
         if privkey_pwd is None:
             logger.info("Decrypt exported private key '%s'", privkey_name)
             while True:
                 try:
                     privkey_pwd = getpass("Password: ")
-                    aergo.import_account(exported_privkey, privkey_pwd,
-                                         skip_state=skip_state)
+                    aergo.import_account_from_keystore(
+                        keystore, privkey_pwd, skip_state=skip_state)
                 except GeneralException:
                     logger.info("Wrong password, try again")
                     continue
                 break
         else:
-            aergo.import_account(exported_privkey, privkey_pwd,
-                                 skip_state=skip_state)
+            aergo.import_account_from_keystore(
+                keystore, privkey_pwd, skip_state=skip_state)
         return aergo
 
     def get_asset_address(

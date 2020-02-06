@@ -184,8 +184,10 @@ def auto_update_oracle(from_chain, to_chain, wallet):
     wallet.save_config()
     # transfer bridge ownership back to oracle
     # set aergo signer
-    encrypted_key = wallet.config_data('wallet', 'default', 'priv_key')
-    hera.import_account(encrypted_key, '1234')
+    keystore_path = wallet.config_data('wallet', 'default', 'keystore')
+    with open(keystore_path, "r") as f:
+        keystore = f.read()
+    hera.import_account_from_keystore(keystore, '1234')
     tx, _ = hera.call_sc(bridge, "oracleUpdate", args=[oracle])
     hera.wait_tx_result(tx.tx_hash)
     oracle_after = query_oracle(hera, bridge)
