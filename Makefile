@@ -42,3 +42,13 @@ tests:
 
 monitor:
 	python3 -m aergo_bridge_operator.proposer_client -c './test_config.json' --net1 'mainnet' --net2 'sidechain2'
+
+lint:
+	# ignote bare except E722 in proposer, ignore W503 as it will be considered best practice
+	flake8 \
+		--exclude=*_pb2_grpc.py,*_pb2.py \
+		--ignore=E722,W503 \
+		aergo_bridge_operator aergo_wallet aergo_cli
+
+mypy:
+	mypy -p aergo_bridge_operator -p aergo_wallet -p aergo_cli

@@ -271,7 +271,7 @@ class ProposerClient(threading.Thread):
             if approval is not None:
                 # convert to hex string for lua
                 sigs.append('0x' + approval.sig.hex())
-                validator_indexes.append(i+1)
+                validator_indexes.append(i + 1)
         total_validators = len(self.config_data['validators'])
         if 3 * len(sigs) < 2 * total_validators:
             raise ValidatorMajorityError()
@@ -506,7 +506,7 @@ class ProposerClient(threading.Thread):
         """
         start = time.time()
         self.monitor_settings()
-        while time.time()-start < sleeping_time-10:
+        while time.time() - start < sleeping_time - 10:
             # check the config file every 10 seconds
             time.sleep(10)
             self.monitor_settings()

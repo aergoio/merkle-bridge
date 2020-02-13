@@ -76,8 +76,8 @@ def format_amount(num: str):
     if periode == -1:
         return int(num) * 10**18
     decimals = 0
-    for i, digit in enumerate(num[periode+1:]):
-        decimals += int(digit) * 10**(17-i)
+    for i, digit in enumerate(num[periode + 1:]):
+        decimals += int(digit) * 10**(17 - i)
     return int(num[:periode]) * 10**18 + decimals
 
 
@@ -101,7 +101,7 @@ def prompt_new_bridge(net1, net2):
         {
             'type': 'input',
             'name': 'bridge1',
-            'message':  'Bridge contract address on {}'.format(net1)
+            'message': 'Bridge contract address on {}'.format(net1)
         },
         {
             'type': 'input',
@@ -116,7 +116,7 @@ def prompt_new_bridge(net1, net2):
         {
             'type': 'input',
             'name': 'oracle1',
-            'message':  'Oracle address on {}'.format(net1)
+            'message': 'Oracle address on {}'.format(net1)
         },
         {
             'type': 'input',
@@ -136,7 +136,7 @@ def prompt_new_bridge(net1, net2):
         {
             'type': 'input',
             'name': 'oracle2',
-            'message':  'Oracle address on {}'.format(net2)
+            'message': 'Oracle address on {}'.format(net2)
         },
     ]
     return inquirer.prompt(questions, style=aergo_style)
@@ -269,7 +269,7 @@ def prompt_new_asset(networks):
                 'type': 'list',
                 'name': 'add_peg',
                 'message': 'Add another pegged asset on another network',
-                'choices':  ['Yes', 'No']
+                'choices': ['Yes', 'No']
             }
         ]
         answers = inquirer.prompt(questions, style=aergo_style)

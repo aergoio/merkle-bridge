@@ -1,7 +1,6 @@
 import json
 from typing import (
     Tuple,
-    Union,
 )
 
 import aergo.herapy as herapy

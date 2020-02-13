@@ -59,7 +59,7 @@ if __name__ == '__main__':
     receiver = aergo.account.address.__str__()
     print("  > Sender Address: {}".format(receiver))
 
-    total_supply = 500*10**6*10**18
+    total_supply = 500 * 10**6 * 10**18
 
     sc_address = deploy_token(payload_str, aergo,
                               receiver, total_supply, 0, 0)

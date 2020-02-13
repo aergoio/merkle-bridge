@@ -397,7 +397,7 @@ class AergoWallet:
         )
         if asset_name == 'aergo':
             gas_limit = 300000
-            if balance < value + gas_limit*self.gas_price:
+            if balance < value + gas_limit * self.gas_price:
                 raise InsufficientBalanceError("not enough balance")
         else:
             gas_limit = 300000
@@ -406,7 +406,7 @@ class AergoWallet:
             aer_balance, _ = self.get_balance(
                 'aergo', network_name, account_addr=sender
             )
-            if aer_balance < gas_limit*self.gas_price:
+            if aer_balance < gas_limit * self.gas_price:
                 err = "not enough aer balance to pay tx fee"
                 raise InsufficientBalanceError(err)
 
@@ -545,11 +545,11 @@ class AergoWallet:
             raise InsufficientBalanceError("not enough token balance")
         logger.info(
             "\U0001f4b0 %s balance on origin before transfer: %s",
-            asset_name, balance/10**18
+            asset_name, balance / 10**18
         )
 
         aer_balance = get_balance(sender, 'aergo', aergo_from)
-        if aer_balance < gas_limit*self.gas_price:
+        if aer_balance < gas_limit * self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
@@ -562,7 +562,7 @@ class AergoWallet:
         balance = get_balance(sender, asset_address, aergo_from)
         logger.info(
             "\U0001f4b0 remaining %s balance on origin after transfer: %s",
-            asset_name, balance/10**18
+            asset_name, balance / 10**18
         )
 
         aergo_from.disconnect()
@@ -605,7 +605,7 @@ class AergoWallet:
             balance = get_balance(receiver, token_pegged, aergo_to)
             logger.info(
                 "\U0001f4b0 %s balance on destination before transfer : %s",
-                asset_name, balance/10**18
+                asset_name, balance / 10**18
             )
         except KeyError:
             logger.info("Pegged token unknow by wallet")
@@ -613,7 +613,7 @@ class AergoWallet:
 
         gas_limit = 300000
         aer_balance = get_balance(tx_sender, 'aergo', aergo_to)
-        if aer_balance < gas_limit*self.gas_price:
+        if aer_balance < gas_limit * self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
@@ -631,7 +631,7 @@ class AergoWallet:
         balance = get_balance(receiver, token_pegged, aergo_to)
         logger.info(
             "\U0001f4b0 %s balance on destination after transfer : %s",
-            asset_name, balance/10**18
+            asset_name, balance / 10**18
         )
 
         aergo_from.disconnect()
@@ -670,14 +670,14 @@ class AergoWallet:
         balance = get_balance(sender, token_pegged, aergo_from)
         logger.info(
             "\U0001f4b0 %s balance on sidechain before transfer: %s",
-            asset_name, balance/10**18
+            asset_name, balance / 10**18
         )
         if balance < amount:
             raise InsufficientBalanceError("not enough balance")
 
         gas_limit = 300000
         aer_balance = get_balance(sender, 'aergo', aergo_from)
-        if aer_balance < gas_limit*self.gas_price:
+        if aer_balance < gas_limit * self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
@@ -689,7 +689,7 @@ class AergoWallet:
         balance = get_balance(sender, token_pegged, aergo_from)
         logger.info(
             "\U0001f4b0 remaining %s balance on sidechain after transfer: %s",
-            asset_name, balance/10**18
+            asset_name, balance / 10**18
         )
 
         aergo_from.disconnect()
@@ -735,12 +735,12 @@ class AergoWallet:
         balance = get_balance(receiver, asset_address, aergo_to)
         logger.info(
             "\U0001f4b0 %s balance on destination before transfer: %s",
-            asset_name, balance/10**18
+            asset_name, balance / 10**18
         )
 
         gas_limit = 300000
         aer_balance = get_balance(tx_sender, 'aergo', aergo_to)
-        if aer_balance < gas_limit*self.gas_price:
+        if aer_balance < gas_limit * self.gas_price:
             err = "not enough aer balance to pay tx fee"
             raise InsufficientBalanceError(err)
 
@@ -752,7 +752,7 @@ class AergoWallet:
         balance = get_balance(receiver, asset_address, aergo_to)
         logger.info(
             "\U0001f4b0 %s balance on destination after transfer: %s",
-            asset_name, balance/10**18
+            asset_name, balance / 10**18
         )
 
         aergo_to.disconnect()

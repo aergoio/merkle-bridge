@@ -628,9 +628,13 @@ def _serve_all(config_file_path, aergo1, aergo2,
     with open(config_file_path, "r") as f:
         config_data = json.load(f)
     validator_indexes = [i for i in range(len(config_data['validators']))]
-    servers = [ValidatorServer(config_file_path, aergo1, aergo2,
-                               privkey_name, privkey_pwd, index, True, True, True)
-               for index in validator_indexes]
+    servers = [
+        ValidatorServer(
+            config_file_path, aergo1, aergo2, privkey_name, privkey_pwd,
+            index, True, True, True
+        )
+        for index in validator_indexes
+    ]
     worker = partial(_serve_worker, servers)
     pool = Pool(len(validator_indexes))
     pool.map(worker, validator_indexes)

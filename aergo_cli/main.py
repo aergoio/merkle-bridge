@@ -186,7 +186,7 @@ class MerkleBridgeCli():
                     )
                     if balance != 0:
                         line = [net_name, addr,
-                                str(balance/10**18) + ' \U0001f4b0']
+                                str(balance / 10**18) + ' \U0001f4b0']
                         lines.append(line)
                     for peg in token['pegs']:
                         balance, addr = self.wallet.get_balance(
@@ -194,7 +194,7 @@ class MerkleBridgeCli():
                         )
                         if balance != 0:
                             line = [peg, addr,
-                                    str(balance/10**18) + ' \U0001f4b0']
+                                    str(balance / 10**18) + ' \U0001f4b0']
                             lines.append(line)
                     print_balance_table_lines(lines, token_name,
                                               col_widths)
@@ -202,7 +202,7 @@ class MerkleBridgeCli():
                                                          account_name=wallet)
                 if aer_balance != 0:
                     line = [net_name, 'aergo',
-                            str(aer_balance/10**18) + ' \U0001f4b0']
+                            str(aer_balance / 10**18) + ' \U0001f4b0']
                     print_balance_table_lines([line], 'aergo', col_widths)
             print(' ' + '‾' * 120)
 
@@ -484,9 +484,9 @@ class MerkleBridgeCli():
                 from_chain, to_chain, asset_name, amount, receiver,
                 privkey_name
             )
-        elif (asset_name in to_assets and
-                from_chain in self.wallet.config_data(
-                    'networks', to_chain, 'tokens', asset_name, 'pegs')):
+        elif (asset_name in to_assets
+              and from_chain in self.wallet.config_data(
+                'networks', to_chain, 'tokens', asset_name, 'pegs')):
             # if transfering a pegged asset Burn
             print("Burn transfer summary:\n{}".format(summary))
             if not confirm_transfer():
@@ -581,9 +581,9 @@ class MerkleBridgeCli():
                 from_chain, to_chain, asset_name, receiver, deposit_height,
                 privkey_name
             )
-        elif (asset_name in to_assets and
-                from_chain in self.wallet.config_data(
-                    'networks', to_chain, 'tokens', asset_name, 'pegs')
+        elif (asset_name in to_assets
+              and from_chain in self.wallet.config_data(
+                'networks', to_chain, 'tokens', asset_name, 'pegs')
               ):
             # if transfering a pegged asset unlock
             print("Unlock transfer summary:\n{}".format(summary))
@@ -618,9 +618,9 @@ class MerkleBridgeCli():
             withdrawable, pending = self.wallet.get_mintable_balance(
                 from_chain, to_chain, asset_name, account_addr=receiver
             )
-        elif (asset_name in to_assets and
-                from_chain in self.wallet.config_data(
-                    'networks', to_chain, 'tokens', asset_name, 'pegs')
+        elif (asset_name in to_assets
+              and from_chain in self.wallet.config_data(
+                'networks', to_chain, 'tokens', asset_name, 'pegs')
               ):
             # if pegged asset check unlockable
             withdrawable, pending = self.wallet.get_unlockable_balance(
@@ -630,7 +630,7 @@ class MerkleBridgeCli():
             print('asset not properly registered in config.json')
             return
         print("Withdrawable: {}  Pending: {}"
-              .format(withdrawable/10**18, pending/10**18))
+              .format(withdrawable / 10**18, pending / 10**18))
 
     def prompt_commun_transfer_params(self):
         """Prompt the common parameters necessary for all transfers.
